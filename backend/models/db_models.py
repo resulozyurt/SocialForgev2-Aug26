@@ -167,3 +167,24 @@ class ContentPackage(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     brand: Mapped["Brand"] = relationship(back_populates="content_packages")
+
+
+class TrendReportCard(Base):
+    __tablename__ = "trend_report_cards"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), index=True)
+    planning_period: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    trending_topics: Mapped[Optional[dict]] = mapped_column(JSONB)
+    hot_formats: Mapped[Optional[dict]] = mapped_column(JSONB)
+    content_gaps: Mapped[Optional[dict]] = mapped_column(JSONB)
+    algorithm_notes: Mapped[Optional[dict]] = mapped_column(JSONB)
+    recommended_pillars: Mapped[Optional[dict]] = mapped_column(JSONB)
+    raw_ai_output: Mapped[Optional[str]] = mapped_column(Text)
+
+    is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
