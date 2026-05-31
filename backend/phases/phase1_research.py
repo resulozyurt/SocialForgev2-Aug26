@@ -6,6 +6,9 @@ Workflow:
   1. Pull competitor posts via Apify (Instagram + LinkedIn)
   2. Send raw data to AI for structured trend analysis
   3. Return a Trend Report Card ready for human review
+
+NOTE (2026-05-31): Now using REAL Apify scraping. The old mock generator is
+preserved below as _scrape_competitors_mock for offline/AI-only testing.
 """
 
 from __future__ import annotations
@@ -13,7 +16,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from core.ai_provider import build_provider_from_config
 from core.database import get_db_context
@@ -21,6 +24,19 @@ from integrations.apify_client import ApifyClient
 from models.db_models import AIProviderConfig, Brand, Competitor, PhaseEnum, TrendReportCard
 
 logger = logging.getLogger(__name__)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _pick(post: dict, keys: list[str], default: Any) -> Any:
+    """Return the first present, non-empty value among `keys` (handles the fact
+    that Instagram and LinkedIn scrapers use different field names)."""
+    for k in keys:
+        if k in post and post[k] not in (None, ""):
+            return post[k]
+    return default
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -202,6 +218,37 @@ class Phase1Research:
 
         return all_data
 
+    async def _scrape_competitors_mock(
+        self,
+        competitors: list,
+        max_posts: int,
+    ) -> list[CompetitorData]:
+        """MOCK data for offline / AI-only testing. Not called in normal runs.
+        Swap this in place of _scrape_competitors if you need to test the AI
+        pipeline without hitting Apify (and without spending Apify credits).
+        """
+        all_data = []
+        for competitor in competitors:
+            all_data.append(CompetitorData(
+                name=competitor.name,
+                platform="instagram",
+                posts=[
+                    {"caption": "Streamline your field service operations with our latest update.", "likes": 245, "comments": 18, "type": "post", "timestamp": "2026-05-01"},
+                    {"caption": "5 ways to reduce technician downtime. Thread below.", "likes": 189, "comments": 34, "type": "post", "timestamp": "2026-05-05"},
+                    {"caption": "Customer spotlight: How ABC Corp cut scheduling time by 40%.", "likes": 312, "comments": 27, "type": "carousel", "timestamp": "2026-05-10"},
+                ],
+            ))
+            all_data.append(CompetitorData(
+                name=competitor.name,
+                platform="linkedin",
+                posts=[
+                    {"caption": "The future of field service management is mobile-first.", "likes": 156, "comments": 22, "type": "post", "timestamp": "2026-05-03"},
+                    {"caption": "We just hit 10,000 customers. Here is what we learned.", "likes": 423, "comments": 61, "type": "post", "timestamp": "2026-05-08"},
+                ],
+            ))
+        logger.info(f"Using mock data for {len(competitors)} competitors")
+        return all_data
+
     async def _analyze_with_ai(
         self,
         brand: Brand,
@@ -211,17 +258,19 @@ class Phase1Research:
     ) -> TrendReportResult:
         """Send scraped data to AI and parse the structured response."""
 
-        # Format competitor data for the prompt
+        # Format competitor data for the prompt.
+        # Instagram and LinkedIn scrapers return different field names, so we
+        # probe several likely keys for each metric (see _pick).
         formatted = []
         for cd in competitor_data:
-            # Extract only essential fields to keep prompt size manageable
             simplified_posts = [
                 {
-                    "caption": p.get("caption", p.get("text", ""))[:300],
-                    "likes": p.get("likesCount", p.get("likes", 0)),
-                    "comments": p.get("commentsCount", p.get("comments", 0)),
-                    "type": p.get("type", "post"),
-                    "timestamp": p.get("timestamp", ""),
+                    "caption": str(_pick(p, ["caption", "text"], ""))[:300],
+                    "likes": _pick(p, ["likesCount", "likes", "numLikes", "reactionsCount", "totalReactionCount"], 0),
+                    "comments": _pick(p, ["commentsCount", "comments", "numComments"], 0),
+                    "shares": _pick(p, ["sharesCount", "shares", "numShares", "repostsCount"], 0),
+                    "type": _pick(p, ["type", "postType"], "post"),
+                    "timestamp": _pick(p, ["timestamp", "postedAtISO", "publishedAt", "timeSincePosted"], ""),
                 }
                 for p in cd.posts[:20]
             ]
@@ -251,17 +300,8 @@ class Phase1Research:
             max_tokens=ai_config.max_tokens,
         )
 
-        # Parse JSON response
-        try:
-            data = json.loads(response.content)
-        except json.JSONDecodeError:
-            # Try to extract JSON from response if there's surrounding text
-            import re
-            match = re.search(r'\{.*\}', response.content, re.DOTALL)
-            if match:
-                data = json.loads(match.group())
-            else:
-                raise ValueError(f"AI response was not valid JSON: {response.content[:200]}")
+        # Parse JSON response (model sometimes wraps it in ```json fences).
+        data = self._parse_json_response(response.content)
 
         return TrendReportResult(
             brand_slug=brand.slug,
@@ -273,6 +313,19 @@ class Phase1Research:
             recommended_pillars=data.get("recommended_pillars", []),
             raw_ai_output=response.content,
         )
+
+    @staticmethod
+    def _parse_json_response(content: str) -> dict:
+        """Parse the AI's JSON output, tolerating markdown code fences or
+        surrounding prose."""
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            import re
+            match = re.search(r"\{.*\}", content, re.DOTALL)
+            if match:
+                return json.loads(match.group())
+            raise ValueError(f"AI response was not valid JSON: {content[:200]}")
 
     async def _save_report(
         self,

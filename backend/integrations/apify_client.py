@@ -36,22 +36,32 @@ class ApifyClient:
         """
         Start an Apify actor run and wait for it to finish.
         Returns the dataset items on success.
+
+        NOTE: The Apify API expects the actor input to be the raw JSON body of
+        the POST request — it must NOT be wrapped in {"input": ...}.
         """
         run_url = f"{APIFY_BASE_URL}/acts/{actor_id}/runs"
         headers = {"Authorization": f"Bearer {self._api_key}"}
 
         response = await self._client.post(
             run_url,
-            json={"input": input_data},
+            json=input_data,          # input goes directly in the body
             headers=headers,
         )
-        response.raise_for_status()
+        if response.status_code >= 400:
+            # Surface Apify's error body — it explains exactly what was rejected.
+            raise RuntimeError(
+                f"Apify actor '{actor_id}' failed to start "
+                f"(HTTP {response.status_code}): {response.text}"
+            )
         run_data = response.json()
         run_id = run_data["data"]["id"]
 
         logger.info(f"Apify actor started: {actor_id}, run_id: {run_id}")
 
         import asyncio
+        status = None
+        status_response = None
         for _ in range(60):  # max 5 minutes
             await asyncio.sleep(5)
             status_response = await self._client.get(
@@ -65,6 +75,11 @@ class ApifyClient:
                 break
             elif status in ("FAILED", "ABORTED", "TIMED-OUT"):
                 raise RuntimeError(f"Apify run {run_id} ended with status: {status}")
+
+        if status != "SUCCEEDED":
+            raise RuntimeError(
+                f"Apify run {run_id} did not finish within timeout (last status: {status})."
+            )
 
         dataset_id = status_response.json()["data"]["defaultDatasetId"]
         items_response = await self._client.get(

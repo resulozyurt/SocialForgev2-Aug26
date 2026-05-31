@@ -85,6 +85,7 @@ class Brand(Base):
     content_pillars: Mapped[list["ContentPillar"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     ai_configs: Mapped[list["AIProviderConfig"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     content_packages: Mapped[list["ContentPackage"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
+    content_calendars: Mapped[list["ContentCalendar"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
 
 
 class Competitor(Base):
@@ -188,3 +189,34 @@ class TrendReportCard(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ContentCalendar(Base):
+    """
+    Phase 2 output: a monthly content calendar scaffolded from an APPROVED
+    Trend Report Card. `entries` holds the planned posts (date, pillar,
+    platform, content type, hook concept). Phase 3 later turns each entry
+    into a full ContentPackage with copy and visuals.
+    """
+    __tablename__ = "content_calendars"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), index=True)
+    trend_report_card_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("trend_report_cards.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    planning_period: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    post_count: Mapped[int] = mapped_column(Integer, default=0)
+    platforms: Mapped[Optional[dict]] = mapped_column(JSONB)   # list[str]
+    entries: Mapped[Optional[dict]] = mapped_column(JSONB)     # list[dict]
+    summary: Mapped[Optional[str]] = mapped_column(Text)
+    raw_ai_output: Mapped[Optional[str]] = mapped_column(Text)
+
+    is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    brand: Mapped["Brand"] = relationship(back_populates="content_calendars")
