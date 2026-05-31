@@ -16,9 +16,9 @@ APIFY_BASE_URL = "https://api.apify.com/v2"
 
 # Apify actor IDs for each platform
 ACTORS = {
-    "instagram_profile": "apify/instagram-profile-scraper",
-    "instagram_posts":   "apify/instagram-scraper",
-    "linkedin_posts":    "apify/linkedin-post-search",
+    "instagram_profile": "apify~instagram-profile-scraper",
+    "instagram_posts":   "apify~instagram-scraper",
+    "linkedin_posts":    "supreme_coder~linkedin-post",
 }
 
 
@@ -37,7 +37,6 @@ class ApifyClient:
         Start an Apify actor run and wait for it to finish.
         Returns the dataset items on success.
         """
-        # Start the run
         run_url = f"{APIFY_BASE_URL}/acts/{actor_id}/runs"
         headers = {"Authorization": f"Bearer {self._api_key}"}
 
@@ -52,7 +51,6 @@ class ApifyClient:
 
         logger.info(f"Apify actor started: {actor_id}, run_id: {run_id}")
 
-        # Poll until finished
         import asyncio
         for _ in range(60):  # max 5 minutes
             await asyncio.sleep(5)
@@ -68,7 +66,6 @@ class ApifyClient:
             elif status in ("FAILED", "ABORTED", "TIMED-OUT"):
                 raise RuntimeError(f"Apify run {run_id} ended with status: {status}")
 
-        # Fetch results
         dataset_id = status_response.json()["data"]["defaultDatasetId"]
         items_response = await self._client.get(
             f"{APIFY_BASE_URL}/datasets/{dataset_id}/items",
@@ -110,8 +107,9 @@ class ApifyClient:
         results = await self._run_actor(
             ACTORS["linkedin_posts"],
             {
-                "companyUrls": [f"https://www.linkedin.com/company/{company_handle}/"],
-                "maxPosts": max_posts,
+                "urls": [f"https://www.linkedin.com/company/{company_handle}/"],
+                "limitPerSource": max_posts,
+                "deepScrape": True,
             },
         )
         return results

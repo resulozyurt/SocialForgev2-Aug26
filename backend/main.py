@@ -1,14 +1,8 @@
-"""
-SocialForge AI — FastAPI entry point
-"""
-
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from core.database import check_db_health, engine
-from api.routes import health_router, brands_router, settings_router, research_router
+from api.routes import health_router, brands_router, settings_router, research_router, competitors_router
 
 
 @asynccontextmanager
@@ -38,4 +32,5 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(brands_router, prefix="/api/v1")
 app.include_router(settings_router, prefix="/api/v1")
-
+app.include_router(research_router, prefix="/api/v1")
+app.include_router(competitors_router, prefix="/api/v1")
