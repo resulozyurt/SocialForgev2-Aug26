@@ -82,6 +82,15 @@ BRANDS: list[dict] = [
                 "generic AI voice",
             ],
         },
+        "research_sources": {
+            "rss_feeds": [
+                "https://www.retaildive.com/feeds/news/",
+                "https://www.socialmediatoday.com/feeds/news/",
+                "https://www.modernretail.co/feed/",
+            ],
+            "trends_geo": "US",
+            "use_apify": False,
+        },
         "pillars": [
             {"name": "Problem -> Solution Proof", "percentage": 30,
              "description": "Show a field-ops pain and how FieldPie resolves it."},
@@ -141,6 +150,14 @@ BRANDS: list[dict] = [
             "example_headlines": ["Ürün Stokta, Peki Rafta mı?"],
             "avoid": ["İngilizceden çeviri gibi durma", "yapay/kurumsal dil"],
         },
+        "research_sources": {
+            "rss_feeds": [
+                "https://webrazzi.com/feed",
+                "https://www.retaildive.com/feeds/news/",
+            ],
+            "trends_geo": "TR",
+            "use_apify": False,
+        },
         "pillars": [
             {"name": "Raf Gerçekliği", "percentage": 30,
              "description": "Sahadaki raf/stok problemleri ve çözümü."},
@@ -172,7 +189,7 @@ BRANDS: list[dict] = [
 BRAND_SCALAR_FIELDS = (
     "display_name", "industry", "language", "primary_color", "secondary_color",
     "accent_color", "monthly_post_target", "voice_guide_text", "visual_identity",
-    "voice_profile",
+    "voice_profile", "research_sources",
 )
 
 

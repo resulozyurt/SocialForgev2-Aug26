@@ -102,7 +102,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | Approval gates | report / calendar / package | DONE (API); UI pending |
 | A Foundation | deps fix, Alembic, auth, Railway prep, DB URL norm | DONE |
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
-| C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | IN PROGRESS (C1 done) |
+| C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | IN PROGRESS (C1, C2 done) |
 | D Visual | Phase 4 branded image generation | TODO |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 
@@ -150,6 +150,15 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   by the existing `/settings/providers` endpoints, including a live 'Test key'
   button. `src/lib/types.ts` and `src/lib/api.ts` extended accordingly. Verified
   with `tsc --noEmit` (clean); the Next build on Railway is the final gate.
+- **2026-08-26 (Phase C2) — Free research path:** Phase 1 now gathers RSS feeds +
+  Google Trends daily trending searches (region derived from brand language) via
+  `feedparser` (new dep) — deliberately no pytrends/pandas. Apify competitor
+  scraping became opt-in per brand (`research_sources.use_apify`); the research
+  endpoint no longer requires an Apify key. New `brands.research_sources` JSONB
+  (migration `0003`, inspector-guarded); Phase 1 falls back to language-based
+  default feeds when it is unset. `ANALYSIS_PROMPT` generalized to Trends + RSS +
+  optional competitor inputs; the output JSON schema is unchanged so calendar and
+  copy are unaffected.
 
 ---
 
@@ -162,7 +171,8 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 - Phase B added `PATCH /brands/{id}` (partial profile edit) and
   `GET`/`PUT /brands/{id}/solutions` (upsert-only, non-destructive). A review UI
   for these is Phase C.
-- Phase 1 still depends on Apify until the free RSS/Trends path lands (Phase C).
+- Phase 1 free RSS + Google Trends path shipped (C2); Apify is now optional
+  (opt-in per brand via `research_sources.use_apify`).
 
 ---
 
@@ -202,7 +212,10 @@ Phase B is committed. **Apply it after pulling** (Resul, on Windows, DB reachabl
 (idempotent — safe to re-run). Verify with `GET /api/v1/brands` and
 `GET /api/v1/brands/{id}/solutions`.
 
-Phase C runs as C1 -> C2 -> C3 (Drive deferred to D). **C1 is done**: the
-`/brands/[id]` detail page + AI provider config UI. Next up is **C2** — the free
-RSS + Google Trends research path so Phase 1 runs without Apify — pending Resul's
-approval. Each sub-phase = one reviewed commit; do not skip ahead without approval.
+Phase C runs as C1 -> C2 -> C3 (Drive deferred to D). **C1 and C2 are done**:
+the `/brands/[id]` detail page + AI provider config UI, and the free RSS + Google
+Trends research path (Apify optional). Next up is **C3** — the three approval
+screens (Research report, Calendar, Content package) — pending Resul's approval.
+Each sub-phase = one reviewed commit; do not skip ahead without approval.
+Note: live brands' `research_sources` is null until re-seeded, but Phase 1 uses
+language-based default feeds when unset, so free research runs without a re-seed.

@@ -120,6 +120,10 @@ class Brand(Base):
     #   "avoid": ["translated phrasing", "corporate fluff"]
     # }
     voice_profile: Mapped[Optional[dict]] = mapped_column(JSONB)
+    # research_sources (Phase C2): {"rss_feeds": ["https://..."], "trends_geo":
+    #   "US"|"TR", "use_apify": false}. When null, Phase 1 falls back to
+    #   language-based defaults.
+    research_sources: Mapped[Optional[dict]] = mapped_column(JSONB)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

@@ -21,6 +21,12 @@ from typing import Any, Optional
 from core.ai_provider import build_provider_from_config
 from core.database import get_db_context
 from integrations.apify_client import ApifyClient
+from integrations.free_research import (
+    default_feeds,
+    default_geo,
+    fetch_google_trends,
+    fetch_rss,
+)
 from models.db_models import AIProviderConfig, Brand, Competitor, PhaseEnum, TrendReportCard
 
 logger = logging.getLogger(__name__)
@@ -73,17 +79,23 @@ extract actionable trend signals.
 You always respond in valid JSON only — no preamble, no markdown, no extra text.
 Your analysis is sharp, specific, and grounded in the actual data provided."""
 
-ANALYSIS_PROMPT = """Analyze the following competitor social media posts and produce 
-a structured Trend Report Card.
+ANALYSIS_PROMPT = """Analyze the following research inputs and produce a structured Trend Report Card for the brand.
 
 BRAND: {brand_name}
 INDUSTRY: {industry}
 PLANNING PERIOD: {planning_period}
 
-COMPETITOR DATA:
+GOOGLE TRENDS (today's trending searches in the brand's region):
+{google_trends}
+
+RSS ARTICLES (recent industry / news headlines):
+{rss_articles}
+
+COMPETITOR POSTS (optional; may be empty on the free research path):
 {competitor_data}
 
-Respond with a JSON object in exactly this structure:
+Ground every trend signal in the inputs above and name its source (a trend title,
+an article headline, or a competitor). Respond with a JSON object in exactly this structure:
 {{
   "trending_topics": [
     {{"rank": 1, "topic": "...", "signal_strength": "high|medium|low", "sources": ["..."], "why_it_matters": "..."}}
@@ -113,8 +125,9 @@ class Phase1Research:
     Orchestrates the full Phase 1 competitive intelligence workflow.
     """
 
-    def __init__(self, apify_key: str) -> None:
-        self._apify = ApifyClient(api_key=apify_key)
+    def __init__(self, apify_key: Optional[str] = None) -> None:
+        # Apify is optional; the free RSS + Google Trends path is the default.
+        self._apify = ApifyClient(api_key=apify_key) if apify_key else None
 
     async def run(
         self,
@@ -161,15 +174,28 @@ class Phase1Research:
             if not ai_config:
                 raise ValueError(f"No AI config found for Phase 1, brand {brand_id}.")
 
-        # Scrape competitor data
-        competitor_data = await self._scrape_competitors(
-            competitors, max_posts_per_competitor
+        # Resolve research sources: free RSS + Google Trends is primary; Apify
+        # competitor scraping is opt-in per brand (research_sources.use_apify).
+        sources = brand.research_sources or {}
+        language = getattr(brand.language, "value", brand.language)
+        feeds = sources.get("rss_feeds") or default_feeds(language)
+        geo = sources.get("trends_geo") or default_geo(language)
+        use_apify = bool(sources.get("use_apify")) and self._apify is not None
+
+        rss_items = await fetch_rss(feeds)
+        trends_items = await fetch_google_trends(geo)
+        competitor_data = (
+            await self._scrape_competitors(competitors, max_posts_per_competitor)
+            if use_apify
+            else []
         )
 
         # Run AI analysis
         report = await self._analyze_with_ai(
             brand=brand,
             planning_period=planning_period,
+            rss_items=rss_items,
+            trends_items=trends_items,
             competitor_data=competitor_data,
             ai_config=ai_config,
         )
@@ -185,6 +211,8 @@ class Phase1Research:
         max_posts: int,
     ) -> list[CompetitorData]:
         """Scrape posts from all competitors across available platforms."""
+        if self._apify is None:
+            return []
         all_data = []
 
         for competitor in competitors:
@@ -253,6 +281,8 @@ class Phase1Research:
         self,
         brand: Brand,
         planning_period: str,
+        rss_items: list[dict],
+        trends_items: list[dict],
         competitor_data: list[CompetitorData],
         ai_config,
     ) -> TrendReportResult:
@@ -286,11 +316,16 @@ class Phase1Research:
             encrypted_api_key=ai_config.api_key_enc,
         )
 
+        competitor_block = (
+            json.dumps(formatted, indent=2) if formatted else "(none — free research path)"
+        )
         prompt = ANALYSIS_PROMPT.format(
             brand_name=brand.display_name,
             industry=brand.industry or "B2B SaaS",
             planning_period=planning_period,
-            competitor_data=json.dumps(formatted, indent=2),
+            google_trends=json.dumps(trends_items, indent=2, ensure_ascii=False) if trends_items else "(none)",
+            rss_articles=json.dumps(rss_items, indent=2, ensure_ascii=False) if rss_items else "(none)",
+            competitor_data=competitor_block,
         )
 
         response = await provider.complete(

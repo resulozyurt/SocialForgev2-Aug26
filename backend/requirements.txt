@@ -21,3 +21,4 @@ tenacity==9.0.0
 structlog==24.4.0
 python-multipart==0.0.12
 json-repair>=0.25
+feedparser>=6.0.11

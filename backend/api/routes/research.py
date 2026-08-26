@@ -63,12 +63,14 @@ async def run_research(
         raise HTTPException(status_code=404, detail="Brand not found.")
 
     settings = get_settings()
-    apify_key = settings.bootstrap_apify_key
-    if not apify_key:
-        raise HTTPException(
-            status_code=400,
-            detail="BOOTSTRAP_APIFY_KEY not configured."
-        )
+    # Free research path (RSS + Google Trends) is the default. Apify competitor
+    # scraping is used only when the brand opted in AND a bootstrap key exists.
+    sources = brand.research_sources or {}
+    apify_key = (
+        settings.bootstrap_apify_key
+        if sources.get("use_apify") and settings.bootstrap_apify_key
+        else None
+    )
 
     async def _run():
         from phases.phase1_research import Phase1Research

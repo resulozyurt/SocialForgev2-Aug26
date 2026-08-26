@@ -62,6 +62,15 @@ BRANDS = [
             "example_headlines": ["Photos Don't Fix Shelves. Actions Do."],
             "avoid": ["translated phrasing", "corporate fluff", "generic AI voice"],
         },
+        "research_sources": {
+            "rss_feeds": [
+                "https://www.retaildive.com/feeds/news/",
+                "https://www.socialmediatoday.com/feeds/news/",
+                "https://www.modernretail.co/feed/",
+            ],
+            "trends_geo": "US",
+            "use_apify": False,
+        },
         "solutions": [
             {"solution": "merchandising", "is_focus": True, "priority": 10,
              "concept_notes": "Shelf execution, planogram compliance, retail audits."},
@@ -110,6 +119,14 @@ BRANDS = [
             "narrative_structure": "yeterli degil -> gereken bu",
             "example_headlines": ["Urun Stokta, Peki Rafta mi?"],
             "avoid": ["Ingilizceden ceviri gibi durma", "yapay/kurumsal dil"],
+        },
+        "research_sources": {
+            "rss_feeds": [
+                "https://webrazzi.com/feed",
+                "https://www.retaildive.com/feeds/news/",
+            ],
+            "trends_geo": "TR",
+            "use_apify": False,
         },
         "solutions": [
             {"solution": "merchandising", "is_focus": True, "priority": 10,

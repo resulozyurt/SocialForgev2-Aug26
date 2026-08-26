@@ -37,6 +37,7 @@ class BrandCreate(BaseModel):
     voice_guide_text: Optional[str] = None
     visual_identity: Optional[dict[str, Any]] = None
     voice_profile: Optional[dict[str, Any]] = None
+    research_sources: Optional[dict[str, Any]] = None
     monthly_post_target: int = Field(default=20, ge=1, le=200)
 
 
@@ -53,6 +54,7 @@ class BrandUpdate(BaseModel):
     voice_guide_text: Optional[str] = None
     visual_identity: Optional[dict[str, Any]] = None
     voice_profile: Optional[dict[str, Any]] = None
+    research_sources: Optional[dict[str, Any]] = None
     monthly_post_target: Optional[int] = Field(default=None, ge=1, le=200)
     is_active: Optional[bool] = None
 
@@ -72,6 +74,7 @@ class BrandResponse(BaseModel):
     voice_guide_text: Optional[str]
     visual_identity: Optional[dict[str, Any]]
     voice_profile: Optional[dict[str, Any]]
+    research_sources: Optional[dict[str, Any]]
     monthly_post_target: int
 
     class Config:
