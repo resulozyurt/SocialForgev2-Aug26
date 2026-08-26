@@ -102,7 +102,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | Approval gates | report / calendar / package | DONE (API); UI pending |
 | A Foundation | deps fix, Alembic, auth, Railway prep, DB URL norm | DONE |
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
-| C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | TODO (next) |
+| C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | IN PROGRESS (C1 done) |
 | D Visual | Phase 4 branded image generation | TODO |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 
@@ -140,6 +140,16 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   the brand's primary-language directive, real hex palette (so the model stops
   inventing brand colors in `visual_direction.color_palette`), and visual language.
   Deeper visual-motif use stays for Phase D.
+- **2026-08-26 (Phase C) — Split & scope:** Phase C ships as C1 (brand detail
+  page + per-phase AI provider config UI), C2 (free RSS + Google Trends research
+  path, Apify optional/flagged), C3 (the three approval screens). Google Drive
+  deferred to Phase D (nothing to store until visual generation exists). Each
+  sub-phase = its own reviewed commit.
+- **2026-08-26 (Phase C1) — Shipped:** frontend `/brands/[id]` detail page
+  (identity, voice, solutions, competitors) + an AI provider config panel driven
+  by the existing `/settings/providers` endpoints, including a live 'Test key'
+  button. `src/lib/types.ts` and `src/lib/api.ts` extended accordingly. Verified
+  with `tsc --noEmit` (clean); the Next build on Railway is the final gate.
 
 ---
 
@@ -192,6 +202,7 @@ Phase B is committed. **Apply it after pulling** (Resul, on Windows, DB reachabl
 (idempotent — safe to re-run). Verify with `GET /api/v1/brands` and
 `GET /api/v1/brands/{id}/solutions`.
 
-Next up is **Phase C** (three approval-review screens, the free RSS/Google Trends
-research path, and Google Drive asset storage), pending Resul's approval. Each
-phase = one reviewed commit; do not skip ahead without approval.
+Phase C runs as C1 -> C2 -> C3 (Drive deferred to D). **C1 is done**: the
+`/brands/[id]` detail page + AI provider config UI. Next up is **C2** — the free
+RSS + Google Trends research path so Phase 1 runs without Apify — pending Resul's
+approval. Each sub-phase = one reviewed commit; do not skip ahead without approval.
