@@ -61,6 +61,24 @@ class ProviderEnum(str, PyEnum):
     GROQ      = "groq"
 
 
+class BrandLanguageEnum(str, PyEnum):
+    """Primary content language of a brand. Drives which copy package is the
+    native one in Phase 3 (FieldPie -> EN, Evatro -> TR)."""
+    EN = "en"
+    TR = "tr"
+
+
+class SolutionEnum(str, PyEnum):
+    """The fixed set of product solution areas. Content is produced per
+    solution area, so this taxonomy is read by every downstream phase."""
+    MERCHANDISING = "merchandising"
+    FIELD_AUDIT   = "field_audit"
+    FIELD_SALES   = "field_sales"
+    HOME_SERVICE  = "home_service"
+    AI            = "ai"
+    GENERAL       = "general"
+
+
 class Brand(Base):
     __tablename__ = "brands"
 
@@ -78,11 +96,37 @@ class Brand(Base):
     voice_guide_text: Mapped[Optional[str]] = mapped_column(Text)
     monthly_post_target: Mapped[int] = mapped_column(Integer, default=20)
 
+    # ── Phase B: rich brand identity ─────────────────────────────────────────
+    # Primary content language (queryable, drives Phase 3 language wiring).
+    language: Mapped[BrandLanguageEnum] = mapped_column(
+        Enum(BrandLanguageEnum), nullable=False,
+        default=BrandLanguageEnum.EN, server_default="EN",
+    )
+    # Fast-evolving visual design spec kept as JSONB to avoid migration churn.
+    # Shape: {
+    #   "ground_color": "#FFFFFF",
+    #   "block_color": "#0B1E3B",
+    #   "pill": {"bg_color": "#E4002B", "text_color": "#FFFFFF", "shape": "rounded-full"},
+    #   "logo": {"url": "...", "position": "top-left"},
+    #   "motifs": ["half-circle pie graphic bottom-left", ...],
+    #   "style_keywords": ["clean", "modern SaaS", ...],
+    #   "reference_images": [{"url": "...", "note": "..."}]
+    # }
+    visual_identity: Mapped[Optional[dict]] = mapped_column(JSONB)
+    # Structured voice/tone spec. Shape: {
+    #   "tone_keywords": ["clear", "reassuring"],
+    #   "narrative_structure": "problem -> solution",
+    #   "example_headlines": ["Photos Don't Fix Shelves. Actions Do."],
+    #   "avoid": ["translated phrasing", "corporate fluff"]
+    # }
+    voice_profile: Mapped[Optional[dict]] = mapped_column(JSONB)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     competitors: Mapped[list["Competitor"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     content_pillars: Mapped[list["ContentPillar"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
+    solutions: Mapped[list["BrandSolution"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     ai_configs: Mapped[list["AIProviderConfig"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     content_packages: Mapped[list["ContentPackage"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     content_calendars: Mapped[list["ContentCalendar"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
@@ -114,6 +158,29 @@ class ContentPillar(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     brand: Mapped["Brand"] = relationship(back_populates="content_pillars")
+
+
+class BrandSolution(Base):
+    """
+    Phase B: which solution areas a brand covers, with per-brand focus flag,
+    priority (lower = higher priority), and free-form concept notes describing
+    how that solution is positioned for this brand. Unique per (brand, solution).
+    """
+    __tablename__ = "brand_solutions"
+    __table_args__ = (UniqueConstraint("brand_id", "solution", name="uq_brand_solution"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), index=True)
+    solution: Mapped[SolutionEnum] = mapped_column(Enum(SolutionEnum), nullable=False)
+    is_focus: Mapped[bool] = mapped_column(Boolean, default=True)
+    priority: Mapped[int] = mapped_column(Integer, default=100)
+    concept_notes: Mapped[Optional[str]] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    brand: Mapped["Brand"] = relationship(back_populates="solutions")
 
 
 class AIProviderConfig(Base):

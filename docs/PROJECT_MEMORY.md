@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-26 — end of **Phase A** (stabilization & deploy foundation).
+Last updated: 2026-08-26 — end of **Phase B** (rich brand profiles + solution taxonomy + seed).
 
 ---
 
@@ -66,7 +66,7 @@ Frontend (server-side only): `BACKEND_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.
 
 ---
 
-## 5. Brand Profiles (target — full modeling lands in Phase B)
+## 5. Brand Profiles (modeled in Phase B)
 
 - **FieldPie** — English (native US). All six solutions. Teal/petrol accent +
   dark slate headers + white ground; accent words in teal pill. Clean modern
@@ -80,6 +80,16 @@ Frontend (server-side only): `BACKEND_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.
 
 The two identities must never mix.
 
+**Schema (Phase B).** `Brand` now carries `language` (enum `brandlanguageenum`:
+EN/TR), plus two JSONB specs: `visual_identity` (`ground_color`, `block_color`,
+`pill{bg_color,text_color,shape}`, `logo{url,position}`, `motifs[]`,
+`style_keywords[]`, `reference_images[]`) and `voice_profile` (`tone_keywords[]`,
+`narrative_structure`, `example_headlines[]`, `avoid[]`). Solution focus lives in
+the `brand_solutions` link table (`solution`, `is_focus`, `priority`,
+`concept_notes`), taxonomy = `SolutionEnum` {merchandising, field_audit,
+field_sales, home_service, ai, general}. FieldPie seeds all six; Evatro focuses
+merchandising / field_audit / ai. Content pillars stay a separate concept.
+
 ---
 
 ## 6. Phase Status
@@ -90,9 +100,9 @@ The two identities must never mix.
 | 2 Calendar | Approved report -> monthly calendar | DONE |
 | 3 Copy | Approved calendar -> ContentPackage (EN+TR) + visual brief | DONE |
 | Approval gates | report / calendar / package | DONE (API); UI pending |
-| **A Foundation** | deps fix, Alembic, auth, Railway prep, DB URL norm | **DONE (this commit)** |
-| B Brand+Solution | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | TODO (next) |
-| C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | TODO |
+| A Foundation | deps fix, Alembic, auth, Railway prep, DB URL norm | DONE |
+| **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
+| C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | TODO (next) |
 | D Visual | Phase 4 branded image generation | TODO |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 
@@ -113,6 +123,23 @@ The two identities must never mix.
 - **2026-08-26 — Migrations:** Adopt Alembic. Baseline revision `0001` builds
   the schema from ORM metadata (no hand-transcription drift); later revisions use
   autogenerate. `scripts/create_tables.py` kept only as a local quick-start.
+- **2026-08-26 (Phase B) — Solution taxonomy:** `SolutionEnum` (6 fixed areas) +
+  a `brand_solutions` link table (per-brand `is_focus`, `priority`,
+  `concept_notes`). Chosen over a JSONB list for query-ability and integrity;
+  matches the enum-heavy model style.
+- **2026-08-26 (Phase B) — Profile storage:** hybrid. Queryable identity stays in
+  columns (`language`, colors); the fast-evolving design/voice spec lives in JSONB
+  (`visual_identity`, `voice_profile`) to avoid migration churn.
+- **2026-08-26 (Phase B) — Migration idempotency:** `0002` is hand-written and
+  inspector-guarded (adds only what is missing). Required because the `0001`
+  baseline uses `create_all` off live metadata, so a fresh DB already has the new
+  objects; the guards make fresh-DB and existing-DB paths converge. Enum labels use
+  member NAMES (EN, MERCHANDISING, ...) to match what SQLAlchemy `create_all` emits
+  (verified against the ORM).
+- **2026-08-26 (Phase B) — Profile wiring:** the Phase 3 copy prompt now receives
+  the brand's primary-language directive, real hex palette (so the model stops
+  inventing brand colors in `visual_direction.color_palette`), and visual language.
+  Deeper visual-motif use stays for Phase D.
 
 ---
 
@@ -120,7 +147,11 @@ The two identities must never mix.
 
 - `json_repair` was used but missing from requirements — FIXED in Phase A.
 - Redis/APScheduler are declared but unused (intended for Phase 5).
-- No automated tests yet — add pytest coverage from Phase B onward.
+- No automated tests yet — add pytest coverage from Phase C onward (Phase B was
+  verified via py_compile + a live ORM `configure_mappers()` check, not pytest).
+- Phase B added `PATCH /brands/{id}` (partial profile edit) and
+  `GET`/`PUT /brands/{id}/solutions` (upsert-only, non-destructive). A review UI
+  for these is Phase C.
 - Phase 1 still depends on Apify until the free RSS/Trends path lands (Phase C).
 
 ---
@@ -144,6 +175,11 @@ Local dev: `docker compose up -d` (Postgres+Redis), then in `backend/`:
 
 ## 10. How to Resume
 
-Phase A is committed. Next up is **Phase B** (rich brand profiles + solution
-taxonomy + seed FieldPie/Evatro), pending Resul's approval. Each phase = one
-reviewed commit; do not skip ahead without approval.
+Phase B is committed. **Apply it after pulling** (Resul, on Windows, DB reachable):
+`alembic upgrade head` (applies `0002`), then `python -m scripts.seed_brands`
+(idempotent — safe to re-run). Verify with `GET /api/v1/brands` and
+`GET /api/v1/brands/{id}/solutions`.
+
+Next up is **Phase C** (three approval-review screens, the free RSS/Google Trends
+research path, and Google Drive asset storage), pending Resul's approval. Each
+phase = one reviewed commit; do not skip ahead without approval.

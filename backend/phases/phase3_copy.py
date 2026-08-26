@@ -26,6 +26,7 @@ from core.json_utils import parse_ai_json
 from models.db_models import (
     AIProviderConfig,
     Brand,
+    BrandLanguageEnum,
     ContentCalendar,
     ContentPackage,
     ContentStatusEnum,
@@ -62,6 +63,60 @@ def _parse_date(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
+# ── Phase B: brand-profile wiring ────────────────────────────────────────────
+
+def _brand_language_directive(brand: Brand) -> str:
+    """Tell the model which copy package is the brand's native, first-class one."""
+    lang = getattr(brand, "language", None)
+    lang_value = getattr(lang, "value", lang) or BrandLanguageEnum.EN.value
+    if str(lang_value).lower() == "tr":
+        return ("Turkish (TR) is this brand's native language. Write copy_tr as the "
+                "first-class, fully idiomatic local Turkish package; copy_en is a "
+                "faithful, natural adaptation (never a literal translation).")
+    return ("English (EN, native US) is this brand's native language. Write copy_en as "
+            "the first-class package; copy_tr is a faithful, natural Turkish adaptation "
+            "(never a literal translation).")
+
+
+def _brand_palette(brand: Brand) -> str:
+    """Readable hex palette from the brand's color columns + visual_identity JSON."""
+    hexes: list[str] = []
+
+    def _add(value) -> None:
+        if isinstance(value, str) and value.startswith("#") and value not in hexes:
+            hexes.append(value)
+
+    _add(getattr(brand, "primary_color", None))
+    _add(getattr(brand, "secondary_color", None))
+    _add(getattr(brand, "accent_color", None))
+
+    vi = getattr(brand, "visual_identity", None)
+    if isinstance(vi, dict):
+        _add(vi.get("ground_color"))
+        _add(vi.get("block_color"))
+        pill = vi.get("pill")
+        if isinstance(pill, dict):
+            _add(pill.get("bg_color"))
+            _add(pill.get("text_color"))
+
+    return ", ".join(hexes) if hexes else "no brand palette set - use a clean, on-brand default"
+
+
+def _visual_language(brand: Brand) -> str:
+    """Summarize the brand's visual motifs/style for the image concept."""
+    vi = getattr(brand, "visual_identity", None)
+    if not isinstance(vi, dict):
+        return "clean, modern, on-brand"
+    parts: list[str] = []
+    motifs = vi.get("motifs")
+    if isinstance(motifs, list) and motifs:
+        parts.append("motifs: " + "; ".join(str(m) for m in motifs))
+    styles = vi.get("style_keywords")
+    if isinstance(styles, list) and styles:
+        parts.append("style: " + ", ".join(str(s) for s in styles))
+    return " | ".join(parts) if parts else "clean, modern, on-brand"
+
+
 @dataclass
 class CopyResult:
     brand_slug: str
@@ -94,6 +149,9 @@ COPY_PROMPT = """Write a complete content package for ONE social media post.
 BRAND: {brand_name}
 INDUSTRY: {industry}
 BRAND VOICE: {voice}
+PRIMARY LANGUAGE: {primary_language}
+BRAND COLOR PALETTE (reuse these exact hex values; do NOT invent off-brand colors): {brand_palette}
+VISUAL LANGUAGE (brand motifs/style to reflect in the image concept): {visual_language}
 PLATFORM: {platform}
 CONTENT TYPE: {content_type}
 CONTENT PILLAR: {pillar}
@@ -132,6 +190,8 @@ RULES:
 - Match caption length to the platform (Instagram: punchy, scannable; LinkedIn: longer, value-dense, line breaks).
 - Hashtags: 2-3 broad, 3-5 niche, 2-3 branded.
 - "copy_tr" mirrors "copy_en" in structure but reads as natural Turkish, not a literal translation.
+- PRIMARY LANGUAGE decides which package is native vs. adaptation — respect it exactly.
+- "visual_direction.color_palette" MUST be drawn from the BRAND COLOR PALETTE above (hex values). Do not introduce off-brand colors.
 - Inside text, quote phrases with single quotes only. Never put a raw double quote inside a JSON string value."""
 
 
@@ -282,6 +342,9 @@ class Phase3Copy:
             brand_name=brand.display_name,
             industry=brand.industry or "B2B SaaS",
             voice=brand.voice_guide_text or "Confident, practical, peer-to-peer. No corporate fluff.",
+            primary_language=_brand_language_directive(brand),
+            brand_palette=_brand_palette(brand),
+            visual_language=_visual_language(brand),
             platform=entry.get("platform", "instagram"),
             content_type=entry.get("content_type", "static"),
             pillar=entry.get("pillar", ""),
