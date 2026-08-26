@@ -1,7 +1,11 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from core.config import get_settings
 from core.database import check_db_health, engine
+from core.security import require_admin
 from api.routes import (
     health_router,
     brands_router,
@@ -22,6 +26,8 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
+settings = get_settings()
+
 app = FastAPI(
     title="SocialForge AI",
     description="Multi-brand social media automation system.",
@@ -31,16 +37,20 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# /health stays public for platform health probes.
 app.include_router(health_router)
-app.include_router(brands_router, prefix="/api/v1")
-app.include_router(settings_router, prefix="/api/v1")
-app.include_router(research_router, prefix="/api/v1")
-app.include_router(competitors_router, prefix="/api/v1")
-app.include_router(calendar_router, prefix="/api/v1")
-app.include_router(copy_router, prefix="/api/v1")
+
+# Everything else is behind admin HTTP Basic auth.
+_admin = [Depends(require_admin)]
+app.include_router(brands_router, prefix="/api/v1", dependencies=_admin)
+app.include_router(settings_router, prefix="/api/v1", dependencies=_admin)
+app.include_router(research_router, prefix="/api/v1", dependencies=_admin)
+app.include_router(competitors_router, prefix="/api/v1", dependencies=_admin)
+app.include_router(calendar_router, prefix="/api/v1", dependencies=_admin)
+app.include_router(copy_router, prefix="/api/v1", dependencies=_admin)
