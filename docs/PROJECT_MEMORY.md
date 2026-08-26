@@ -171,6 +171,18 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 Local dev: `docker compose up -d` (Postgres+Redis), then in `backend/`:
 `alembic upgrade head` and `uvicorn main:app --reload`.
 
+**Live (2026-08-26).** Deployed on Railway project "SocialForge - v2": services
+`SocialForge-Backend` (root `backend`), `SocialForge-Front` (root `frontend`),
+and a managed `Postgres`. Backend URL:
+https://socialforgev2-aug26-production.up.railway.app (`/health` -> ok). The
+frontend proxies to the backend via `BACKEND_URL` (must include `https://`) and
+shares `ADMIN_USERNAME`/`ADMIN_PASSWORD` with it. Phase B migration `0002` ran
+automatically on deploy; the two brands were seeded into the live DB. Keep the
+Postgres **Public Access OFF** — turn it on only for a one-off seed, then off
+again. Seeding options: `scripts/seed_brands.py` (needs a DB URL, seeds pillars
+too) or `scripts/seed_via_api.py` (talks to the live API, no DB access, no
+pillars).
+
 ---
 
 ## 10. How to Resume
