@@ -60,6 +60,37 @@ function asStrList(v: unknown): string[] {
 }
 const msg = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong.");
 
+function buildIdentityForm(b: Brand): Record<string, string> {
+  const vi = asRecord(b.visual_identity);
+  const pill = asRecord(vi.pill);
+  return {
+    display_name: b.display_name ?? "",
+    industry: b.industry ?? "",
+    language: b.language ?? "en",
+    monthly_post_target: String(b.monthly_post_target ?? 20),
+    primary_color: b.primary_color ?? "",
+    secondary_color: b.secondary_color ?? "",
+    accent_color: b.accent_color ?? "",
+    logo_url: b.logo_url ?? "",
+    ground_color: asStr(vi.ground_color) ?? "",
+    block_color: asStr(vi.block_color) ?? "",
+    pill_bg: asStr(pill.bg_color) ?? "",
+    pill_text: asStr(pill.text_color) ?? "",
+    style_keywords: asStrList(vi.style_keywords).join("\n"),
+    motifs: asStrList(vi.motifs).join("\n"),
+  };
+}
+function buildVoiceForm(b: Brand): Record<string, string> {
+  const vp = asRecord(b.voice_profile);
+  return {
+    voice_guide_text: b.voice_guide_text ?? "",
+    tone_keywords: asStrList(vp.tone_keywords).join("\n"),
+    narrative_structure: asStr(vp.narrative_structure) ?? "",
+    example_headlines: asStrList(vp.example_headlines).join("\n"),
+    avoid: asStrList(vp.avoid).join("\n"),
+  };
+}
+
 const EMPTY_PROVIDER: ProviderConfigCreate = {
   phase: "phase1_research",
   provider: "anthropic",
@@ -100,6 +131,13 @@ export default function BrandDetailPage() {
   const [srcSaving, setSrcSaving] = useState(false);
   const [srcMsg, setSrcMsg] = useState<string | null>(null);
 
+  const [idForm, setIdForm] = useState<Record<string, string>>({});
+  const [idSaving, setIdSaving] = useState(false);
+  const [idMsg, setIdMsg] = useState<string | null>(null);
+  const [vForm, setVForm] = useState<Record<string, string>>({});
+  const [vSaving, setVSaving] = useState(false);
+  const [vMsg, setVMsg] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -118,6 +156,8 @@ export default function BrandDetailPage() {
       setSrcFeeds((Array.isArray(rs.rss_feeds) ? (rs.rss_feeds as string[]) : []).join("\n"));
       setSrcKeywords((Array.isArray(rs.search_keywords) ? (rs.search_keywords as string[]) : []).join("\n"));
       setSrcGeo(typeof rs.trends_geo === "string" ? rs.trends_geo : "");
+      setIdForm(buildIdentityForm(b));
+      setVForm(buildVoiceForm(b));
     } catch (err) {
       setError(msg(err));
     } finally {
@@ -217,12 +257,79 @@ export default function BrandDetailPage() {
     }
   }
 
+  async function saveIdentity() {
+    setIdSaving(true);
+    setIdMsg(null);
+    setError(null);
+    try {
+      const lines = (t: string) => t.split("\n").map((x) => x.trim()).filter(Boolean);
+      const vi = asRecord(brand?.visual_identity);
+      const pill = asRecord(vi.pill);
+      const target = Math.min(200, Math.max(1, Math.round(Number(idForm.monthly_post_target) || 20)));
+      const updated = await api.updateBrand(brandId, {
+        display_name: (idForm.display_name ?? "").trim() || brand!.display_name,
+        industry: (idForm.industry ?? "").trim() || null,
+        language: idForm.language ?? "en",
+        monthly_post_target: target,
+        primary_color: (idForm.primary_color ?? "").trim() || null,
+        secondary_color: (idForm.secondary_color ?? "").trim() || null,
+        accent_color: (idForm.accent_color ?? "").trim() || null,
+        logo_url: (idForm.logo_url ?? "").trim() || null,
+        visual_identity: {
+          ...vi,
+          ground_color: (idForm.ground_color ?? "").trim() || null,
+          block_color: (idForm.block_color ?? "").trim() || null,
+          pill: {
+            ...pill,
+            bg_color: (idForm.pill_bg ?? "").trim() || null,
+            text_color: (idForm.pill_text ?? "").trim() || null,
+          },
+          style_keywords: lines(idForm.style_keywords ?? ""),
+          motifs: lines(idForm.motifs ?? ""),
+        },
+      });
+      setBrand(updated);
+      setIdForm(buildIdentityForm(updated));
+      setIdMsg("Saved.");
+    } catch (err) {
+      setError(msg(err));
+    } finally {
+      setIdSaving(false);
+    }
+  }
+
+  async function saveVoice() {
+    setVSaving(true);
+    setVMsg(null);
+    setError(null);
+    try {
+      const lines = (t: string) => t.split("\n").map((x) => x.trim()).filter(Boolean);
+      const vp = asRecord(brand?.voice_profile);
+      const updated = await api.updateBrand(brandId, {
+        voice_guide_text: (vForm.voice_guide_text ?? "").trim() || null,
+        voice_profile: {
+          ...vp,
+          tone_keywords: lines(vForm.tone_keywords ?? ""),
+          narrative_structure: (vForm.narrative_structure ?? "").trim() || null,
+          example_headlines: lines(vForm.example_headlines ?? ""),
+          avoid: lines(vForm.avoid ?? ""),
+        },
+      });
+      setBrand(updated);
+      setVForm(buildVoiceForm(updated));
+      setVMsg("Saved.");
+    } catch (err) {
+      setError(msg(err));
+    } finally {
+      setVSaving(false);
+    }
+  }
+
   if (loading) return <p className="sf-note">Loading brand…</p>;
   if (error && !brand) return <div className="sf-error">{error}</div>;
   if (!brand) return <div className="sf-error">Brand not found.</div>;
 
   const vi = asRecord(brand.visual_identity);
-  const vp = asRecord(brand.voice_profile);
   const pill = asRecord(vi.pill);
   const swatches = [
     { label: "Primary", hex: brand.primary_color },
@@ -232,12 +339,6 @@ export default function BrandDetailPage() {
     { label: "Block", hex: asStr(vi.block_color) },
     { label: "Pill", hex: asStr(pill.bg_color) },
   ].filter((s) => s.hex);
-  const motifs = asStrList(vi.motifs);
-  const styleKeywords = asStrList(vi.style_keywords);
-  const toneKeywords = asStrList(vp.tone_keywords);
-  const exampleHeadlines = asStrList(vp.example_headlines);
-  const avoid = asStrList(vp.avoid);
-  const narrative = asStr(vp.narrative_structure);
   const sortedSolutions = [...solutions].sort((a, b) => a.priority - b.priority);
 
   return (
@@ -288,96 +389,175 @@ export default function BrandDetailPage() {
       {tab === "identity" && (
         <section className="sf-section">
           <div className="sf-info">
-            These colors, motifs, and style keywords guide the brand&rsquo;s visuals.
-            The accent color fills the &ldquo;pill&rdquo; label; ground is the
-            background and block is the dark corner/header.
+            Edit the brand&rsquo;s identity. <strong>Monthly post target</strong> sets how
+            many posts the calendar plans, and is the base the per-solution split divides.
+            Colors and visual identity feed Phase 3 copy and Phase 4 visuals.
+          </div>
+          <div className="sf-row">
+            <div className="sf-field">
+              <label className="sf-label">Display name</label>
+              <input className="sf-input" value={idForm.display_name ?? ""}
+                onChange={(e) => setIdForm({ ...idForm, display_name: e.target.value })} />
+            </div>
+            <div className="sf-field">
+              <label className="sf-label">Industry</label>
+              <input className="sf-input" value={idForm.industry ?? ""}
+                onChange={(e) => setIdForm({ ...idForm, industry: e.target.value })}
+                placeholder="B2B SaaS" />
+            </div>
+          </div>
+          <div className="sf-row">
+            <div className="sf-field">
+              <label className="sf-label">Language</label>
+              <select className="sf-input" value={idForm.language ?? "en"}
+                onChange={(e) => setIdForm({ ...idForm, language: e.target.value })}>
+                <option value="en">English (FieldPie)</option>
+                <option value="tr">Turkce (Evatro)</option>
+              </select>
+            </div>
+            <div className="sf-field">
+              <label className="sf-label">Monthly post target</label>
+              <input className="sf-input" type="number" min={1} max={200}
+                value={idForm.monthly_post_target ?? "20"}
+                onChange={(e) => setIdForm({ ...idForm, monthly_post_target: e.target.value })} />
+            </div>
+          </div>
+          <div className="sf-row">
+            <div className="sf-field">
+              <label className="sf-label">Primary color</label>
+              <input className="sf-input" value={idForm.primary_color ?? ""}
+                onChange={(e) => setIdForm({ ...idForm, primary_color: e.target.value })}
+                placeholder="#0E7C7B" />
+            </div>
+            <div className="sf-field">
+              <label className="sf-label">Secondary color</label>
+              <input className="sf-input" value={idForm.secondary_color ?? ""}
+                onChange={(e) => setIdForm({ ...idForm, secondary_color: e.target.value })}
+                placeholder="#1F2933" />
+            </div>
+            <div className="sf-field">
+              <label className="sf-label">Accent color</label>
+              <input className="sf-input" value={idForm.accent_color ?? ""}
+                onChange={(e) => setIdForm({ ...idForm, accent_color: e.target.value })}
+                placeholder="#12A3A0" />
+            </div>
+          </div>
+          <div className="sf-row">
+            <div className="sf-field">
+              <label className="sf-label">Ground color</label>
+              <input className="sf-input" value={idForm.ground_color ?? ""}
+                onChange={(e) => setIdForm({ ...idForm, ground_color: e.target.value })}
+                placeholder="#FFFFFF" />
+            </div>
+            <div className="sf-field">
+              <label className="sf-label">Block color</label>
+              <input className="sf-input" value={idForm.block_color ?? ""}
+                onChange={(e) => setIdForm({ ...idForm, block_color: e.target.value })}
+                placeholder="#0B1E3B" />
+            </div>
+          </div>
+          <div className="sf-row">
+            <div className="sf-field">
+              <label className="sf-label">Pill background</label>
+              <input className="sf-input" value={idForm.pill_bg ?? ""}
+                onChange={(e) => setIdForm({ ...idForm, pill_bg: e.target.value })}
+                placeholder="#E4002B" />
+            </div>
+            <div className="sf-field">
+              <label className="sf-label">Pill text</label>
+              <input className="sf-input" value={idForm.pill_text ?? ""}
+                onChange={(e) => setIdForm({ ...idForm, pill_text: e.target.value })}
+                placeholder="#FFFFFF" />
+            </div>
+          </div>
+          <div className="sf-field">
+            <label className="sf-label">Logo URL</label>
+            <input className="sf-input" value={idForm.logo_url ?? ""}
+              onChange={(e) => setIdForm({ ...idForm, logo_url: e.target.value })}
+              placeholder="https://..." />
+          </div>
+          <div className="sf-field">
+            <label className="sf-label">Style keywords (one per line)</label>
+            <textarea className="sf-input sf-textarea" value={idForm.style_keywords ?? ""}
+              onChange={(e) => setIdForm({ ...idForm, style_keywords: e.target.value })}
+              placeholder="clean, modern SaaS, white space" />
+          </div>
+          <div className="sf-field">
+            <label className="sf-label">Visual motifs (one per line)</label>
+            <textarea className="sf-input sf-textarea" value={idForm.motifs ?? ""}
+              onChange={(e) => setIdForm({ ...idForm, motifs: e.target.value })}
+              placeholder={"half-circle pie graphic bottom-left"} />
           </div>
           {swatches.length > 0 && (
             <div className="sf-swatches">
-              {swatches.map((s) => (
-                <div className="sf-swatch" key={s.label}>
-                  <span className="sf-swatch-chip" style={{ background: s.hex ?? "transparent" }} />
+              {swatches.map((sw) => (
+                <div className="sf-swatch" key={sw.label}>
+                  <span className="sf-swatch-chip" style={{ background: sw.hex ?? "transparent" }} />
                   <span className="sf-swatch-label">
-                    {s.label}
+                    {sw.label}
                     <br />
-                    <code>{s.hex}</code>
+                    <code>{sw.hex}</code>
                   </span>
                 </div>
               ))}
             </div>
           )}
-          {styleKeywords.length > 0 && (
-            <div className="sf-kv">
-              <span className="sf-kv-key">Style</span>
-              <div className="sf-chips">
-                {styleKeywords.map((k) => (
-                  <span className="sf-chip" key={k}>{k}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          {motifs.length > 0 && (
-            <div className="sf-kv">
-              <span className="sf-kv-key">Motifs</span>
-              <ul className="sf-list">
-                {motifs.map((m) => (
-                  <li key={m}>{m}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <div className="sf-form-actions">
+            <button className="sf-btn sf-btn-accent" onClick={saveIdentity} disabled={idSaving}>
+              {idSaving ? "Saving..." : "Save identity"}
+            </button>
+            {idMsg && <span className="sf-test is-ok">{idMsg}</span>}
+          </div>
         </section>
       )}
 
-      {/* ── Voice ───────────────────────────────────────────── */}
+      {/* Voice */}
       {tab === "voice" && (
         <section className="sf-section">
           <div className="sf-info">
-            This voice profile steers how the AI writes captions and headlines for
-            this brand — its tone, story structure, example headlines, and phrasings
-            to avoid.
+            This voice profile steers how the AI writes captions and headlines for this
+            brand &mdash; its tone, story structure, example headlines, and phrasings to avoid.
           </div>
-          {brand.voice_guide_text && <p className="sf-prose">{brand.voice_guide_text}</p>}
-          {toneKeywords.length > 0 && (
-            <div className="sf-kv">
-              <span className="sf-kv-key">Tone</span>
-              <div className="sf-chips">
-                {toneKeywords.map((k) => (
-                  <span className="sf-chip" key={k}>{k}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          {narrative && (
-            <div className="sf-kv">
-              <span className="sf-kv-key">Narrative</span>
-              <span className="sf-kv-val">{narrative}</span>
-            </div>
-          )}
-          {exampleHeadlines.length > 0 && (
-            <div className="sf-kv">
-              <span className="sf-kv-key">Examples</span>
-              <ul className="sf-list">
-                {exampleHeadlines.map((h) => (
-                  <li key={h}>&ldquo;{h}&rdquo;</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {avoid.length > 0 && (
-            <div className="sf-kv">
-              <span className="sf-kv-key">Avoid</span>
-              <div className="sf-chips">
-                {avoid.map((k) => (
-                  <span className="sf-chip is-warn" key={k}>{k}</span>
-                ))}
-              </div>
-            </div>
-          )}
+          <div className="sf-field">
+            <label className="sf-label">Voice guide (free text)</label>
+            <textarea className="sf-input sf-textarea" value={vForm.voice_guide_text ?? ""}
+              onChange={(e) => setVForm({ ...vForm, voice_guide_text: e.target.value })}
+              placeholder="Clear, reassuring, problem to solution. Short, punchy headlines." />
+          </div>
+          <div className="sf-field">
+            <label className="sf-label">Tone keywords (one per line)</label>
+            <textarea className="sf-input sf-textarea" value={vForm.tone_keywords ?? ""}
+              onChange={(e) => setVForm({ ...vForm, tone_keywords: e.target.value })}
+              placeholder="clear, reassuring, confident" />
+          </div>
+          <div className="sf-field">
+            <label className="sf-label">Narrative structure</label>
+            <input className="sf-input" value={vForm.narrative_structure ?? ""}
+              onChange={(e) => setVForm({ ...vForm, narrative_structure: e.target.value })}
+              placeholder="problem to solution" />
+          </div>
+          <div className="sf-field">
+            <label className="sf-label">Example headlines (one per line)</label>
+            <textarea className="sf-input sf-textarea" value={vForm.example_headlines ?? ""}
+              onChange={(e) => setVForm({ ...vForm, example_headlines: e.target.value })}
+              placeholder={"Photos Don't Fix Shelves. Actions Do."} />
+          </div>
+          <div className="sf-field">
+            <label className="sf-label">Avoid (one per line)</label>
+            <textarea className="sf-input sf-textarea" value={vForm.avoid ?? ""}
+              onChange={(e) => setVForm({ ...vForm, avoid: e.target.value })}
+              placeholder="translated phrasing, corporate fluff" />
+          </div>
+          <div className="sf-form-actions">
+            <button className="sf-btn sf-btn-accent" onClick={saveVoice} disabled={vSaving}>
+              {vSaving ? "Saving..." : "Save voice"}
+            </button>
+            {vMsg && <span className="sf-test is-ok">{vMsg}</span>}
+          </div>
         </section>
       )}
 
-      {/* ── Solutions & competitors ─────────────────────────── */}
+      {/* Solutions */}
       {tab === "solutions" && (
         <section className="sf-section">
           <div className="sf-info">

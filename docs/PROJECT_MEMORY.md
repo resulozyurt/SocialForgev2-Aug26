@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-27 — **E0** (calendar run fix) + approved Editability & Solution-First roadmap.
+Last updated: 2026-08-27 — **E1** (Identity & Voice tabs fully editable).
 
 ---
 
@@ -215,6 +215,15 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   captured in an in-memory per-brand registry and exposed at
   `GET /calendar/{brand_id}/status`, and the pipeline UI surfaces the real message
   instead of a silent empty list. No migration.
+- **2026-08-27 (E1) — Identity & Voice editable:** the brand detail `Identity` and
+  `Voice` tabs are now full edit forms saving through the existing
+  `PATCH /brands/{id}` (no backend change, no migration). Identity edits
+  display_name, industry, language, **monthly_post_target** (the field that was
+  read-only), the three brand colors, logo, and the `visual_identity` JSON
+  (ground/block/pill colors, style keywords, motifs). Voice edits
+  `voice_guide_text` and the `voice_profile` JSON (tone keywords, narrative,
+  example headlines, avoid). Forms rebuild from the saved brand after each save;
+  list fields are one-per-line textareas. Verified `tsc --noEmit` clean.
 
 ---
 
@@ -300,7 +309,7 @@ https://claude.ai/code/artifact/38ea41ec-302d-4692-928a-2f99f8575272
 | Epic | Scope | Status |
 |------|-------|--------|
 | E0 Calendar fix | surface run errors + max_tokens headroom + salvage parser | **DONE (this commit)** |
-| E1 Identity/Voice editable | edit forms over existing `PATCH /brands` (incl. monthly_post_target) | TODO |
+| E1 Identity/Voice editable | edit forms over existing `PATCH /brands` (incl. monthly_post_target) | **DONE** |
 | E2 Solutions + importance | add `importance` to brand_solutions (mig 0006); weighted auto-split; add/remove UI + live preview | TODO |
 | E3 Competitors CRUD | competitor PATCH/DELETE + solution tag (migration); grouped-by-solution UI | TODO |
 | E4 Research depth | per-solution research; report reject/delete/AI-edit endpoints + UI | TODO |
