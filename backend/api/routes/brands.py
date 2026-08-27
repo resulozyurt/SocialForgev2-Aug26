@@ -89,6 +89,7 @@ class SolutionItem(BaseModel):
     solution: SolutionEnum
     is_focus: bool = True
     priority: int = Field(default=100, ge=0)
+    importance: int = Field(default=3, ge=1, le=5)
     concept_notes: Optional[str] = None
 
 
@@ -97,6 +98,7 @@ class SolutionResponse(BaseModel):
     solution: SolutionEnum
     is_focus: bool
     priority: int
+    importance: int
     concept_notes: Optional[str]
     is_active: bool
 
@@ -198,6 +200,7 @@ async def set_brand_solutions(
         if row:
             row.is_focus = item.is_focus
             row.priority = item.priority
+            row.importance = item.importance
             row.concept_notes = item.concept_notes
             row.is_active = True
         else:
@@ -207,6 +210,7 @@ async def set_brand_solutions(
                     solution=item.solution,
                     is_focus=item.is_focus,
                     priority=item.priority,
+                    importance=item.importance,
                     concept_notes=item.concept_notes,
                 )
             )
@@ -218,3 +222,22 @@ async def set_brand_solutions(
         .order_by(BrandSolution.priority)
     )
     return refreshed.scalars().all()
+
+
+@router.delete("/brands/{brand_id}/solutions/{solution}", status_code=204)
+async def delete_brand_solution(
+    brand_id: uuid.UUID,
+    solution: SolutionEnum,
+    db: AsyncSession = Depends(get_db),
+):
+    """Hard-delete a single solution focus from a brand (E2 'remove')."""
+    result = await db.execute(
+        select(BrandSolution).where(
+            BrandSolution.brand_id == brand_id,
+            BrandSolution.solution == solution,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Solution not found for this brand.")
+    await db.delete(row)

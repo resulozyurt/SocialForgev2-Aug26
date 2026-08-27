@@ -43,8 +43,17 @@ export interface BrandSolution {
   solution: SolutionKey;
   is_focus: boolean;
   priority: number;
+  importance: number;
   concept_notes: string | null;
   is_active: boolean;
+}
+
+export interface SolutionInput {
+  solution: SolutionKey;
+  is_focus: boolean;
+  priority: number;
+  importance: number;
+  concept_notes: string | null;
 }
 
 export interface Competitor {

@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-27 — **E1** (Identity & Voice tabs fully editable).
+Last updated: 2026-08-27 — **E2** (solutions management + importance-weighted calendar split; migration 0006).
 
 ---
 
@@ -224,6 +224,21 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   `voice_guide_text` and the `voice_profile` JSON (tone keywords, narrative,
   example headlines, avoid). Forms rebuild from the saved brand after each save;
   list fields are one-per-line textareas. Verified `tsc --noEmit` clean.
+- **2026-08-27 (E2) — Solutions management + importance-weighted split:** each
+  `brand_solutions` row gains an `importance` intensity (1-5, default 3) via
+  **migration 0006** (inspector-guarded; `server_default "3"` so existing rows and
+  the create_all baseline converge). Phase 2's `_allocate_solutions` now splits the
+  month **by importance weight** (largest-remainder; ties by priority) instead of
+  evenly — equal importance reproduces the old balanced split, so it is backward
+  compatible. AI stays cross-cutting (no bucket; ~45% ai_angle). New
+  `DELETE /brands/{id}/solutions/{solution}` hard-removes one focus; `PUT` upsert now
+  carries importance. The brand **Solutions tab is fully editable**: include/exclude
+  each of the six areas, toggle focus, set importance + priority + concept notes, with
+  a **live monthly-split preview** (bars, per-solution counts, AI-angle target) that
+  mirrors the backend allocator. Verified: FieldPie 30 with merch=5/audit=4/sales=2/
+  home=1 -> 11/9/4/2 + general 4; equal importance -> 7/7/6/6 + 4. `tsc` + `py_compile`
+  clean. Importance is not seeded (defaults to 3 = balanced) and tuned in the UI;
+  re-seed preserves it (upsert does not touch importance).
 
 ---
 
@@ -310,7 +325,7 @@ https://claude.ai/code/artifact/38ea41ec-302d-4692-928a-2f99f8575272
 |------|-------|--------|
 | E0 Calendar fix | surface run errors + max_tokens headroom + salvage parser | **DONE (this commit)** |
 | E1 Identity/Voice editable | edit forms over existing `PATCH /brands` (incl. monthly_post_target) | **DONE** |
-| E2 Solutions + importance | add `importance` to brand_solutions (mig 0006); weighted auto-split; add/remove UI + live preview | TODO |
+| E2 Solutions + importance | add `importance` to brand_solutions (mig 0006); weighted auto-split; add/remove UI + live preview | **DONE** |
 | E3 Competitors CRUD | competitor PATCH/DELETE + solution tag (migration); grouped-by-solution UI | TODO |
 | E4 Research depth | per-solution research; report reject/delete/AI-edit endpoints + UI | TODO |
 | E5 Back to Calendar | R2b review UI (solution chips + ai_angle + distribution), then resume Copy→Visual | TODO |

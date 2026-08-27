@@ -91,6 +91,60 @@ function buildVoiceForm(b: Brand): Record<string, string> {
   };
 }
 
+const ALL_SOLUTIONS: SolutionKey[] = [
+  "merchandising", "field_audit", "field_sales", "home_service", "ai", "general",
+];
+
+interface SolRow {
+  included: boolean;
+  is_focus: boolean;
+  importance: number;
+  priority: number;
+  concept_notes: string;
+}
+
+function buildSolRows(list: BrandSolution[]): Record<SolutionKey, SolRow> {
+  const out = {} as Record<SolutionKey, SolRow>;
+  for (const k of ALL_SOLUTIONS) {
+    const f = list.find((s) => s.solution === k);
+    out[k] = f
+      ? { included: true, is_focus: f.is_focus, importance: f.importance ?? 3, priority: f.priority, concept_notes: f.concept_notes ?? "" }
+      : { included: false, is_focus: true, importance: 3, priority: 100, concept_notes: "" };
+  }
+  return out;
+}
+
+function previewDistribution(rows: Record<SolutionKey, SolRow>, postCount: number) {
+  const NON: SolutionKey[] = ["ai", "general"];
+  const included = ALL_SOLUTIONS.filter((k) => rows[k].included);
+  const hasAi = included.includes("ai");
+  const hasGeneral = included.includes("general");
+  const aiAngle = hasAi ? Math.round(0.45 * postCount) : 0;
+  const primaryFocus = included.filter((k) => !NON.includes(k) && rows[k].is_focus);
+  const fp = primaryFocus.length ? primaryFocus : included.filter((k) => !NON.includes(k));
+  const quota: Partial<Record<SolutionKey, number>> = {};
+  if (!fp.length) {
+    const b: SolutionKey = hasGeneral ? "general" : hasAi ? "ai" : "general";
+    quota[b] = postCount;
+    return { quota, aiAngle };
+  }
+  let gc = hasGeneral ? Math.round(0.15 * postCount) : 0;
+  gc = Math.max(0, Math.min(gc, postCount - fp.length));
+  const rem = postCount - gc;
+  const weights = fp.map((k) => Math.max(1, rows[k].importance || 3));
+  const tw = weights.reduce((a, b) => a + b, 0) || fp.length;
+  const exact = weights.map((w) => (rem * w) / tw);
+  const base = exact.map((x) => Math.floor(x));
+  const lo = rem - base.reduce((a, b) => a + b, 0);
+  const ord = fp
+    .map((_, i) => i)
+    .sort((a, b) => (exact[b] - base[b] - (exact[a] - base[a])) || (rows[fp[a]].priority - rows[fp[b]].priority));
+  for (let k = 0; k < lo; k++) base[ord[k]] += 1;
+  fp.forEach((k, i) => (quota[k] = base[i]));
+  if (gc) quota.general = (quota.general ?? 0) + gc;
+  return { quota, aiAngle };
+}
+
 const EMPTY_PROVIDER: ProviderConfigCreate = {
   phase: "phase1_research",
   provider: "anthropic",
@@ -137,6 +191,9 @@ export default function BrandDetailPage() {
   const [vForm, setVForm] = useState<Record<string, string>>({});
   const [vSaving, setVSaving] = useState(false);
   const [vMsg, setVMsg] = useState<string | null>(null);
+  const [solRows, setSolRows] = useState<Record<SolutionKey, SolRow>>(() => buildSolRows([]));
+  const [solSaving, setSolSaving] = useState(false);
+  const [solMsg, setSolMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -158,6 +215,7 @@ export default function BrandDetailPage() {
       setSrcGeo(typeof rs.trends_geo === "string" ? rs.trends_geo : "");
       setIdForm(buildIdentityForm(b));
       setVForm(buildVoiceForm(b));
+      setSolRows(buildSolRows(sol));
     } catch (err) {
       setError(msg(err));
     } finally {
@@ -325,6 +383,33 @@ export default function BrandDetailPage() {
     }
   }
 
+  async function saveSolutions() {
+    setSolSaving(true);
+    setSolMsg(null);
+    setError(null);
+    try {
+      const items = ALL_SOLUTIONS.filter((k) => solRows[k].included).map((k) => ({
+        solution: k,
+        is_focus: solRows[k].is_focus,
+        priority: Number(solRows[k].priority) || 100,
+        importance: Number(solRows[k].importance) || 3,
+        concept_notes: solRows[k].concept_notes.trim() || null,
+      }));
+      await api.setSolutions(brandId, items);
+      const before = new Set(solutions.map((s) => s.solution));
+      const removed = ALL_SOLUTIONS.filter((k) => before.has(k) && !solRows[k].included);
+      for (const k of removed) await api.deleteSolution(brandId, k);
+      const fresh = await api.listSolutions(brandId);
+      setSolutions(fresh);
+      setSolRows(buildSolRows(fresh));
+      setSolMsg("Saved.");
+    } catch (err) {
+      setError(msg(err));
+    } finally {
+      setSolSaving(false);
+    }
+  }
+
   if (loading) return <p className="sf-note">Loading brand…</p>;
   if (error && !brand) return <div className="sf-error">{error}</div>;
   if (!brand) return <div className="sf-error">Brand not found.</div>;
@@ -339,7 +424,6 @@ export default function BrandDetailPage() {
     { label: "Block", hex: asStr(vi.block_color) },
     { label: "Pill", hex: asStr(pill.bg_color) },
   ].filter((s) => s.hex);
-  const sortedSolutions = [...solutions].sort((a, b) => a.priority - b.priority);
 
   return (
     <div>
@@ -561,30 +645,110 @@ export default function BrandDetailPage() {
       {tab === "solutions" && (
         <section className="sf-section">
           <div className="sf-info">
-            Solution focus tells the pipeline which product areas to build content
-            around (lower priority number = higher priority). Competitors are
-            optional and only used when Apify research is enabled.
+            Pick which product areas this brand builds content around and how much
+            weight each carries. <strong>Importance (1-5)</strong> drives how the monthly
+            plan is split across solutions. <strong>AI</strong> is a cross-cutting theme,
+            not a separate share. Lower priority number = higher priority (breaks ties).
           </div>
-          <h2 className="sf-section-title">Solution focus</h2>
-          {sortedSolutions.length === 0 ? (
-            <p className="sf-note">No solutions configured.</p>
-          ) : (
-            <div className="sf-solutions">
-              {sortedSolutions.map((s) => (
-                <div className="sf-solution" key={s.id}>
-                  <div className="sf-solution-head">
-                    <span className="sf-solution-name">
-                      {SOLUTION_LABELS[s.solution] ?? s.solution}
-                    </span>
-                    <span className={`sf-badge${s.is_focus ? " is-active" : ""}`}>
-                      {s.is_focus ? "Focus" : "Off"}
-                    </span>
-                  </div>
-                  {s.concept_notes && <p className="sf-solution-notes">{s.concept_notes}</p>}
+
+          <div className="sf-solutions-edit">
+            {ALL_SOLUTIONS.map((k) => {
+              const r = solRows[k];
+              return (
+                <div className={`sf-solrow${r.included ? " is-on" : ""}`} key={k}>
+                  <label className="sf-solrow-head">
+                    <input
+                      type="checkbox"
+                      checked={r.included}
+                      onChange={(e) => setSolRows({ ...solRows, [k]: { ...r, included: e.target.checked } })}
+                    />
+                    <span className="sf-solution-name">{SOLUTION_LABELS[k]}</span>
+                    {k === "ai" && <span className="sf-badge">cross-cutting</span>}
+                  </label>
+                  {r.included && (
+                    <div className="sf-solrow-body">
+                      <label className="sf-inline-check">
+                        <input
+                          type="checkbox"
+                          checked={r.is_focus}
+                          onChange={(e) => setSolRows({ ...solRows, [k]: { ...r, is_focus: e.target.checked } })}
+                        />
+                        Focus
+                      </label>
+                      <div className="sf-field sf-field-sm">
+                        <label className="sf-label">Importance</label>
+                        <select
+                          className="sf-input"
+                          value={r.importance}
+                          onChange={(e) => setSolRows({ ...solRows, [k]: { ...r, importance: Number(e.target.value) } })}
+                        >
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="sf-field sf-field-sm">
+                        <label className="sf-label">Priority</label>
+                        <input
+                          className="sf-input"
+                          type="number"
+                          min={0}
+                          value={r.priority}
+                          onChange={(e) => setSolRows({ ...solRows, [k]: { ...r, priority: Number(e.target.value) } })}
+                        />
+                      </div>
+                      <div className="sf-field sf-field-grow">
+                        <label className="sf-label">Concept notes</label>
+                        <input
+                          className="sf-input"
+                          value={r.concept_notes}
+                          onChange={(e) => setSolRows({ ...solRows, [k]: { ...r, concept_notes: e.target.value } })}
+                          placeholder="How this solution is positioned for this brand"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
+
+          <div className="sf-form-actions">
+            <button className="sf-btn sf-btn-accent" onClick={saveSolutions} disabled={solSaving}>
+              {solSaving ? "Saving..." : "Save solutions"}
+            </button>
+            {solMsg && <span className="sf-test is-ok">{solMsg}</span>}
+          </div>
+
+          <h2 className="sf-section-title" style={{ marginTop: 22 }}>
+            Monthly split preview · {brand.monthly_post_target} posts
+          </h2>
+          {(() => {
+            const { quota, aiAngle } = previewDistribution(solRows, brand.monthly_post_target);
+            const rowsOut = ALL_SOLUTIONS.filter((k) => (quota[k] ?? 0) > 0).map(
+              (k) => [k, quota[k] as number] as const,
+            );
+            if (!rowsOut.length)
+              return <p className="sf-note">Include at least one solution to see the split.</p>;
+            const maxN = Math.max(1, ...rowsOut.map(([, n]) => n));
+            return (
+              <div className="sf-dist">
+                {rowsOut.map(([k, n]) => (
+                  <div className="sf-dist-row" key={k}>
+                    <span className="sf-dist-label">{SOLUTION_LABELS[k]}</span>
+                    <span className="sf-dist-bar">
+                      <span style={{ width: `${(n / maxN) * 100}%` }} />
+                    </span>
+                    <span className="sf-dist-num">{n}</span>
+                  </div>
+                ))}
+                <p className="sf-hint">
+                  AI angle target: {aiAngle} posts carry a cross-cutting AI angle.
+                </p>
+              </div>
+            );
+          })()}
+
           <h2 className="sf-section-title" style={{ marginTop: 22 }}>Competitors</h2>
           {competitors.length === 0 ? (
             <p className="sf-note">No competitors added.</p>

@@ -90,8 +90,9 @@ def _allocate_solutions(solutions_meta: list, post_count: int) -> tuple[dict, in
 
     Rules:
       - "ai" gets no bucket (cross-cutting); "general" gets ~15% when present.
-      - Focus, non-AI, non-general solutions split the rest evenly. Any leftover
-        posts go to the highest-priority solutions first (lower priority number).
+      - Focus, non-AI, non-general solutions split the rest by importance weight
+        (1-5). Leftover posts go to the largest fractional share first, ties by
+        priority (lower number wins).
       - If the brand has no usable primary solution, everything falls into
         "general" (or "ai" as a last resort) so the calendar still runs.
     """
@@ -111,13 +112,23 @@ def _allocate_solutions(solutions_meta: list, post_count: int) -> tuple[dict, in
     general_count = max(0, min(general_count, post_count - len(focus_primary)))
     remaining = post_count - general_count
 
-    ordered = sorted(focus_primary, key=lambda s: s.get("priority", 100))
-    n = len(ordered)
-    base, extra = divmod(remaining, n)
+    # Split `remaining` across focus solutions weighted by importance (1-5),
+    # using the largest-remainder method; ties break by priority (asc).
+    weights = [max(1, int(s.get("importance") or 3)) for s in focus_primary]
+    total_w = sum(weights) or len(focus_primary)
+    exact = [remaining * w / total_w for w in weights]
+    base = [int(x) for x in exact]
+    leftover = remaining - sum(base)
+    order = sorted(
+        range(len(focus_primary)),
+        key=lambda i: (-(exact[i] - base[i]), focus_primary[i].get("priority", 100)),
+    )
+    for k in range(leftover):
+        base[order[k]] += 1
 
     quota: dict = {}
-    for i, s in enumerate(ordered):
-        quota[s["solution"]] = base + (1 if i < extra else 0)
+    for i, s in enumerate(focus_primary):
+        quota[s["solution"]] = base[i]
     if general_count:
         quota["general"] = quota.get("general", 0) + general_count
     return quota, ai_angle_target
@@ -299,6 +310,7 @@ class Phase2Calendar:
                     "solution": s.solution.value,
                     "is_focus": bool(s.is_focus),
                     "priority": s.priority,
+                    "importance": int(s.importance or 3),
                     "concept_notes": s.concept_notes or "",
                 }
                 for s in sol_result.scalars().all()
@@ -341,7 +353,7 @@ class Phase2Calendar:
             solutions_block = json.dumps(
                 [
                     {"solution": s["solution"], "focus": s["is_focus"],
-                     "notes": s["concept_notes"]}
+                     "importance": s["importance"], "notes": s["concept_notes"]}
                     for s in solutions_meta
                 ],
                 indent=2, ensure_ascii=False,

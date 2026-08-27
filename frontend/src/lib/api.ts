@@ -60,6 +60,13 @@ export const api = {
 
   // Solutions
   listSolutions: (id: string) => request<BrandSolution[]>(`/brands/${id}/solutions`),
+  setSolutions: (id: string, items: import("./types").SolutionInput[]) =>
+    request<BrandSolution[]>(`/brands/${id}/solutions`, {
+      method: "PUT",
+      body: JSON.stringify(items),
+    }),
+  deleteSolution: (id: string, solution: string) =>
+    request<void>(`/brands/${id}/solutions/${solution}`, { method: "DELETE" }),
 
   // Competitors
   listCompetitors: (id: string) => request<Competitor[]>(`/brands/${id}/competitors`),

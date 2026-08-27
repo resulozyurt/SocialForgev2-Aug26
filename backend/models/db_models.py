@@ -178,6 +178,8 @@ class BrandSolution(Base):
     solution: Mapped[SolutionEnum] = mapped_column(Enum(SolutionEnum), nullable=False)
     is_focus: Mapped[bool] = mapped_column(Boolean, default=True)
     priority: Mapped[int] = mapped_column(Integer, default=100)
+    # E2: content-weight intensity (1-5). Drives the per-solution calendar split.
+    importance: Mapped[int] = mapped_column(Integer, default=3, server_default="3")
     concept_notes: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
