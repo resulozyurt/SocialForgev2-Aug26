@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-27 — **Phase R2a** (solution-aware content calendar; AI as a cross-cutting theme).
+Last updated: 2026-08-27 — **E0** (calendar run fix) + approved Editability & Solution-First roadmap.
 
 ---
 
@@ -204,7 +204,17 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   Evatro stays 12. Verified example quotas: FieldPie 30 -> merch 7 / audit 7 /
   sales 6 / home_service 6 / general 4 (ai_angle 14); Evatro 12 -> merch 5 / audit
   5 / general 2 (ai_angle 5). Next: R2b surfaces solution chips + AI angle +
-  distribution in the calendar review UI.
+   distribution in the calendar review UI.
+- **2026-08-27 (E0) — Calendar run fix:** the calendar run was returning nothing
+  because the Phase-2 output overflowed the 4096-token default and truncated the
+  JSON (30 posts + new `solution`/`ai_angle` fields), so parsing failed inside a
+  background task that swallowed the error. Fix: (a) scale `max_tokens` to the plan
+  size — `min(max(config, post_count*200+1200), 8000)`; (b) a tolerant parser that
+  strips code fences and **salvages complete entries from truncated JSON**
+  (`_salvage_entries`, brace-balanced scan); (c) background-run errors are now
+  captured in an in-memory per-brand registry and exposed at
+  `GET /calendar/{brand_id}/status`, and the pipeline UI surfaces the real message
+  instead of a silent empty list. No migration.
 
 ---
 
@@ -267,12 +277,36 @@ run research to see real source links. **R2a shipped** (backend): the calendar i
 now solution-aware with a deterministic per-solution quota and AI woven in as a
 cross-cutting `ai_angle`; FieldPie's target is 30/mo. To apply R2a live: deploy
 (no migration), then re-seed or PATCH FieldPie so `monthly_post_target=30`, and run
-the pipeline to see solution/ai_angle on each calendar entry. Next: **R2b** — show
-solution chips + AI angle + distribution in the calendar review UI; then R3
-(competitor discovery) and R4 (Apify competitor social monitoring). Phase D
-(visuals + Google Drive) follows Phase R.
+the pipeline to see solution/ai_angle on each calendar entry. After R2a, live demo feedback reprioritized the work into an approved
+**Editability & Solution-First roadmap (see section 11)**: E0 (calendar fix) is
+DONE; next is **E1** (make Identity/Voice fully editable). R2b (calendar review UI)
+is now folded in as **E5**, after the editability + solution work. Phase D (visuals
++ Google Drive) still follows.
 
 To exercise the pipeline in the live app: open a brand, set a Research (and
 Calendar, Copy) AI provider under AI providers, then use 'Content pipeline' to run
 and approve each stage. Live brands' `research_sources` is null until re-seeded,
 but Phase 1 falls back to language-based default feeds, so research runs anyway.
+
+---
+
+## 11. Editability & Solution-First Roadmap (approved 2026-08-27)
+
+Driven by live feedback after the manager demo: every piece of brand data must be
+editable, everything organizes around solution areas, and human-in-the-loop stays.
+Shareable one-pager artifact:
+https://claude.ai/code/artifact/38ea41ec-302d-4692-928a-2f99f8575272
+
+| Epic | Scope | Status |
+|------|-------|--------|
+| E0 Calendar fix | surface run errors + max_tokens headroom + salvage parser | **DONE (this commit)** |
+| E1 Identity/Voice editable | edit forms over existing `PATCH /brands` (incl. monthly_post_target) | TODO |
+| E2 Solutions + importance | add `importance` to brand_solutions (mig 0006); weighted auto-split; add/remove UI + live preview | TODO |
+| E3 Competitors CRUD | competitor PATCH/DELETE + solution tag (migration); grouped-by-solution UI | TODO |
+| E4 Research depth | per-solution research; report reject/delete/AI-edit endpoints + UI | TODO |
+| E5 Back to Calendar | R2b review UI (solution chips + ai_angle + distribution), then resume Copy→Visual | TODO |
+
+Notes: backend already has `PATCH /brands` (so post-limit is writable — E1 is UI
+only) and `GET/POST` competitors (E3 adds PATCH/DELETE + solution tag). E2 upgrades
+R2a's even split to an importance-weighted split. Each epic ships as its own
+reviewed, deployable commit; migrations stay idempotent + inspector-guarded.

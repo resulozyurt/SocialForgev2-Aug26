@@ -108,6 +108,8 @@ export const api = {
   listCalendars: (id: string) => request<ContentCalendar[]>(`/calendar/${id}`),
   approveCalendar: (calendarId: string) =>
     request<unknown>(`/calendar/${calendarId}/approve`, { method: "PATCH" }),
+  calendarStatus: (id: string) =>
+    request<{ status: string; message: string }>(`/calendar/${id}/status`),
 
   // Phase 3 — copy
   runCopy: (id: string, body: CopyRunRequest) =>

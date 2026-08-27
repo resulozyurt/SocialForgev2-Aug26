@@ -121,7 +121,6 @@ export default function PipelinePage() {
       await api.runCalendar(brandId, {});
       for (let i = 0; i < 24; i++) {
         await sleep(5000);
-        addLog(`Calendar: waiting for the draft (check ${i + 1})…`);
         const latest = await api.listCalendars(brandId);
         setCalendars(latest);
         if (latest.length > before) {
@@ -129,6 +128,14 @@ export default function PipelinePage() {
           addLog(`Calendar: draft received — ${entries} planned posts. Review and approve.`, "ok");
           break;
         }
+        // Surface a background-run failure instead of waiting the full timeout.
+        const st = await api.calendarStatus(brandId).catch(() => null);
+        if (st?.status === "error") {
+          addLog(`Calendar: run failed — ${st.message}`, "err");
+          setError(st.message);
+          break;
+        }
+        addLog(`Calendar: waiting for the draft (check ${i + 1})…`);
         if (i === 23) addLog("Calendar: still working — use Refresh in a moment.", "info");
       }
     } catch (e) {

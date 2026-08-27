@@ -5,6 +5,7 @@ Phase 2 — Content calendar endpoints.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Optional
 
@@ -16,7 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from models.db_models import Brand, ContentCalendar
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Last-run status per brand so the UI can surface a background-run failure
+# instead of a silent empty list. In-memory (single-instance admin tool); it
+# resets on restart, which is fine — it only mirrors the most recent run.
+_CALENDAR_JOBS: dict[str, dict] = {}
 
 
 class CalendarRunRequest(BaseModel):
@@ -28,6 +35,11 @@ class CalendarRunRequest(BaseModel):
 class CalendarRunResponse(BaseModel):
     message: str
     brand_id: str
+
+
+class CalendarStatusResponse(BaseModel):
+    status: str = "idle"     # idle | running | done | error
+    message: str = ""
 
 
 class CalendarResponse(BaseModel):
@@ -66,15 +78,25 @@ async def run_calendar(
     post_count = payload.post_count
     platforms = payload.platforms
 
+    _CALENDAR_JOBS[str(brand_id)] = {"status": "running", "message": "Building the monthly plan…"}
+
     async def _run():
         from phases.phase2_calendar import Phase2Calendar
-        runner = Phase2Calendar()
-        await runner.run(
-            brand_id=str(brand_id),
-            report_id=report_id,
-            post_count=post_count,
-            platforms=platforms,
-        )
+        try:
+            runner = Phase2Calendar()
+            result = await runner.run(
+                brand_id=str(brand_id),
+                report_id=report_id,
+                post_count=post_count,
+                platforms=platforms,
+            )
+            _CALENDAR_JOBS[str(brand_id)] = {
+                "status": "done",
+                "message": f"Calendar ready — {len(result.entries)} posts planned.",
+            }
+        except Exception as exc:  # noqa: BLE001 — surface the real reason to the UI
+            logger.exception("Calendar run failed for brand %s", brand_id)
+            _CALENDAR_JOBS[str(brand_id)] = {"status": "error", "message": str(exc)}
 
     background_tasks.add_task(_run)
 
@@ -82,6 +104,15 @@ async def run_calendar(
         message="Phase 2 calendar generation started. Check /calendar/{brand_id} for results.",
         brand_id=str(brand_id),
     )
+
+
+@router.get("/calendar/{brand_id}/status", response_model=CalendarStatusResponse)
+async def calendar_status(brand_id: uuid.UUID):
+    """Most recent background calendar-run status for a brand (idle/running/done/error)."""
+    job = _CALENDAR_JOBS.get(str(brand_id))
+    if not job:
+        return CalendarStatusResponse()
+    return CalendarStatusResponse(**job)
 
 
 @router.get("/calendar/{brand_id}", response_model=list[CalendarResponse])

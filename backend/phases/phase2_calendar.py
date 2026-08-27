@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -372,11 +373,16 @@ class Phase2Calendar:
             encrypted_api_key=ai_config.api_key_enc,
         )
 
+        # A 30-post month with solution + ai_angle fields overflows a 4096-token
+        # cap and gets truncated mid-JSON. Scale the ceiling to the plan size so
+        # every entry fits; keep it within limits broadly supported by models.
+        gen_max_tokens = min(max(ai_config.max_tokens or 4096, post_count * 200 + 1200), 8000)
+
         response = await provider.complete(
             user_message=prompt,
             system_prompt=SYSTEM_PROMPT,
             temperature=ai_config.temperature,
-            max_tokens=ai_config.max_tokens,
+            max_tokens=gen_max_tokens,
         )
 
         data = self._parse_json_response(response.content)
@@ -420,15 +426,64 @@ class Phase2Calendar:
 
     @staticmethod
     def _parse_json_response(content: str) -> dict:
-        """Parse the AI's JSON output, tolerating markdown fences or prose."""
+        """Parse the AI's JSON output, tolerating code fences, prose, or a
+        response truncated by the token limit (salvages complete entries)."""
+        text = (content or "").strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
+            text = re.sub(r"\s*```$", "", text).strip()
         try:
-            return json.loads(content)
+            return json.loads(text)
         except json.JSONDecodeError:
-            import re
-            match = re.search(r"\{.*\}", content, re.DOTALL)
-            if match:
+            pass
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if match:
+            try:
                 return json.loads(match.group())
-            raise ValueError(f"AI response was not valid JSON: {content[:200]}")
+            except json.JSONDecodeError:
+                pass
+        salvaged = Phase2Calendar._salvage_entries(text)
+        if salvaged["entries"]:
+            logger.warning(
+                "Calendar JSON was malformed/truncated — salvaged %d entries.",
+                len(salvaged["entries"]),
+            )
+            return salvaged
+        raise ValueError(f"AI response was not valid JSON: {content[:200]}")
+
+    @staticmethod
+    def _salvage_entries(text: str) -> dict:
+        """Recover the summary and every brace-balanced entry object from a
+        malformed or truncated calendar response."""
+        summary = ""
+        m = re.search(r'"summary"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
+        if m:
+            summary = m.group(1)
+        entries = []
+        idx = text.find('"entries"')
+        scan = text[idx:] if idx != -1 else text
+        depth = 0
+        start = None
+        for i, ch in enumerate(scan):
+            if ch == "{":
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == "}":
+                if depth > 0:
+                    depth -= 1
+                    if depth == 0 and start is not None:
+                        chunk = scan[start:i + 1]
+                        try:
+                            obj = json.loads(chunk)
+                        except json.JSONDecodeError:
+                            obj = None
+                        if isinstance(obj, dict) and (
+                            "date" in obj or "solution" in obj or "hook_concept" in obj
+                        ):
+                            entries.append(obj)
+                        start = None
+        return {"summary": summary, "entries": entries}
 
     async def _save_calendar(self, brand_id: str, result: CalendarResult) -> None:
         """Persist the content calendar to the database."""
