@@ -446,3 +446,119 @@ html, body {
   font-family: var(--font-mono), monospace; font-size: 10px;
   text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
 }
+
+/* ── Tabs / info boxes / activity log (UX batch) ────────────── */
+.sf-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.sf-tab {
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.sf-tab:hover { color: var(--ink); }
+.sf-tab.is-active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.sf-info {
+  background: var(--accent-soft);
+  border: 1px solid #f0cdbd;
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: var(--ink);
+  margin-bottom: 18px;
+  line-height: 1.55;
+}
+.sf-info strong { font-weight: 600; }
+
+.sf-inline-row { display: flex; gap: 10px; align-items: stretch; }
+.sf-inline-row .sf-input { flex: 1; }
+.sf-inline-row .sf-btn { white-space: nowrap; }
+
+.sf-field-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.sf-linkbtn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.sf-linkbtn:hover { text-decoration: underline; }
+
+/* Activity log */
+.sf-log-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+.sf-log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.sf-log-title {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sf-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  display: inline-block;
+  animation: sf-pulse 1.1s ease-in-out infinite;
+}
+@keyframes sf-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.sf-log {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.sf-log-empty { color: var(--muted); margin: 0; }
+.sf-log-line { padding: 1px 0; color: var(--ink); }
+.sf-log-line.is-ok { color: var(--ok); }
+.sf-log-line.is-err { color: var(--accent); }
+.sf-log-time { color: var(--muted); margin-right: 6px; }

@@ -224,3 +224,71 @@ def build_provider_from_config(provider_name: str, model: str, encrypted_api_key
     from core.config import get_encryption_manager
     api_key = get_encryption_manager().decrypt(encrypted_api_key)
     return AIProvider(provider_name=provider_name, model=model, api_key=api_key)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Model discovery (Phase C-polish): list the models an API key can use.
+# Best-effort live lookup via each provider SDK, with a curated fallback so the
+# UI always has something to show.
+# ─────────────────────────────────────────────────────────────────────────────
+
+FALLBACK_MODELS: dict[str, list[str]] = {
+    "anthropic": [
+        "claude-sonnet-4-5",
+        "claude-opus-4-1",
+        "claude-3-5-sonnet-latest",
+        "claude-3-5-haiku-latest",
+    ],
+    "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o3-mini"],
+    "google": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    "groq": [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+    ],
+}
+
+
+async def list_models(provider_name: str, api_key: str) -> list[str]:
+    """Return the chat/text model ids the given key can access. Raises on
+    failure so the caller can fall back to FALLBACK_MODELS."""
+    import asyncio
+
+    p = provider_name.lower()
+
+    if p == "anthropic":
+        import anthropic
+
+        client = anthropic.AsyncAnthropic(api_key=api_key)
+        page = await client.models.list()
+        return sorted({m.id for m in page.data})
+
+    if p == "openai":
+        import openai
+
+        client = openai.AsyncOpenAI(api_key=api_key)
+        page = await client.models.list()
+        prefixes = ("gpt", "o1", "o3", "o4", "chatgpt")
+        return sorted({m.id for m in page.data if m.id.startswith(prefixes)})
+
+    if p == "groq":
+        from groq import AsyncGroq
+
+        client = AsyncGroq(api_key=api_key)
+        page = await client.models.list()
+        return sorted({m.id for m in page.data if "whisper" not in m.id.lower()})
+
+    if p == "google":
+        import google.generativeai as genai
+
+        def _list() -> list[str]:
+            genai.configure(api_key=api_key)
+            out: list[str] = []
+            for m in genai.list_models():
+                methods = getattr(m, "supported_generation_methods", []) or []
+                if "generateContent" in methods:
+                    out.append(str(m.name).replace("models/", ""))
+            return out
+
+        return sorted(set(await asyncio.to_thread(_list)))
+
+    raise ValueError(f"Unknown provider '{provider_name}'")

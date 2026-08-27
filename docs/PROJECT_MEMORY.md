@@ -165,6 +165,14 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   draft lands), an expandable review, and an Approve gate that unlocks the next
   stage. A 'Content pipeline' link was added to the brand detail page. Phase C is
   complete.
+- **2026-08-26 (C-polish) — Admin UX pass:** brand detail is now tabbed (Identity
+  / Voice / Solutions / AI Providers) so nothing is buried in a long scroll. The AI
+  provider model is chosen from a dropdown populated by a new `POST /settings/models`
+  endpoint that lists the models a given provider + key can use (live via the
+  provider SDK, curated `FALLBACK_MODELS` on failure) — no manual model typing.
+  Added inline help ('info') callouts across the UI, and a live activity log on the
+  pipeline page so a run's progress is visible step by step. All admin UI is native
+  American English; only Evatro's generated content is Turkish.
 
 ---
 

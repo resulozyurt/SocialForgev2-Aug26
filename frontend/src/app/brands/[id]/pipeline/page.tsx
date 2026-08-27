@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
@@ -11,7 +11,6 @@ import type {
   TrendReport,
 } from "@/lib/types";
 
-// ── tiny safe accessors for the free-form JSON payloads ─────────────────────
 const S = (v: unknown): string =>
   v === null || v === undefined ? "" : typeof v === "string" ? v : String(v);
 const A = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
@@ -26,6 +25,7 @@ function currentPeriod(): string {
 }
 
 type Running = { research: boolean; calendar: boolean; copy: boolean };
+type LogLine = { time: string; text: string; kind: "info" | "ok" | "err" };
 
 export default function PipelinePage() {
   const params = useParams();
@@ -45,6 +45,21 @@ export default function PipelinePage() {
   const [period, setPeriod] = useState(currentPeriod());
   const [copyLimit, setCopyLimit] = useState<string>("");
   const [generateTr, setGenerateTr] = useState(true);
+
+  const [log, setLog] = useState<LogLine[]>([]);
+  const logEndRef = useRef<HTMLDivElement | null>(null);
+
+  const addLog = useCallback(
+    (text: string, kind: LogLine["kind"] = "info") => {
+      const time = new Date().toLocaleTimeString();
+      setLog((l) => [...l, { time, text, kind }].slice(-250));
+    },
+    []
+  );
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ block: "nearest" });
+  }, [log]);
 
   const refreshReports = useCallback(
     () => api.listReports(brandId).then(setReports).catch(() => {}),
@@ -69,20 +84,28 @@ export default function PipelinePage() {
   const hasApprovedReport = reports.some((r) => r.is_approved);
   const hasApprovedCalendar = calendars.some((c) => c.is_approved);
 
-  // ── run handlers (background task → poll until new item appears) ──────────
   async function runResearch() {
     setError(null);
     setRunning((r) => ({ ...r, research: true }));
     const before = reports.length;
+    addLog(`Research: requesting a trend report for ${period}…`);
     try {
       await api.runResearch(brandId, { planning_period: period, max_posts: 20 });
+      addLog("Research: gathering RSS + Google Trends, then drafting with AI…");
       for (let i = 0; i < 24; i++) {
         await sleep(5000);
+        addLog(`Research: waiting for the draft (check ${i + 1})…`);
         const latest = await api.listReports(brandId);
         setReports(latest);
-        if (latest.length > before) break;
+        if (latest.length > before) {
+          const topics = A(O(latest[0]).trending_topics).length;
+          addLog(`Research: draft received — ${topics} trending topics. Review and approve.`, "ok");
+          break;
+        }
+        if (i === 23) addLog("Research: still working — use Refresh in a moment.", "info");
       }
     } catch (e) {
+      addLog(`Research: error — ${msg(e)}`, "err");
       setError(msg(e));
     } finally {
       setRunning((r) => ({ ...r, research: false }));
@@ -93,15 +116,23 @@ export default function PipelinePage() {
     setError(null);
     setRunning((r) => ({ ...r, calendar: true }));
     const before = calendars.length;
+    addLog("Calendar: building a monthly plan from the approved report…");
     try {
       await api.runCalendar(brandId, {});
       for (let i = 0; i < 24; i++) {
         await sleep(5000);
+        addLog(`Calendar: waiting for the draft (check ${i + 1})…`);
         const latest = await api.listCalendars(brandId);
         setCalendars(latest);
-        if (latest.length > before) break;
+        if (latest.length > before) {
+          const entries = A(O(latest[0]).entries).length;
+          addLog(`Calendar: draft received — ${entries} planned posts. Review and approve.`, "ok");
+          break;
+        }
+        if (i === 23) addLog("Calendar: still working — use Refresh in a moment.", "info");
       }
     } catch (e) {
+      addLog(`Calendar: error — ${msg(e)}`, "err");
       setError(msg(e));
     } finally {
       setRunning((r) => ({ ...r, calendar: false }));
@@ -113,16 +144,26 @@ export default function PipelinePage() {
     setRunning((r) => ({ ...r, copy: true }));
     const before = packages.length;
     const limit = copyLimit.trim() ? Number(copyLimit) : undefined;
+    addLog(
+      `Copy: drafting ${limit ? limit + " post(s)" : "all posts"}${
+        generateTr ? " (EN + TR)" : " (EN)"
+      } — one AI call each…`
+    );
     try {
       await api.runCopy(brandId, { limit, generate_tr: generateTr });
-      // Copy can take a few minutes (one AI call per entry, saved at the end).
       for (let i = 0; i < 60; i++) {
         await sleep(5000);
+        addLog(`Copy: writing content… (check ${i + 1})`);
         const latest = await api.listPackages(brandId);
         setPackages(latest);
-        if (latest.length > before) break;
+        if (latest.length > before) {
+          addLog(`Copy: ${latest.length - before} content package(s) ready. Review and approve.`, "ok");
+          break;
+        }
+        if (i === 59) addLog("Copy: still working — use Refresh in a moment.", "info");
       }
     } catch (e) {
+      addLog(`Copy: error — ${msg(e)}`, "err");
       setError(msg(e));
     } finally {
       setRunning((r) => ({ ...r, copy: false }));
@@ -132,27 +173,35 @@ export default function PipelinePage() {
   async function approveReport(id: string) {
     try {
       await api.approveReport(id);
+      addLog("Trend report approved — you can now run the calendar.", "ok");
       await refreshReports();
     } catch (e) {
+      addLog(`Approve report: error — ${msg(e)}`, "err");
       setError(msg(e));
     }
   }
   async function approveCalendar(id: string) {
     try {
       await api.approveCalendar(id);
+      addLog("Calendar approved — you can now run copy.", "ok");
       await refreshCalendars();
     } catch (e) {
+      addLog(`Approve calendar: error — ${msg(e)}`, "err");
       setError(msg(e));
     }
   }
   async function approvePackage(id: string) {
     try {
       await api.approvePackage(id);
+      addLog("Content package approved.", "ok");
       await refreshPackages();
     } catch (e) {
+      addLog(`Approve package: error — ${msg(e)}`, "err");
       setError(msg(e));
     }
   }
+
+  const anyRunning = running.research || running.calendar || running.copy;
 
   return (
     <div>
@@ -170,7 +219,40 @@ export default function PipelinePage() {
         </div>
       </div>
 
+      <div className="sf-info">
+        Run each stage in order. A stage stays locked until you approve the one
+        before it. Each stage needs its AI provider set on the brand page (Research,
+        Calendar, Copy). Runs happen in the background — the activity log below shows
+        what&rsquo;s happening in real time.
+      </div>
+
       {error && <div className="sf-error">{error}</div>}
+
+      {/* ── Activity log ────────────────────────────────────── */}
+      <section className="sf-log-panel">
+        <div className="sf-log-head">
+          <span className="sf-log-title">
+            Activity {anyRunning && <span className="sf-live-dot" />}
+          </span>
+          {log.length > 0 && (
+            <button className="sf-linkbtn" onClick={() => setLog([])}>
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="sf-log">
+          {log.length === 0 ? (
+            <p className="sf-log-empty">Run a stage to see live activity here.</p>
+          ) : (
+            log.map((l, i) => (
+              <div className={`sf-log-line is-${l.kind}`} key={i}>
+                <span className="sf-log-time">{l.time}</span> {l.text}
+              </div>
+            ))
+          )}
+          <div ref={logEndRef} />
+        </div>
+      </section>
 
       {/* ── Stage 1: Research ─────────────────────────────── */}
       <section className="sf-stage">
@@ -189,11 +271,7 @@ export default function PipelinePage() {
                 placeholder="2026-09"
               />
             </label>
-            <button
-              className="sf-btn sf-btn-accent"
-              onClick={runResearch}
-              disabled={running.research}
-            >
+            <button className="sf-btn sf-btn-accent" onClick={runResearch} disabled={running.research}>
               {running.research ? "Running…" : "Run research"}
             </button>
             <button className="sf-btn" onClick={refreshReports} disabled={running.research}>
@@ -202,8 +280,7 @@ export default function PipelinePage() {
           </div>
         </div>
         <p className="sf-hint">
-          Free RSS + Google Trends. Requires a Research AI provider (set it on the
-          brand page).
+          Free RSS + Google Trends. Requires a Research AI provider (set it on the brand page).
         </p>
 
         {reports.length === 0 ? (
@@ -215,8 +292,7 @@ export default function PipelinePage() {
                 <div>
                   <span className="sf-item-title">Trend report · {r.planning_period}</span>
                   <span className="sf-item-meta">
-                    {A(r.trending_topics).length} topics ·{" "}
-                    {A(r.recommended_pillars).length} pillars
+                    {A(r.trending_topics).length} topics · {A(r.recommended_pillars).length} pillars
                   </span>
                 </div>
                 <div className="sf-item-actions">
@@ -241,8 +317,7 @@ export default function PipelinePage() {
                         return (
                           <li key={i}>
                             <strong>{S(o.topic)}</strong>
-                            {o.signal_strength ? ` [${S(o.signal_strength)}]` : ""} —{" "}
-                            {S(o.why_it_matters)}
+                            {o.signal_strength ? ` [${S(o.signal_strength)}]` : ""} — {S(o.why_it_matters)}
                           </li>
                         );
                       })}
@@ -273,8 +348,7 @@ export default function PipelinePage() {
                         return (
                           <li key={i}>
                             <strong>{S(o.name)}</strong>
-                            {o.percentage ? ` (${S(o.percentage)}%)` : ""} —{" "}
-                            {S(o.description)}
+                            {o.percentage ? ` (${S(o.percentage)}%)` : ""} — {S(o.description)}
                           </li>
                         );
                       })}
@@ -413,7 +487,7 @@ export default function PipelinePage() {
         </div>
         <p className="sf-hint">
           {hasApprovedCalendar
-            ? "One AI draft per calendar entry — a full month can take a few minutes."
+            ? "Limit = how many posts to draft now (leave empty for all). TR = also write the Turkish version. One AI draft per entry — a full month can take a few minutes."
             : "Approve a calendar above first."}
         </p>
 
@@ -440,11 +514,7 @@ export default function PipelinePage() {
                     </span>
                   </div>
                   <div className="sf-item-actions">
-                    <span
-                      className={`sf-badge${
-                        p.status === "approved" ? " is-active" : ""
-                      }`}
-                    >
+                    <span className={`sf-badge${p.status === "approved" ? " is-active" : ""}`}>
                       {p.status}
                     </span>
                     {p.status !== "approved" && (

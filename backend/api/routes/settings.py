@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.ai_provider import AIProvider, AIProviderError
+from core.ai_provider import FALLBACK_MODELS, AIProvider, AIProviderError, list_models
 from core.config import get_encryption_manager
 from core.database import get_db
 from models.db_models import AIProviderConfig, Brand, PhaseEnum, ProviderEnum
@@ -52,6 +52,16 @@ class ProviderTestResult(BaseModel):
     model: str
     latency_ms: Optional[float] = None
     error: Optional[str] = None
+
+
+class ModelListRequest(BaseModel):
+    provider: ProviderEnum
+    api_key: str = Field(..., min_length=8)
+
+
+class ModelListResponse(BaseModel):
+    models: list[str]
+    source: str   # "live" (from the key) or "fallback" (curated)
 
 
 def _mask_key(key: str) -> str:
@@ -186,3 +196,21 @@ async def test_provider_config(
             model=config.model,
             error=str(exc),
         )
+
+
+@router.post("/settings/models", response_model=ModelListResponse)
+async def list_available_models(payload: ModelListRequest):
+    """List the models a given provider + API key can use. Falls back to a
+    curated list if the live lookup fails (bad key, SDK/network issue). The key
+    is used only for this lookup and is never stored here."""
+    try:
+        models = await list_models(payload.provider.value, payload.api_key)
+        if models:
+            return ModelListResponse(models=models, source="live")
+    except Exception:  # noqa: BLE001 — any failure -> curated fallback
+        pass
+    return ModelListResponse(
+        models=FALLBACK_MODELS.get(payload.provider.value, []),
+        source="fallback",
+    )
+

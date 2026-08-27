@@ -73,6 +73,11 @@ export const api = {
     request<ProviderTestResult>(`/settings/providers/${id}/test?phase=${phase}`, {
       method: "POST",
     }),
+  listModels: (provider: string, apiKey: string) =>
+    request<{ models: string[]; source: string }>("/settings/models", {
+      method: "POST",
+      body: JSON.stringify({ provider, api_key: apiKey }),
+    }),
 
   // Phase 1 — research
   runResearch: (id: string, body: ResearchRunRequest) =>
