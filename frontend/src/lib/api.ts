@@ -5,11 +5,17 @@ import type {
   Brand,
   BrandCreate,
   BrandSolution,
+  CalendarRunRequest,
   Competitor,
+  ContentCalendar,
+  ContentPackage,
+  CopyRunRequest,
+  PhaseKey,
   ProviderConfig,
   ProviderConfigCreate,
   ProviderTestResult,
-  PhaseKey,
+  ResearchRunRequest,
+  TrendReport,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
@@ -51,24 +57,50 @@ export const api = {
     request<void>(`/brands/${id}`, { method: "DELETE" }),
 
   // Solutions
-  listSolutions: (id: string) =>
-    request<BrandSolution[]>(`/brands/${id}/solutions`),
+  listSolutions: (id: string) => request<BrandSolution[]>(`/brands/${id}/solutions`),
 
   // Competitors
-  listCompetitors: (id: string) =>
-    request<Competitor[]>(`/brands/${id}/competitors`),
+  listCompetitors: (id: string) => request<Competitor[]>(`/brands/${id}/competitors`),
 
   // AI provider configs
-  listProviders: (id: string) =>
-    request<ProviderConfig[]>(`/settings/providers/${id}`),
+  listProviders: (id: string) => request<ProviderConfig[]>(`/settings/providers/${id}`),
   upsertProvider: (id: string, payload: ProviderConfigCreate) =>
     request<ProviderConfig>(`/settings/providers/${id}`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
   testProvider: (id: string, phase: PhaseKey) =>
-    request<ProviderTestResult>(
-      `/settings/providers/${id}/test?phase=${phase}`,
-      { method: "POST" }
-    ),
+    request<ProviderTestResult>(`/settings/providers/${id}/test?phase=${phase}`, {
+      method: "POST",
+    }),
+
+  // Phase 1 — research
+  runResearch: (id: string, body: ResearchRunRequest) =>
+    request<{ message: string }>(`/research/${id}/run`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  listReports: (id: string) => request<TrendReport[]>(`/research/${id}/reports`),
+  approveReport: (reportId: string) =>
+    request<unknown>(`/research/reports/${reportId}/approve`, { method: "PATCH" }),
+
+  // Phase 2 — calendar
+  runCalendar: (id: string, body: CalendarRunRequest) =>
+    request<{ message: string }>(`/calendar/${id}/run`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  listCalendars: (id: string) => request<ContentCalendar[]>(`/calendar/${id}`),
+  approveCalendar: (calendarId: string) =>
+    request<unknown>(`/calendar/${calendarId}/approve`, { method: "PATCH" }),
+
+  // Phase 3 — copy
+  runCopy: (id: string, body: CopyRunRequest) =>
+    request<{ message: string }>(`/copy/${id}/run`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  listPackages: (id: string) => request<ContentPackage[]>(`/copy/${id}`),
+  approvePackage: (packageId: string) =>
+    request<unknown>(`/copy/${packageId}/approve`, { method: "PATCH" }),
 };

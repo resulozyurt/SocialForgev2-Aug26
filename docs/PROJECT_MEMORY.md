@@ -99,10 +99,10 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | 1 Research | Competitor/trend intel -> TrendReportCard | DONE (Apify; RSS/Trends pending) |
 | 2 Calendar | Approved report -> monthly calendar | DONE |
 | 3 Copy | Approved calendar -> ContentPackage (EN+TR) + visual brief | DONE |
-| Approval gates | report / calendar / package | DONE (API); UI pending |
+| Approval gates | report / calendar / package | DONE (API + UI) |
 | A Foundation | deps fix, Alembic, auth, Railway prep, DB URL norm | DONE |
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
-| C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | IN PROGRESS (C1, C2 done) |
+| C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation | TODO |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 
@@ -159,6 +159,12 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   default feeds when it is unset. `ANALYSIS_PROMPT` generalized to Trends + RSS +
   optional competitor inputs; the output JSON schema is unchanged so calendar and
   copy are unaffected.
+- **2026-08-26 (Phase C3) — Approval screens shipped:** `/brands/[id]/pipeline`
+  drives the full human-in-the-loop flow — Research -> Calendar -> Copy — each
+  stage with a Run button, background-run auto-refresh (polls the list until the
+  draft lands), an expandable review, and an Approve gate that unlocks the next
+  stage. A 'Content pipeline' link was added to the brand detail page. Phase C is
+  complete.
 
 ---
 
@@ -212,10 +218,12 @@ Phase B is committed. **Apply it after pulling** (Resul, on Windows, DB reachabl
 (idempotent — safe to re-run). Verify with `GET /api/v1/brands` and
 `GET /api/v1/brands/{id}/solutions`.
 
-Phase C runs as C1 -> C2 -> C3 (Drive deferred to D). **C1 and C2 are done**:
-the `/brands/[id]` detail page + AI provider config UI, and the free RSS + Google
-Trends research path (Apify optional). Next up is **C3** — the three approval
-screens (Research report, Calendar, Content package) — pending Resul's approval.
-Each sub-phase = one reviewed commit; do not skip ahead without approval.
-Note: live brands' `research_sources` is null until re-seeded, but Phase 1 uses
-language-based default feeds when unset, so free research runs without a re-seed.
+**Phase C is complete** (C1 detail + AI provider UI, C2 free RSS + Google Trends
+research, C3 the three approval screens at `/brands/[id]/pipeline`). Next up is
+**Phase D** — Phase 4 branded visual generation (OpenAI/Gemini image and/or Canva
+Pro, decided at D) + Google Drive asset storage — pending Resul's approval.
+
+To exercise the pipeline in the live app: open a brand, set a Research (and
+Calendar, Copy) AI provider under AI providers, then use 'Content pipeline' to run
+and approve each stage. Live brands' `research_sources` is null until re-seeded,
+but Phase 1 falls back to language-based default feeds, so research runs anyway.

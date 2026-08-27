@@ -86,3 +86,62 @@ export interface ProviderTestResult {
   latency_ms: number | null;
   error: string | null;
 }
+
+// ── Phase C3: pipeline (research → calendar → copy) ─────────────────────────
+
+export interface TrendReport {
+  id: string;
+  brand_id: string;
+  planning_period: string;
+  is_approved: boolean;
+  trending_topics: Array<Record<string, unknown>> | null;
+  hot_formats: Array<Record<string, unknown>> | null;
+  content_gaps: Array<Record<string, unknown>> | null;
+  algorithm_notes: Record<string, unknown> | null;
+  recommended_pillars: Array<Record<string, unknown>> | null;
+}
+
+export interface ResearchRunRequest {
+  planning_period: string;
+  max_posts?: number;
+}
+
+export interface ContentCalendar {
+  id: string;
+  brand_id: string;
+  trend_report_card_id: string | null;
+  planning_period: string;
+  post_count: number;
+  is_approved: boolean;
+  platforms: string[] | null;
+  entries: Array<Record<string, unknown>> | null;
+  summary: string | null;
+}
+
+export interface CalendarRunRequest {
+  report_id?: string;
+  post_count?: number;
+  platforms?: string[];
+}
+
+export interface ContentPackage {
+  id: string;
+  post_id: string;
+  brand_id: string;
+  platform: string;
+  content_type: string;
+  status: string;
+  scheduled_at: string | null;
+  objective: string | null;
+  target_audience: string | null;
+  strategic_rationale: string | null;
+  copy_package_en: Record<string, unknown> | null;
+  copy_package_tr: Record<string, unknown> | null;
+  visual_direction: Record<string, unknown> | null;
+}
+
+export interface CopyRunRequest {
+  calendar_id?: string;
+  limit?: number;
+  generate_tr?: boolean;
+}

@@ -192,12 +192,17 @@ export default function BrandDetailPage() {
             {brand.industry ? ` · ${brand.industry}` : ""}
           </p>
         </div>
-        <div className="sf-head-badges">
-          <span className="sf-badge">{brand.language.toUpperCase()}</span>
-          <span className="sf-badge">{brand.monthly_post_target} posts/mo</span>
-          <span className={`sf-badge${brand.is_active ? " is-active" : ""}`}>
-            {brand.is_active ? "Active" : "Inactive"}
-          </span>
+        <div className="sf-head-side">
+          <div className="sf-head-badges">
+            <span className="sf-badge">{brand.language.toUpperCase()}</span>
+            <span className="sf-badge">{brand.monthly_post_target} posts/mo</span>
+            <span className={`sf-badge${brand.is_active ? " is-active" : ""}`}>
+              {brand.is_active ? "Active" : "Inactive"}
+            </span>
+          </div>
+          <Link href={`/brands/${brandId}/pipeline`} className="sf-btn sf-btn-accent">
+            Content pipeline →
+          </Link>
         </div>
       </div>
 
