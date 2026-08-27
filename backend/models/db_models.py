@@ -254,6 +254,9 @@ class TrendReportCard(Base):
     algorithm_notes: Mapped[Optional[dict]] = mapped_column(JSONB)
     recommended_pillars: Mapped[Optional[dict]] = mapped_column(JSONB)
     raw_ai_output: Mapped[Optional[str]] = mapped_column(Text)
+    # sources (Phase R1): the actual gathered inputs for traceability:
+    #   {"search": [...], "rss": [...], "trends": [...]}
+    sources: Mapped[Optional[dict]] = mapped_column(JSONB)
 
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
     approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -291,3 +294,18 @@ class ContentCalendar(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     brand: Mapped["Brand"] = relationship(back_populates="content_calendars")
+
+
+class AppSetting(Base):
+    """
+    Phase R1: platform-level settings (e.g. Brave / Apify API keys) managed from
+    the in-app Settings page instead of server env vars. Secret values are
+    Fernet-encrypted at rest, like per-brand provider keys.
+    """
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value_enc: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

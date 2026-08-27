@@ -41,6 +41,7 @@ export default function RootLayout({
             </Link>
             <nav className="sf-nav">
               <Link href="/">Brands</Link>
+              <Link href="/settings">Settings</Link>
             </nav>
           </div>
         </header>

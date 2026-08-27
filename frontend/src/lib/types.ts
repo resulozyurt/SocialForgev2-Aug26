@@ -19,6 +19,7 @@ export interface Brand {
   voice_guide_text: string | null;
   visual_identity: Record<string, unknown> | null;
   voice_profile: Record<string, unknown> | null;
+  research_sources: Record<string, unknown> | null;
   monthly_post_target: number;
 }
 
@@ -99,6 +100,7 @@ export interface TrendReport {
   content_gaps: Array<Record<string, unknown>> | null;
   algorithm_notes: Record<string, unknown> | null;
   recommended_pillars: Array<Record<string, unknown>> | null;
+  sources: Record<string, unknown> | null;
 }
 
 export interface ResearchRunRequest {
@@ -144,4 +146,15 @@ export interface CopyRunRequest {
   calendar_id?: string;
   limit?: number;
   generate_tr?: boolean;
+}
+
+export interface AppSetting {
+  key: string;
+  label: string;
+  description: string;
+  secret: boolean;
+  is_set: boolean;
+  masked: string | null;
+  value: string | null;
+  choices: string[] | null;
 }

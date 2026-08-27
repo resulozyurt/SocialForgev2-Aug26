@@ -355,6 +355,53 @@ export default function PipelinePage() {
                     </ul>
                   </>
                 )}
+              {(() => {
+                  const src = O(r.sources);
+                  const search = A(src.search);
+                  const rss = A(src.rss);
+                  const trends = A(src.trends);
+                  if (!search.length && !rss.length && !trends.length) return null;
+                  return (
+                    <>
+                      <h4 className="sf-h4">Sources used (real, auditable)</h4>
+                      {search.length > 0 && (
+                        <ul className="sf-list sf-sources">
+                          {search.map((x, i) => {
+                            const o = O(x);
+                            return (
+                              <li key={`s${i}`}>
+                                <a href={S(o.url)} target="_blank" rel="noopener noreferrer">
+                                  {S(o.title) || S(o.url)}
+                                </a>
+                                <span className="sf-src-tag">search</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {rss.length > 0 && (
+                        <ul className="sf-list sf-sources">
+                          {rss.map((x, i) => {
+                            const o = O(x);
+                            return (
+                              <li key={`r${i}`}>
+                                <a href={S(o.link)} target="_blank" rel="noopener noreferrer">
+                                  {S(o.title) || S(o.link)}
+                                </a>
+                                <span className="sf-src-tag">{S(o.source) || "rss"}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {trends.length > 0 && (
+                        <p className="sf-hint">
+                          Trends: {trends.map((x) => S(O(x).title)).filter(Boolean).join(", ")}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </details>
             </article>
           ))

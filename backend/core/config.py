@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     bootstrap_anthropic_key: Optional[str] = None
     bootstrap_openai_key: Optional[str] = None
     bootstrap_apify_key: Optional[str] = None
+    bootstrap_brave_key: Optional[str] = None
 
     @property
     def is_production(self) -> bool:

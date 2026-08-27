@@ -105,6 +105,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation | TODO |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
+| R Research Depth | pluggable search, source traceability, competitors, social | IN PROGRESS (R1 done) |
 
 ---
 
@@ -173,6 +174,21 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   Added inline help ('info') callouts across the UI, and a live activity log on the
   pipeline page so a run's progress is visible step by step. All admin UI is native
   American English; only Evatro's generated content is Turkish.
+- **2026-08-27 (Phase R1) — Research depth, part 1:** research is now grounded in
+  real, targeted web search + auditable sources. A **pluggable search layer**
+  (`integrations/web_search.py`: serper / brave / google_cse / tavily) replaces the
+  single-vendor assumption — the provider + key are chosen on a new in-app
+  **Settings page** (`/settings`), stored Fernet-encrypted in a new `app_settings`
+  table (migration `0005`); no keys in code or server env. Brave turned out to be
+  paid, so **serper (Google SERP, free credits)** is the default; google_cse
+  (100/day free) is the free-truly option. Per-brand areas of interest are set on a
+  new brand **Sources** tab (search keywords + RSS feeds + trends region, stored in
+  `research_sources`). Every report now stores the actual gathered inputs in
+  `trend_report_cards.sources` (migration `0004`) and the pipeline shows them as
+  **real, clickable source links** — so a report is verifiably real, not
+  AI-guessed. Apify (competitor social) key also moved to the Settings page. R2
+  (taxonomy/cadence), R3 (competitor discovery), R4 (Apify social monitoring) are
+  next.
 
 ---
 
@@ -226,10 +242,15 @@ Phase B is committed. **Apply it after pulling** (Resul, on Windows, DB reachabl
 (idempotent — safe to re-run). Verify with `GET /api/v1/brands` and
 `GET /api/v1/brands/{id}/solutions`.
 
-**Phase C is complete** (C1 detail + AI provider UI, C2 free RSS + Google Trends
-research, C3 the three approval screens at `/brands/[id]/pipeline`). Next up is
-**Phase D** — Phase 4 branded visual generation (OpenAI/Gemini image and/or Canva
-Pro, decided at D) + Google Drive asset storage — pending Resul's approval.
+Phase C is complete. Now in **Phase R (Research Depth)**: R1 shipped — pluggable
+web search, in-app Settings page for keys, per-brand Sources tab, and auditable
+source links in the report. **To use R1 live:** deploy (migrations 0004/0005 run
+automatically), then Settings -> pick `search_provider` (serper recommended; Brave
+is paid now) + paste its key; optionally set brand keywords under the Sources tab;
+run research to see real source links. Next: **R2** — taxonomy/cadence (daily ~30,
+balanced merch/audit/sales/home-service/AI, AI woven into every pillar); then R3
+(competitor discovery) and R4 (Apify competitor social monitoring). Phase D
+(visuals + Google Drive) follows Phase R.
 
 To exercise the pipeline in the live app: open a brand, set a Research (and
 Calendar, Copy) AI provider under AI providers, then use 'Content pipeline' to run

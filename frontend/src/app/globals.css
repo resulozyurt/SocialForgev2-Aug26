@@ -562,3 +562,29 @@ html, body {
 .sf-log-line.is-ok { color: var(--ok); }
 .sf-log-line.is-err { color: var(--accent); }
 .sf-log-time { color: var(--muted); margin-right: 6px; }
+
+/* ── Settings + sources (Phase R1) ──────────────────────────── */
+.sf-setting { border-bottom: 1px solid var(--line); padding: 18px 0; }
+.sf-setting:first-child { padding-top: 0; }
+.sf-setting:last-child { border-bottom: none; padding-bottom: 0; }
+.sf-setting-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+.sf-setting-head > div { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sf-setting-label { font-weight: 600; font-size: 15px; }
+.sf-setting-desc { color: var(--muted); font-size: 13px; margin: 0 0 12px; line-height: 1.5; }
+
+.sf-textarea {
+  min-height: 92px;
+  font-family: var(--font-mono), monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.sf-sources li { margin: 3px 0; }
+.sf-sources a { color: var(--accent); text-decoration: none; }
+.sf-sources a:hover { text-decoration: underline; }
+.sf-src-tag {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px; color: var(--muted);
+  margin-left: 8px; text-transform: uppercase; letter-spacing: 0.05em;
+}

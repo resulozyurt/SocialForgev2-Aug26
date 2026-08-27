@@ -16,13 +16,14 @@ import type {
   SolutionKey,
 } from "@/lib/types";
 
-const TABS = ["identity", "voice", "solutions", "providers"] as const;
+const TABS = ["identity", "voice", "solutions", "providers", "sources"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABELS: Record<Tab, string> = {
   identity: "Identity",
   voice: "Voice",
   solutions: "Solutions",
   providers: "AI Providers",
+  sources: "Sources",
 };
 
 const PHASES: { key: PhaseKey; label: string }[] = [
@@ -93,6 +94,12 @@ export default function BrandDetailPage() {
   const [loadingModels, setLoadingModels] = useState(false);
   const [customModel, setCustomModel] = useState(false);
 
+  const [srcFeeds, setSrcFeeds] = useState("");
+  const [srcKeywords, setSrcKeywords] = useState("");
+  const [srcGeo, setSrcGeo] = useState("");
+  const [srcSaving, setSrcSaving] = useState(false);
+  const [srcMsg, setSrcMsg] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -107,6 +114,10 @@ export default function BrandDetailPage() {
       setSolutions(sol);
       setCompetitors(comp);
       setProviders(prov);
+      const rs = (b.research_sources ?? {}) as Record<string, unknown>;
+      setSrcFeeds((Array.isArray(rs.rss_feeds) ? (rs.rss_feeds as string[]) : []).join("\n"));
+      setSrcKeywords((Array.isArray(rs.search_keywords) ? (rs.search_keywords as string[]) : []).join("\n"));
+      setSrcGeo(typeof rs.trends_geo === "string" ? rs.trends_geo : "");
     } catch (err) {
       setError(msg(err));
     } finally {
@@ -179,6 +190,30 @@ export default function BrandDetailPage() {
       }));
     } finally {
       setTesting(null);
+    }
+  }
+
+  async function saveSources() {
+    setSrcSaving(true);
+    setSrcMsg(null);
+    setError(null);
+    try {
+      const rs = (brand?.research_sources ?? {}) as Record<string, unknown>;
+      const lines = (t: string) => t.split("\n").map((x) => x.trim()).filter(Boolean);
+      const updated = await api.updateBrand(brandId, {
+        research_sources: {
+          ...rs,
+          rss_feeds: lines(srcFeeds),
+          search_keywords: lines(srcKeywords),
+          trends_geo: srcGeo.trim() || null,
+        },
+      });
+      setBrand(updated);
+      setSrcMsg("Saved.");
+    } catch (err) {
+      setError(msg(err));
+    } finally {
+      setSrcSaving(false);
     }
   }
 
@@ -568,6 +603,52 @@ export default function BrandDetailPage() {
               {saveMsg && <span className="sf-test is-ok">{saveMsg}</span>}
             </div>
           </form>
+        </section>
+      )}
+
+      {/* ── Sources (research inputs) ────────────────────────── */}
+      {tab === "sources" && (
+        <section className="sf-section">
+          <div className="sf-info">
+            Define what research reads for this brand. <strong>Keywords</strong>
+            {" "}drive the targeted web search (one per line).{" "}
+            <strong>RSS feeds</strong> are extra article sources (one URL per line).
+            {" "}<strong>Trends region</strong> is the Google Trends country (e.g. US,
+            TR). Choose the search provider &amp; key on the Settings page.
+          </div>
+          <div className="sf-field">
+            <label className="sf-label">Search keywords (one per line)</label>
+            <textarea
+              className="sf-input sf-textarea"
+              value={srcKeywords}
+              onChange={(e) => setSrcKeywords(e.target.value)}
+              placeholder={"retail merchandising execution\nfield audit software\nAI in-store compliance"}
+            />
+          </div>
+          <div className="sf-field">
+            <label className="sf-label">RSS feeds (one URL per line)</label>
+            <textarea
+              className="sf-input sf-textarea"
+              value={srcFeeds}
+              onChange={(e) => setSrcFeeds(e.target.value)}
+              placeholder={"https://www.retaildive.com/feeds/news/"}
+            />
+          </div>
+          <div className="sf-field" style={{ maxWidth: 200 }}>
+            <label className="sf-label">Trends region</label>
+            <input
+              className="sf-input"
+              value={srcGeo}
+              onChange={(e) => setSrcGeo(e.target.value)}
+              placeholder="US"
+            />
+          </div>
+          <div className="sf-form-actions">
+            <button className="sf-btn sf-btn-accent" onClick={saveSources} disabled={srcSaving}>
+              {srcSaving ? "Saving…" : "Save sources"}
+            </button>
+            {srcMsg && <span className="sf-test is-ok">{srcMsg}</span>}
+          </div>
         </section>
       )}
     </div>

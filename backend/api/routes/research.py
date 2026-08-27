@@ -41,6 +41,7 @@ class TrendReportResponse(BaseModel):
     content_gaps: Optional[list] = None
     algorithm_notes: Optional[dict] = None
     recommended_pillars: Optional[list] = None
+    sources: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -63,18 +64,24 @@ async def run_research(
         raise HTTPException(status_code=404, detail="Brand not found.")
 
     settings = get_settings()
-    # Free research path (RSS + Google Trends) is the default. Apify competitor
-    # scraping is used only when the brand opted in AND a bootstrap key exists.
+    from core.settings_store import get_app_setting
+
+    # Search provider + keys come from the in-app Settings page (encrypted in DB).
+    search_provider = (await get_app_setting("search_provider")) or "serper"
+    search_key = await get_app_setting("search_api_key")
+
     sources = brand.research_sources or {}
-    apify_key = (
-        settings.bootstrap_apify_key
-        if sources.get("use_apify") and settings.bootstrap_apify_key
-        else None
-    )
+    apify_key = None
+    if sources.get("use_apify"):
+        apify_key = (await get_app_setting("apify_api_key")) or settings.bootstrap_apify_key
 
     async def _run():
         from phases.phase1_research import Phase1Research
-        runner = Phase1Research(apify_key=apify_key)
+        runner = Phase1Research(
+            apify_key=apify_key,
+            search_provider=search_provider,
+            search_key=search_key,
+        )
         await runner.run(
             brand_id=str(brand_id),
             planning_period=payload.planning_period,

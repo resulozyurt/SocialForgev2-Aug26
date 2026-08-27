@@ -55,6 +55,8 @@ export const api = {
     request<Brand>("/brands", { method: "POST", body: JSON.stringify(payload) }),
   deactivateBrand: (id: string) =>
     request<void>(`/brands/${id}`, { method: "DELETE" }),
+  updateBrand: (id: string, payload: Record<string, unknown>) =>
+    request<Brand>(`/brands/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
   // Solutions
   listSolutions: (id: string) => request<BrandSolution[]>(`/brands/${id}/solutions`),
@@ -77,6 +79,14 @@ export const api = {
     request<{ models: string[]; source: string }>("/settings/models", {
       method: "POST",
       body: JSON.stringify({ provider, api_key: apiKey }),
+    }),
+
+  // Platform settings (Brave/Apify/search keys)
+  listAppSettings: () => request<import("./types").AppSetting[]>("/settings/app"),
+  updateAppSetting: (key: string, value: string) =>
+    request<{ message: string; is_set: boolean }>(`/settings/app/${key}`, {
+      method: "PUT",
+      body: JSON.stringify({ value }),
     }),
 
   // Phase 1 — research

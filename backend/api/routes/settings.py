@@ -214,3 +214,58 @@ async def list_available_models(payload: ModelListRequest):
         source="fallback",
     )
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Platform settings (Brave / Apify keys) — managed from the in-app Settings page
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AppSettingItem(BaseModel):
+    key: str
+    label: str
+    description: str
+    secret: bool
+    is_set: bool
+    masked: Optional[str] = None
+    value: Optional[str] = None            # plaintext, only for non-secret settings
+    choices: Optional[list[str]] = None
+
+
+class AppSettingUpdate(BaseModel):
+    value: str = ""   # empty string clears the setting
+
+
+@router.get("/settings/app", response_model=list[AppSettingItem])
+async def list_app_settings():
+    from core.settings_store import KNOWN_SETTINGS, get_app_setting
+
+    items: list[AppSettingItem] = []
+    for key, meta in KNOWN_SETTINGS.items():
+        value = await get_app_setting(key)
+        items.append(
+            AppSettingItem(
+                key=key,
+                label=meta["label"],
+                description=meta["description"],
+                secret=meta["secret"],
+                is_set=bool(value),
+                masked=_mask_key(value) if (value and meta["secret"]) else None,
+                value=value if (value and not meta["secret"]) else None,
+                choices=meta.get("choices"),
+            )
+        )
+    return items
+
+
+@router.put("/settings/app/{key}")
+async def update_app_setting(key: str, payload: AppSettingUpdate):
+    from core.settings_store import KNOWN_SETTINGS, delete_app_setting, set_app_setting
+
+    if key not in KNOWN_SETTINGS:
+        raise HTTPException(status_code=404, detail=f"Unknown setting '{key}'.")
+    value = payload.value.strip()
+    if value:
+        await set_app_setting(key, value)
+        return {"message": "Saved.", "key": key, "is_set": True}
+    await delete_app_setting(key)
+    return {"message": "Cleared.", "key": key, "is_set": False}
+

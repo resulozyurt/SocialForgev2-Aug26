@@ -27,6 +27,7 @@ from integrations.free_research import (
     fetch_google_trends,
     fetch_rss,
 )
+from integrations.web_search import default_country, gather_search
 from models.db_models import AIProviderConfig, Brand, Competitor, PhaseEnum, TrendReportCard
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,17 @@ def _pick(post: dict, keys: list[str], default: Any) -> Any:
         if k in post and post[k] not in (None, ""):
             return post[k]
     return default
+
+
+def _default_keywords(brand) -> list[str]:
+    """Fallback search keywords when a brand has not defined its areas of
+    interest yet. The Sources tab lets the user set precise ones."""
+    industry = brand.industry or "field operations software"
+    return [
+        f"{industry} trends",
+        f"{industry} best practices",
+        f"{brand.display_name} competitors",
+    ]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -66,6 +78,7 @@ class TrendReportResult:
     algorithm_notes: dict
     recommended_pillars: list[dict]
     raw_ai_output: str
+    sources: Optional[dict] = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -85,17 +98,21 @@ BRAND: {brand_name}
 INDUSTRY: {industry}
 PLANNING PERIOD: {planning_period}
 
+TARGETED WEB SEARCH RESULTS (real results for the brand's areas of interest — prefer these):
+{search_results}
+
 GOOGLE TRENDS (today's trending searches in the brand's region):
 {google_trends}
 
 RSS ARTICLES (recent industry / news headlines):
 {rss_articles}
 
-COMPETITOR POSTS (optional; may be empty on the free research path):
+COMPETITOR POSTS (optional; may be empty):
 {competitor_data}
 
-Ground every trend signal in the inputs above and name its source (a trend title,
-an article headline, or a competitor). Respond with a JSON object in exactly this structure:
+Ground EVERY trend signal in the inputs above. In each "sources" array, put the
+actual article titles or URLs you used from the inputs — never invent a source.
+Respond with a JSON object in exactly this structure:
 {{
   "trending_topics": [
     {{"rank": 1, "topic": "...", "signal_strength": "high|medium|low", "sources": ["..."], "why_it_matters": "..."}}
@@ -125,9 +142,16 @@ class Phase1Research:
     Orchestrates the full Phase 1 competitive intelligence workflow.
     """
 
-    def __init__(self, apify_key: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        apify_key: Optional[str] = None,
+        search_provider: Optional[str] = None,
+        search_key: Optional[str] = None,
+    ) -> None:
         # Apify is optional; the free RSS + Google Trends path is the default.
         self._apify = ApifyClient(api_key=apify_key) if apify_key else None
+        self._search_provider = search_provider or "serper"
+        self._search_key = search_key
 
     async def run(
         self,
@@ -176,29 +200,45 @@ class Phase1Research:
 
         # Resolve research sources: free RSS + Google Trends is primary; Apify
         # competitor scraping is opt-in per brand (research_sources.use_apify).
-        sources = brand.research_sources or {}
+        cfg = brand.research_sources or {}
         language = getattr(brand.language, "value", brand.language)
-        feeds = sources.get("rss_feeds") or default_feeds(language)
-        geo = sources.get("trends_geo") or default_geo(language)
-        use_apify = bool(sources.get("use_apify")) and self._apify is not None
+        feeds = cfg.get("rss_feeds") or default_feeds(language)
+        geo = cfg.get("trends_geo") or default_geo(language)
+        country = cfg.get("search_country") or default_country(language)
+        keywords = cfg.get("search_keywords") or _default_keywords(brand)
+        use_apify = bool(cfg.get("use_apify")) and self._apify is not None
 
         rss_items = await fetch_rss(feeds)
         trends_items = await fetch_google_trends(geo)
+        search_items = (
+            await gather_search(self._search_provider, keywords, self._search_key, country=country)
+            if self._search_key and keywords
+            else []
+        )
         competitor_data = (
             await self._scrape_competitors(competitors, max_posts_per_competitor)
             if use_apify
             else []
         )
 
+        gathered_sources = {
+            "keywords": keywords,
+            "search": search_items,
+            "rss": rss_items,
+            "trends": trends_items,
+        }
+
         # Run AI analysis
         report = await self._analyze_with_ai(
             brand=brand,
             planning_period=planning_period,
+            search_items=search_items,
             rss_items=rss_items,
             trends_items=trends_items,
             competitor_data=competitor_data,
             ai_config=ai_config,
         )
+        report.sources = gathered_sources
 
         # Save to DB
         await self._save_report(brand_id, planning_period, report)
@@ -281,6 +321,7 @@ class Phase1Research:
         self,
         brand: Brand,
         planning_period: str,
+        search_items: list[dict],
         rss_items: list[dict],
         trends_items: list[dict],
         competitor_data: list[CompetitorData],
@@ -323,6 +364,7 @@ class Phase1Research:
             brand_name=brand.display_name,
             industry=brand.industry or "B2B SaaS",
             planning_period=planning_period,
+            search_results=json.dumps(search_items, indent=2, ensure_ascii=False) if search_items else "(none)",
             google_trends=json.dumps(trends_items, indent=2, ensure_ascii=False) if trends_items else "(none)",
             rss_articles=json.dumps(rss_items, indent=2, ensure_ascii=False) if rss_items else "(none)",
             competitor_data=competitor_block,
@@ -379,6 +421,7 @@ class Phase1Research:
                 algorithm_notes=report.algorithm_notes,
                 recommended_pillars=report.recommended_pillars,
                 raw_ai_output=report.raw_ai_output,
+                sources=report.sources,
                 is_approved=False,
             )
             db.add(trend_report)
