@@ -51,7 +51,7 @@ BRANDS: list[dict] = [
         "primary_color": "#0EA5A4",
         "secondary_color": "#1E293B",
         "accent_color": "#0EA5A4",
-        "monthly_post_target": 20,
+        "monthly_post_target": 30,
         "voice_guide_text": (
             "Clear, reassuring, problem -> solution. Short, punchy headlines. "
             "Native US English, marketing-focused, never translated-sounding. "

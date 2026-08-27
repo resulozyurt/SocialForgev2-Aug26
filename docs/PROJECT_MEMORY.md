@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-26 — end of **Phase B** (rich brand profiles + solution taxonomy + seed).
+Last updated: 2026-08-27 — **Phase R2a** (solution-aware content calendar; AI as a cross-cutting theme).
 
 ---
 
@@ -105,7 +105,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation | TODO |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
-| R Research Depth | pluggable search, source traceability, competitors, social | IN PROGRESS (R1 done) |
+| R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
 
 ---
 
@@ -189,6 +189,22 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   AI-guessed. Apify (competitor social) key also moved to the Settings page. R2
   (taxonomy/cadence), R3 (competitor discovery), R4 (Apify social monitoring) are
   next.
+- **2026-08-27 (Phase R2a) — Solution-aware calendar:** Phase 2 now plans against
+  the brand's **solution taxonomy** (`brand_solutions`), not just content pillars.
+  A deterministic quota is computed in Python (`_allocate_solutions`) so posts are
+  **balanced across the brand's focus solutions** — the LLM is handed exact
+  per-solution counts that sum to `monthly_post_target`, rather than being trusted
+  to balance them. **AI is treated as a cross-cutting theme, not a silo:** it gets
+  no quota bucket; instead ~45% of posts carry a concrete `ai_angle` (e.g. "AI
+  within merchandising"). Each calendar entry gains `solution` + `ai_angle`;
+  `solution` is normalized against `SolutionEnum` (unknown -> `general`). No
+  migration — `ContentCalendar.entries` is JSONB. Brands with no modeled solutions
+  fall back to the old pillar-only behavior. `general` reserves ~15% when the brand
+  covers it. FieldPie's seed `monthly_post_target` raised 20 -> 30 (daily cadence);
+  Evatro stays 12. Verified example quotas: FieldPie 30 -> merch 7 / audit 7 /
+  sales 6 / home_service 6 / general 4 (ai_angle 14); Evatro 12 -> merch 5 / audit
+  5 / general 2 (ai_angle 5). Next: R2b surfaces solution chips + AI angle +
+  distribution in the calendar review UI.
 
 ---
 
@@ -247,8 +263,12 @@ web search, in-app Settings page for keys, per-brand Sources tab, and auditable
 source links in the report. **To use R1 live:** deploy (migrations 0004/0005 run
 automatically), then Settings -> pick `search_provider` (serper recommended; Brave
 is paid now) + paste its key; optionally set brand keywords under the Sources tab;
-run research to see real source links. Next: **R2** — taxonomy/cadence (daily ~30,
-balanced merch/audit/sales/home-service/AI, AI woven into every pillar); then R3
+run research to see real source links. **R2a shipped** (backend): the calendar is
+now solution-aware with a deterministic per-solution quota and AI woven in as a
+cross-cutting `ai_angle`; FieldPie's target is 30/mo. To apply R2a live: deploy
+(no migration), then re-seed or PATCH FieldPie so `monthly_post_target=30`, and run
+the pipeline to see solution/ai_angle on each calendar entry. Next: **R2b** — show
+solution chips + AI angle + distribution in the calendar review UI; then R3
 (competitor discovery) and R4 (Apify competitor social monitoring). Phase D
 (visuals + Google Drive) follows Phase R.
 
