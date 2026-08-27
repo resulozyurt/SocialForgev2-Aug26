@@ -8,6 +8,7 @@ import type {
   Brand,
   BrandSolution,
   Competitor,
+  CompetitorInput,
   PhaseKey,
   ProviderConfig,
   ProviderConfigCreate,
@@ -154,6 +155,16 @@ const EMPTY_PROVIDER: ProviderConfigCreate = {
   max_tokens: 4096,
 };
 
+const EMPTY_COMP: CompetitorInput = {
+  name: "",
+  solution: null,
+  is_aspirational: false,
+  instagram_handle: "",
+  linkedin_handle: "",
+  x_handle: "",
+  notes: "",
+};
+
 export default function BrandDetailPage() {
   const params = useParams();
   const brandId = String(params.id);
@@ -194,6 +205,11 @@ export default function BrandDetailPage() {
   const [solRows, setSolRows] = useState<Record<SolutionKey, SolRow>>(() => buildSolRows([]));
   const [solSaving, setSolSaving] = useState(false);
   const [solMsg, setSolMsg] = useState<string | null>(null);
+  const [newComp, setNewComp] = useState<CompetitorInput>(EMPTY_COMP);
+  const [editingComp, setEditingComp] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<CompetitorInput>(EMPTY_COMP);
+  const [compBusy, setCompBusy] = useState(false);
+  const [compMsg, setCompMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -407,6 +423,76 @@ export default function BrandDetailPage() {
       setError(msg(err));
     } finally {
       setSolSaving(false);
+    }
+  }
+
+  async function refreshCompetitors() {
+    setCompetitors(await api.listCompetitors(brandId).catch(() => []));
+  }
+  function cleanComp(c: CompetitorInput): CompetitorInput {
+    const t = (v: string | null) => (v && v.trim() ? v.trim() : null);
+    return {
+      name: c.name.trim(),
+      solution: c.solution,
+      is_aspirational: c.is_aspirational,
+      instagram_handle: t(c.instagram_handle),
+      linkedin_handle: t(c.linkedin_handle),
+      x_handle: t(c.x_handle),
+      notes: t(c.notes),
+    };
+  }
+  async function addCompetitor() {
+    if (!newComp.name.trim()) return;
+    setCompBusy(true);
+    setCompMsg(null);
+    setError(null);
+    try {
+      await api.createCompetitor(brandId, cleanComp(newComp));
+      await refreshCompetitors();
+      setNewComp(EMPTY_COMP);
+      setCompMsg("Added.");
+    } catch (err) {
+      setError(msg(err));
+    } finally {
+      setCompBusy(false);
+    }
+  }
+  function startEditCompetitor(c: Competitor) {
+    setEditingComp(c.id);
+    setEditDraft({
+      name: c.name,
+      solution: c.solution,
+      is_aspirational: c.is_aspirational,
+      instagram_handle: c.instagram_handle ?? "",
+      linkedin_handle: c.linkedin_handle ?? "",
+      x_handle: c.x_handle ?? "",
+      notes: c.notes ?? "",
+    });
+  }
+  async function saveEditCompetitor() {
+    if (!editingComp) return;
+    setCompBusy(true);
+    setError(null);
+    try {
+      await api.updateCompetitor(brandId, editingComp, cleanComp(editDraft));
+      await refreshCompetitors();
+      setEditingComp(null);
+    } catch (err) {
+      setError(msg(err));
+    } finally {
+      setCompBusy(false);
+    }
+  }
+  async function removeCompetitor(id: string) {
+    setCompBusy(true);
+    setError(null);
+    try {
+      await api.deleteCompetitor(brandId, id);
+      await refreshCompetitors();
+    } catch (err) {
+      setError(msg(err));
+    } finally {
+      setCompBusy(false);
     }
   }
 
@@ -749,18 +835,131 @@ export default function BrandDetailPage() {
             );
           })()}
 
-          <h2 className="sf-section-title" style={{ marginTop: 22 }}>Competitors</h2>
-          {competitors.length === 0 ? (
-            <p className="sf-note">No competitors added.</p>
-          ) : (
-            <div className="sf-chips">
-              {competitors.map((c) => (
-                <span className="sf-chip" key={c.id}>
-                  {c.name}
-                  {c.is_aspirational ? " ★" : ""}
-                </span>
-              ))}
+          <h2 className="sf-section-title" style={{ marginTop: 22 }}>Competitors by solution</h2>
+          <div className="sf-info">
+            Track competitors under the solution area they compete in. Research and future
+            social monitoring read these per solution. Leave the solution as General if it
+            spans all areas.
+          </div>
+
+          <div className="sf-comp-add">
+            <div className="sf-row">
+              <div className="sf-field sf-field-grow">
+                <label className="sf-label">Name</label>
+                <input className="sf-input" value={newComp.name}
+                  onChange={(e) => setNewComp({ ...newComp, name: e.target.value })}
+                  placeholder="Competitor name" />
+              </div>
+              <div className="sf-field sf-field-sm2">
+                <label className="sf-label">Solution</label>
+                <select className="sf-input" value={newComp.solution ?? ""}
+                  onChange={(e) => setNewComp({ ...newComp, solution: (e.target.value || null) as SolutionKey | null })}>
+                  <option value="">General</option>
+                  {ALL_SOLUTIONS.map((k) => <option key={k} value={k}>{SOLUTION_LABELS[k]}</option>)}
+                </select>
+              </div>
             </div>
+            <div className="sf-row">
+              <div className="sf-field">
+                <label className="sf-label">Instagram</label>
+                <input className="sf-input" value={newComp.instagram_handle ?? ""}
+                  onChange={(e) => setNewComp({ ...newComp, instagram_handle: e.target.value })} placeholder="@handle" />
+              </div>
+              <div className="sf-field">
+                <label className="sf-label">LinkedIn</label>
+                <input className="sf-input" value={newComp.linkedin_handle ?? ""}
+                  onChange={(e) => setNewComp({ ...newComp, linkedin_handle: e.target.value })} placeholder="company/name" />
+              </div>
+              <div className="sf-field">
+                <label className="sf-label">X</label>
+                <input className="sf-input" value={newComp.x_handle ?? ""}
+                  onChange={(e) => setNewComp({ ...newComp, x_handle: e.target.value })} placeholder="@handle" />
+              </div>
+            </div>
+            <div className="sf-field">
+              <label className="sf-label">Notes</label>
+              <input className="sf-input" value={newComp.notes ?? ""}
+                onChange={(e) => setNewComp({ ...newComp, notes: e.target.value })} placeholder="Why we track them" />
+            </div>
+            <div className="sf-form-actions">
+              <label className="sf-inline-check">
+                <input type="checkbox" checked={newComp.is_aspirational}
+                  onChange={(e) => setNewComp({ ...newComp, is_aspirational: e.target.checked })} />
+                Aspirational
+              </label>
+              <button className="sf-btn sf-btn-accent" onClick={addCompetitor}
+                disabled={compBusy || !newComp.name.trim()}>
+                {compBusy ? "Saving..." : "Add competitor"}
+              </button>
+              {compMsg && <span className="sf-test is-ok">{compMsg}</span>}
+            </div>
+          </div>
+
+          {competitors.length === 0 ? (
+            <p className="sf-note">No competitors yet.</p>
+          ) : (
+            [...ALL_SOLUTIONS, null].map((grp) => {
+              const items = competitors.filter((c) => (c.solution ?? null) === grp);
+              if (!items.length) return null;
+              const label = grp ? SOLUTION_LABELS[grp] : "General / untagged";
+              return (
+                <div className="sf-comp-group" key={grp ?? "general"}>
+                  <h3 className="sf-comp-grouptitle">
+                    {label} <span className="sf-hint">({items.length})</span>
+                  </h3>
+                  {items.map((c) => (
+                    <div className="sf-comp-row" key={c.id}>
+                      {editingComp === c.id ? (
+                        <div className="sf-comp-edit">
+                          <div className="sf-row">
+                            <input className="sf-input" value={editDraft.name}
+                              onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} placeholder="Name" />
+                            <select className="sf-input" value={editDraft.solution ?? ""}
+                              onChange={(e) => setEditDraft({ ...editDraft, solution: (e.target.value || null) as SolutionKey | null })}>
+                              <option value="">General</option>
+                              {ALL_SOLUTIONS.map((k) => <option key={k} value={k}>{SOLUTION_LABELS[k]}</option>)}
+                            </select>
+                          </div>
+                          <div className="sf-row">
+                            <input className="sf-input" value={editDraft.instagram_handle ?? ""}
+                              onChange={(e) => setEditDraft({ ...editDraft, instagram_handle: e.target.value })} placeholder="Instagram" />
+                            <input className="sf-input" value={editDraft.linkedin_handle ?? ""}
+                              onChange={(e) => setEditDraft({ ...editDraft, linkedin_handle: e.target.value })} placeholder="LinkedIn" />
+                            <input className="sf-input" value={editDraft.x_handle ?? ""}
+                              onChange={(e) => setEditDraft({ ...editDraft, x_handle: e.target.value })} placeholder="X" />
+                          </div>
+                          <input className="sf-input" value={editDraft.notes ?? ""}
+                            onChange={(e) => setEditDraft({ ...editDraft, notes: e.target.value })} placeholder="Notes" />
+                          <div className="sf-form-actions">
+                            <label className="sf-inline-check">
+                              <input type="checkbox" checked={editDraft.is_aspirational}
+                                onChange={(e) => setEditDraft({ ...editDraft, is_aspirational: e.target.checked })} />
+                              Aspirational
+                            </label>
+                            <button className="sf-btn sf-btn-accent" onClick={saveEditCompetitor} disabled={compBusy}>Save</button>
+                            <button className="sf-btn" onClick={() => setEditingComp(null)}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="sf-comp-info">
+                            <span className="sf-comp-name">{c.name}{c.is_aspirational ? " ★" : ""}</span>
+                            <span className="sf-comp-meta">
+                              {[c.instagram_handle && `IG ${c.instagram_handle}`, c.linkedin_handle && `LI ${c.linkedin_handle}`, c.x_handle && `X ${c.x_handle}`].filter(Boolean).join(" · ") || "—"}
+                            </span>
+                            {c.notes && <span className="sf-comp-notes">{c.notes}</span>}
+                          </div>
+                          <div className="sf-comp-actions">
+                            <button className="sf-btn" onClick={() => startEditCompetitor(c)}>Edit</button>
+                            <button className="sf-btn" onClick={() => removeCompetitor(c.id)}>Delete</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })
           )}
         </section>
       )}

@@ -676,3 +676,40 @@ html, body {
   text-align: right;
   color: var(--ink);
 }
+
+/* ── E3: competitors CRUD grouped by solution ───────────────────── */
+.sf-comp-add {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin: 10px 0 18px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sf-field-sm2 { width: 170px; }
+.sf-comp-group { margin-top: 14px; }
+.sf-comp-grouptitle {
+  font-family: var(--font-display), sans-serif;
+  font-size: 14px;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+.sf-comp-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--surface);
+}
+.sf-comp-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sf-comp-name { font-weight: 600; color: var(--ink); }
+.sf-comp-meta { font-size: 12px; color: var(--muted); font-family: var(--font-mono), monospace; }
+.sf-comp-notes { font-size: 13px; color: var(--muted); }
+.sf-comp-actions { display: flex; gap: 6px; flex: none; }
+.sf-comp-edit { width: 100%; display: flex; flex-direction: column; gap: 8px; }

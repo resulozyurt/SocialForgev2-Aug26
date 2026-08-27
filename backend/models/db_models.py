@@ -147,6 +147,9 @@ class Competitor(Base):
     instagram_handle: Mapped[Optional[str]] = mapped_column(String(64))
     linkedin_handle: Mapped[Optional[str]] = mapped_column(String(128))
     x_handle: Mapped[Optional[str]] = mapped_column(String(64))
+    # E3: which solution area this competitor is tracked under (nullable = general).
+    solution: Mapped[Optional[SolutionEnum]] = mapped_column(Enum(SolutionEnum), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
 
     brand: Mapped["Brand"] = relationship(back_populates="competitors")
 

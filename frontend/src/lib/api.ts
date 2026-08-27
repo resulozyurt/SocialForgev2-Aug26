@@ -70,6 +70,12 @@ export const api = {
 
   // Competitors
   listCompetitors: (id: string) => request<Competitor[]>(`/brands/${id}/competitors`),
+  createCompetitor: (id: string, payload: import("./types").CompetitorInput) =>
+    request<Competitor>(`/brands/${id}/competitors`, { method: "POST", body: JSON.stringify(payload) }),
+  updateCompetitor: (id: string, competitorId: string, payload: import("./types").CompetitorInput) =>
+    request<Competitor>(`/brands/${id}/competitors/${competitorId}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteCompetitor: (id: string, competitorId: string) =>
+    request<void>(`/brands/${id}/competitors/${competitorId}`, { method: "DELETE" }),
 
   // AI provider configs
   listProviders: (id: string) => request<ProviderConfig[]>(`/settings/providers/${id}`),

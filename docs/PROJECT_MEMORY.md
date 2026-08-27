@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-27 — **E2** (solutions management + importance-weighted calendar split; migration 0006).
+Last updated: 2026-08-27 — **E3** (competitors CRUD, tagged & grouped by solution; migration 0007).
 
 ---
 
@@ -239,6 +239,16 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   home=1 -> 11/9/4/2 + general 4; equal importance -> 7/7/6/6 + 4. `tsc` + `py_compile`
   clean. Importance is not seeded (defaults to 3 = balanced) and tuned in the UI;
   re-seed preserves it (upsert does not touch importance).
+- **2026-08-27 (E3) — Competitors CRUD + solution grouping:** `Competitor` gains a
+  nullable `solution` (reuses the existing `solutionenum`, `create_type=False`) and a
+  `notes` field via **migration 0007** (guarded). Competitor endpoints went from
+  GET+POST to full CRUD: added `PATCH` and `DELETE
+  /brands/{id}/competitors/{competitor_id}`; Create/Response/Update schemas carry
+  solution + notes. The Solutions tab's competitor area is now **fully editable**: an
+  add form (name, solution, IG/LI/X handles, aspirational, notes) plus a list
+  **grouped by solution** (a "General / untagged" bucket for null), each row with
+  inline Edit (name/handles/notes/solution/aspirational) and Delete. `tsc` +
+  `py_compile` clean.
 
 ---
 
@@ -326,7 +336,7 @@ https://claude.ai/code/artifact/38ea41ec-302d-4692-928a-2f99f8575272
 | E0 Calendar fix | surface run errors + max_tokens headroom + salvage parser | **DONE (this commit)** |
 | E1 Identity/Voice editable | edit forms over existing `PATCH /brands` (incl. monthly_post_target) | **DONE** |
 | E2 Solutions + importance | add `importance` to brand_solutions (mig 0006); weighted auto-split; add/remove UI + live preview | **DONE** |
-| E3 Competitors CRUD | competitor PATCH/DELETE + solution tag (migration); grouped-by-solution UI | TODO |
+| E3 Competitors CRUD | competitor PATCH/DELETE + solution tag (migration); grouped-by-solution UI | **DONE** |
 | E4 Research depth | per-solution research; report reject/delete/AI-edit endpoints + UI | TODO |
 | E5 Back to Calendar | R2b review UI (solution chips + ai_angle + distribution), then resume Copy→Visual | TODO |
 

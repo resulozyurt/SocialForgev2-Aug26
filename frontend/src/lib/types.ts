@@ -59,10 +59,22 @@ export interface SolutionInput {
 export interface Competitor {
   id: string;
   name: string;
+  solution: SolutionKey | null;
   is_aspirational: boolean;
   instagram_handle: string | null;
   linkedin_handle: string | null;
   x_handle: string | null;
+  notes: string | null;
+}
+
+export interface CompetitorInput {
+  name: string;
+  solution: SolutionKey | null;
+  is_aspirational: boolean;
+  instagram_handle: string | null;
+  linkedin_handle: string | null;
+  x_handle: string | null;
+  notes: string | null;
 }
 
 export type PhaseKey = "phase1_research" | "phase2_calendar" | "phase3_copy";
