@@ -25,6 +25,16 @@ async function forward(req: NextRequest, path: string[]) {
     method === "GET" || method === "HEAD" ? undefined : await req.text();
 
   const res = await fetch(target, { method, headers, body, cache: "no-store" });
+
+  // 204/205/304 are "null body" statuses: per the Fetch spec a Response with one
+  // of these statuses must not carry a body. Wrapping the (empty) text in a new
+  // NextResponse throws a TypeError, which surfaces to the browser as a spurious
+  // 500 — this is what made DELETE look like it failed even though the backend
+  // had already removed the row. Return an empty, body-less response instead.
+  if (res.status === 204 || res.status === 205 || res.status === 304) {
+    return new NextResponse(null, { status: res.status });
+  }
+
   const text = await res.text();
 
   return new NextResponse(text, {

@@ -32,6 +32,169 @@ type LogLine = { time: string; text: string; kind: "info" | "ok" | "err" };
 // can silently refresh and explain, instead of surfacing a scary error banner.
 const isMissingError = (e: unknown) => msg(e).includes("404");
 
+// ── F3: solution-first, tabbed report view ──────────────────────────────────
+const SOLUTION_LABELS: Record<string, string> = {
+  merchandising: "Merchandising",
+  field_audit: "Field Audit",
+  field_sales: "Field Sales",
+  home_service: "Home Service",
+  ai: "AI",
+  general: "General",
+};
+const SOLUTION_ORDER = ["merchandising", "field_audit", "field_sales", "home_service", "ai", "general"];
+const solKey = (v: unknown): string =>
+  S(v).trim().toLowerCase().replace(/\s+/g, "_") || "general";
+const solLabel = (key: string): string =>
+  SOLUTION_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+function ReportView({ report }: { report: TrendReport }) {
+  const topics = A(report.trending_topics).map((t) => O(t));
+  const gaps = A(report.content_gaps).map((g) => O(g));
+  const pillars = A(report.recommended_pillars).map((p) => O(p));
+  const src = O(report.sources);
+  const search = A(src.search).map((x) => O(x));
+  const rss = A(src.rss).map((x) => O(x));
+  const trends = A(src.trends).map((x) => O(x));
+
+  const present = new Set<string>();
+  topics.forEach((t) => present.add(solKey(t.solution)));
+  gaps.forEach((g) => present.add(solKey(g.solution)));
+  search.forEach((x) => present.add(solKey(x.solution)));
+  const solutions = [...present].sort(
+    (a, b) => ((SOLUTION_ORDER.indexOf(a) + 1) || 99) - ((SOLUTION_ORDER.indexOf(b) + 1) || 99)
+  );
+
+  const tabs = ["overview", ...solutions];
+  const [tab, setTab] = useState<string>("overview");
+  const active = tabs.includes(tab) ? tab : "overview";
+
+  const forSol = (arr: Record<string, unknown>[], key: string) =>
+    arr.filter((x) => solKey(x.solution) === key);
+  const count = (key: string) => forSol(topics, key).length + forSol(gaps, key).length;
+
+  return (
+    <div className="sf-report">
+      <div className="sf-tabs sf-rtabs">
+        {tabs.map((t) => (
+          <button
+            key={t}
+            className={`sf-tab${active === t ? " is-active" : ""}`}
+            onClick={() => setTab(t)}
+          >
+            {t === "overview" ? "Overview" : solLabel(t)}
+          </button>
+        ))}
+      </div>
+
+      {active === "overview" ? (
+        <div className="sf-report-panel">
+          <div className="sf-caldist">
+            {solutions.map((sol) => (
+              <span key={sol} className={`sf-caldist-chip${sol === "ai" ? " is-ai" : ""}`}>
+                {solLabel(sol)} <b>{count(sol)}</b>
+              </span>
+            ))}
+          </div>
+          {pillars.length > 0 && (
+            <>
+              <h4 className="sf-h4">Recommended pillars</h4>
+              <ul className="sf-list">
+                {pillars.map((o, i) => (
+                  <li key={i}>
+                    <strong>{S(o.name)}</strong>
+                    {o.percentage ? ` (${S(o.percentage)}%)` : ""} — {S(o.description)}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {(rss.length > 0 || trends.length > 0) && (
+            <>
+              <h4 className="sf-h4">Feeds &amp; trends</h4>
+              {rss.length > 0 && (
+                <ul className="sf-list sf-sources">
+                  {rss.map((o, i) => (
+                    <li key={`r${i}`}>
+                      <a href={S(o.link)} target="_blank" rel="noopener noreferrer">
+                        {S(o.title) || S(o.link)}
+                      </a>
+                      <span className="sf-src-tag">{S(o.source) || "rss"}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {trends.length > 0 && (
+                <p className="sf-hint">
+                  Trends: {trends.map((o) => S(o.title)).filter(Boolean).join(", ")}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="sf-report-panel">
+          {(() => {
+            const t = forSol(topics, active);
+            const g = forSol(gaps, active);
+            const so = forSol(search, active);
+            if (!t.length && !g.length && !so.length)
+              return <p className="sf-note">Nothing tagged for {solLabel(active)} in this report.</p>;
+            return (
+              <>
+                {t.length > 0 && (
+                  <>
+                    <h4 className="sf-h4">Trending topics</h4>
+                    <ul className="sf-list">
+                      {t.map((o, i) => (
+                        <li key={i}>
+                          <strong>{S(o.topic)}</strong>
+                          {o.signal_strength ? (
+                            <span className={`sf-sig is-${S(o.signal_strength).toLowerCase()}`}>
+                              {S(o.signal_strength)}
+                            </span>
+                          ) : null}
+                          {" — "}
+                          {S(o.why_it_matters)}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {g.length > 0 && (
+                  <>
+                    <h4 className="sf-h4">Content gaps</h4>
+                    <ul className="sf-list">
+                      {g.map((o, i) => (
+                        <li key={i}>
+                          <strong>{S(o.gap)}</strong> → {S(o.opportunity)}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {so.length > 0 && (
+                  <>
+                    <h4 className="sf-h4">Sources</h4>
+                    <ul className="sf-list sf-sources">
+                      {so.map((o, i) => (
+                        <li key={`s${i}`}>
+                          <a href={S(o.url)} target="_blank" rel="noopener noreferrer">
+                            {S(o.title) || S(o.url)}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PipelinePage() {
   const params = useParams();
   const brandId = String(params.id);
@@ -458,102 +621,7 @@ export default function PipelinePage() {
               )}
               <details className="sf-details">
                 <summary>View report</summary>
-                {A(r.trending_topics).length > 0 && (
-                  <>
-                    <h4 className="sf-h4">Trending topics</h4>
-                    <ul className="sf-list">
-                      {A(r.trending_topics).map((t, i) => {
-                        const o = O(t);
-                        return (
-                          <li key={i}>
-                            <strong>{S(o.topic)}</strong>
-                            {o.solution ? ` · ${S(o.solution)}` : ""}
-                            {o.signal_strength ? ` [${S(o.signal_strength)}]` : ""} — {S(o.why_it_matters)}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </>
-                )}
-                {A(r.content_gaps).length > 0 && (
-                  <>
-                    <h4 className="sf-h4">Content gaps</h4>
-                    <ul className="sf-list">
-                      {A(r.content_gaps).map((g, i) => {
-                        const o = O(g);
-                        return (
-                          <li key={i}>
-                            <strong>{S(o.gap)}</strong>
-                            {o.solution ? ` · ${S(o.solution)}` : ""} → {S(o.opportunity)}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </>
-                )}
-                {A(r.recommended_pillars).length > 0 && (
-                  <>
-                    <h4 className="sf-h4">Recommended pillars</h4>
-                    <ul className="sf-list">
-                      {A(r.recommended_pillars).map((p, i) => {
-                        const o = O(p);
-                        return (
-                          <li key={i}>
-                            <strong>{S(o.name)}</strong>
-                            {o.percentage ? ` (${S(o.percentage)}%)` : ""} — {S(o.description)}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </>
-                )}
-              {(() => {
-                  const src = O(r.sources);
-                  const search = A(src.search);
-                  const rss = A(src.rss);
-                  const trends = A(src.trends);
-                  if (!search.length && !rss.length && !trends.length) return null;
-                  return (
-                    <>
-                      <h4 className="sf-h4">Sources used (real, auditable)</h4>
-                      {search.length > 0 && (
-                        <ul className="sf-list sf-sources">
-                          {search.map((x, i) => {
-                            const o = O(x);
-                            return (
-                              <li key={`s${i}`}>
-                                <a href={S(o.url)} target="_blank" rel="noopener noreferrer">
-                                  {S(o.title) || S(o.url)}
-                                </a>
-                                <span className="sf-src-tag">{S(o.solution) || "search"}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                      {rss.length > 0 && (
-                        <ul className="sf-list sf-sources">
-                          {rss.map((x, i) => {
-                            const o = O(x);
-                            return (
-                              <li key={`r${i}`}>
-                                <a href={S(o.link)} target="_blank" rel="noopener noreferrer">
-                                  {S(o.title) || S(o.link)}
-                                </a>
-                                <span className="sf-src-tag">{S(o.source) || "rss"}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                      {trends.length > 0 && (
-                        <p className="sf-hint">
-                          Trends: {trends.map((x) => S(O(x).title)).filter(Boolean).join(", ")}
-                        </p>
-                      )}
-                    </>
-                  );
-                })()}
+                <ReportView report={r} />
               </details>
             </article>
           ))

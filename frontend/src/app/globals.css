@@ -763,3 +763,24 @@ html, body {
   padding: 2px 7px;
   white-space: nowrap;
 }
+
+/* ── F3: solution-first, tabbed report view ─────────────────────── */
+.sf-report { margin-top: 8px; }
+.sf-report .sf-tabs { margin-bottom: 14px; }
+.sf-report-panel .sf-h4:first-child { margin-top: 0; }
+.sf-report-panel .sf-caldist { margin-bottom: 12px; }
+.sf-sig {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin: 0 4px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: var(--surface);
+}
+.sf-sig.is-high { color: var(--accent); border-color: transparent; background: var(--accent-soft); }
+.sf-sig.is-medium { color: var(--ink); }
+.sf-sig.is-low { color: var(--muted); }

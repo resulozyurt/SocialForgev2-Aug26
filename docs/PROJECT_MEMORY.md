@@ -301,6 +301,30 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   instead of an empty 500. Backend-only, no migration. `py_compile` clean. The
   diagnosis was confirmed live before any code changed (single Postgres, single
   replica, stable list — the multi-instance hypothesis was ruled out).
+- **2026-08-28 (F2b) — The actual DELETE-500 root cause (Next.js proxy):** after
+  F1/F2, DELETE still returned 500 to the browser even though the row was removed
+  (visible after a manual refresh). The backend was fine — it returns `204`. The
+  bug was in the frontend proxy (`app/api/[...path]/route.ts`): it wrapped every
+  upstream response as `new NextResponse(text, {status})`, but `204/205/304` are
+  "null body" statuses and the Fetch spec forbids a body on them, so building that
+  response threw a `TypeError` that surfaced as a spurious 500. Only DELETE hit it
+  (the sole 204 endpoint). Fix: the proxy now returns `new NextResponse(null,
+  {status})` for 204/205/304 and only attaches a body/content-type otherwise.
+  Frontend-only, no migration. `tsc --noEmit` clean. Lesson: any 204 route would
+  have broken; the fix is at the proxy, not per-endpoint.
+- **2026-08-28 (F3) — Solution-first tabbed report view:** the trend report review
+  was one long flat wall of lists — topics, gaps, pillars and dozens of source links
+  with tiny inline solution tags — so it was impossible to see which content and which
+  link belonged to which solution. Replaced it with a `ReportView` component
+  (`/brands/[id]/pipeline`) that is tabbed by solution: an **Overview** tab (per-solution
+  topic+gap counts, the recommended pillars, and the cross-cutting RSS feeds + trends),
+  then **one tab per focus solution actually present** (Merchandising / Field Audit / AI /
+  …) showing that solution's trending topics, content gaps and search sources grouped
+  together. Data drives the tabs (each topic/gap/source already carries a `solution` tag
+  from E4b); solutions are ordered by the canonical `SOLUTION_ORDER`, unknown tags fall to
+  `general`, and signal strength renders as a small high/medium/low pill (`.sf-sig`).
+  Reuses existing `.sf-tabs`/`.sf-caldist`/`.sf-sources` styles; frontend-only, no
+  migration. `tsc --noEmit` clean.
 
 ---
 
