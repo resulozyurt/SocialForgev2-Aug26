@@ -416,6 +416,7 @@ export default function PipelinePage() {
                         return (
                           <li key={i}>
                             <strong>{S(o.topic)}</strong>
+                            {o.solution ? ` · ${S(o.solution)}` : ""}
                             {o.signal_strength ? ` [${S(o.signal_strength)}]` : ""} — {S(o.why_it_matters)}
                           </li>
                         );
@@ -431,7 +432,8 @@ export default function PipelinePage() {
                         const o = O(g);
                         return (
                           <li key={i}>
-                            <strong>{S(o.gap)}</strong> → {S(o.opportunity)}
+                            <strong>{S(o.gap)}</strong>
+                            {o.solution ? ` · ${S(o.solution)}` : ""} → {S(o.opportunity)}
                           </li>
                         );
                       })}
@@ -472,7 +474,7 @@ export default function PipelinePage() {
                                 <a href={S(o.url)} target="_blank" rel="noopener noreferrer">
                                   {S(o.title) || S(o.url)}
                                 </a>
-                                <span className="sf-src-tag">search</span>
+                                <span className="sf-src-tag">{S(o.solution) || "search"}</span>
                               </li>
                             );
                           })}

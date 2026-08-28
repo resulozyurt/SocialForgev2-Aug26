@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-27 — **E4a** (report reject/delete/AI-edit; migration 0008).
+Last updated: 2026-08-27 — **E4b** (per-solution research; no migration).
 
 ---
 
@@ -260,6 +260,18 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   clears rejection and stamps `approved_at`. Pipeline report cards gained Reject / Delete /
   **Edit with AI** (inline instruction box) plus a Rejected badge. `tsc` + `py_compile`
   clean.
+- **2026-08-27 (E4b) — Per-solution research:** Phase 1 now runs a **separate search
+  per focus solution** using that solution's own keywords (from a new
+  `research_sources.solution_keywords` map, `{solution: [kw]}`), plus a general bucket
+  from the brand-wide `search_keywords`. Results are deduped by URL across solutions and
+  each carries a `solution` tag. `ANALYSIS_PROMPT` gained the brand's focus-solution list
+  and now asks the model to spread trending_topics + content_gaps across solutions and tag
+  each with its `solution` (or "general"); sources are tagged per solution. No migration
+  (all in the `research_sources` JSONB). Backward compatible: with no per-solution keywords
+  set, it falls back to brand-wide keywords (old behavior). Frontend: the brand **Sources**
+  tab gained a per-focus-solution keyword textarea each, and the pipeline report view shows
+  the solution tag on every topic, gap, and source. `tsc` + `py_compile` clean. **E4 (a+b)
+  complete.**
 
 ---
 
@@ -349,7 +361,7 @@ https://claude.ai/code/artifact/38ea41ec-302d-4692-928a-2f99f8575272
 | E2 Solutions + importance | add `importance` to brand_solutions (mig 0006); weighted auto-split; add/remove UI + live preview | **DONE** |
 | E3 Competitors CRUD | competitor PATCH/DELETE + solution tag (migration); grouped-by-solution UI | **DONE** |
 | E4a Report controls | reject/delete/AI-edit report endpoints + UI (migration 0008) | **DONE** |
-| E4b Per-solution research | per-solution keywords + report sections | TODO |
+| E4b Per-solution research | per-solution search + solution-tagged topics/gaps/sources | **DONE** |
 | E5 Back to Calendar | R2b review UI (solution chips + ai_angle + distribution), then resume Copy→Visual | TODO |
 
 Notes: backend already has `PATCH /brands` (so post-limit is writable — E1 is UI

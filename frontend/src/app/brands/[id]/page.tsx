@@ -193,6 +193,7 @@ export default function BrandDetailPage() {
   const [srcFeeds, setSrcFeeds] = useState("");
   const [srcKeywords, setSrcKeywords] = useState("");
   const [srcGeo, setSrcGeo] = useState("");
+  const [srcSolKw, setSrcSolKw] = useState<Record<string, string>>({});
   const [srcSaving, setSrcSaving] = useState(false);
   const [srcMsg, setSrcMsg] = useState<string | null>(null);
 
@@ -229,6 +230,12 @@ export default function BrandDetailPage() {
       setSrcFeeds((Array.isArray(rs.rss_feeds) ? (rs.rss_feeds as string[]) : []).join("\n"));
       setSrcKeywords((Array.isArray(rs.search_keywords) ? (rs.search_keywords as string[]) : []).join("\n"));
       setSrcGeo(typeof rs.trends_geo === "string" ? rs.trends_geo : "");
+      const solKw = (rs.solution_keywords ?? {}) as Record<string, unknown>;
+      const sk: Record<string, string> = {};
+      for (const key of ALL_SOLUTIONS) {
+        sk[key] = (Array.isArray(solKw[key]) ? (solKw[key] as string[]) : []).join("\n");
+      }
+      setSrcSolKw(sk);
       setIdForm(buildIdentityForm(b));
       setVForm(buildVoiceForm(b));
       setSolRows(buildSolRows(sol));
@@ -314,12 +321,18 @@ export default function BrandDetailPage() {
     try {
       const rs = (brand?.research_sources ?? {}) as Record<string, unknown>;
       const lines = (t: string) => t.split("\n").map((x) => x.trim()).filter(Boolean);
+      const solKwOut: Record<string, string[]> = {};
+      for (const key of ALL_SOLUTIONS) {
+        const arr = lines(srcSolKw[key] ?? "");
+        if (arr.length) solKwOut[key] = arr;
+      }
       const updated = await api.updateBrand(brandId, {
         research_sources: {
           ...rs,
           rss_feeds: lines(srcFeeds),
           search_keywords: lines(srcKeywords),
           trends_geo: srcGeo.trim() || null,
+          solution_keywords: solKwOut,
         },
       });
       setBrand(updated);
@@ -1168,6 +1181,23 @@ export default function BrandDetailPage() {
               placeholder={"retail merchandising execution\nfield audit software\nAI in-store compliance"}
             />
           </div>
+
+          <div className="sf-info">
+            <strong>Per-solution keywords.</strong> Research runs a separate search for each
+            focus solution using its own keywords and tags the results with that solution.
+            Leave blank to use only the general keywords above.
+          </div>
+          {solutions.filter((s) => s.is_focus).map((s) => (
+            <div className="sf-field" key={s.solution}>
+              <label className="sf-label">{SOLUTION_LABELS[s.solution] ?? s.solution} keywords (one per line)</label>
+              <textarea
+                className="sf-input sf-textarea"
+                value={srcSolKw[s.solution] ?? ""}
+                onChange={(e) => setSrcSolKw({ ...srcSolKw, [s.solution]: e.target.value })}
+                placeholder="keywords specific to this solution"
+              />
+            </div>
+          ))}
           <div className="sf-field">
             <label className="sf-label">RSS feeds (one URL per line)</label>
             <textarea

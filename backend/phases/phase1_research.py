@@ -28,7 +28,7 @@ from integrations.free_research import (
     fetch_rss,
 )
 from integrations.web_search import default_country, gather_search
-from models.db_models import AIProviderConfig, Brand, Competitor, PhaseEnum, TrendReportCard
+from models.db_models import AIProviderConfig, Brand, BrandSolution, Competitor, PhaseEnum, TrendReportCard
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,10 @@ BRAND: {brand_name}
 INDUSTRY: {industry}
 PLANNING PERIOD: {planning_period}
 
-TARGETED WEB SEARCH RESULTS (real results for the brand's areas of interest — prefer these):
+BRAND FOCUS SOLUTIONS (cover these areas; tag each topic and gap with the solution it serves, or "general"):
+{focus_solutions}
+
+TARGETED WEB SEARCH RESULTS (each result carries a "solution" tag for the area it was gathered under, or null for general — prefer these and respect the tagging):
 {search_results}
 
 GOOGLE TRENDS (today's trending searches in the brand's region):
@@ -112,16 +115,18 @@ COMPETITOR POSTS (optional; may be empty):
 
 Ground EVERY trend signal in the inputs above. In each "sources" array, put the
 actual article titles or URLs you used from the inputs — never invent a source.
-Respond with a JSON object in exactly this structure:
+Spread trending_topics and content_gaps across the BRAND FOCUS SOLUTIONS above, and
+set each item's "solution" to the area it serves (one of the focus solutions, or
+"general"). Respond with a JSON object in exactly this structure:
 {{
   "trending_topics": [
-    {{"rank": 1, "topic": "...", "signal_strength": "high|medium|low", "sources": ["..."], "why_it_matters": "..."}}
+    {{"rank": 1, "topic": "...", "solution": "merchandising|field_audit|field_sales|home_service|ai|general", "signal_strength": "high|medium|low", "sources": ["..."], "why_it_matters": "..."}}
   ],
   "hot_formats": [
     {{"format": "...", "why_working": "...", "example_structure": "..."}}
   ],
   "content_gaps": [
-    {{"gap": "...", "opportunity": "...", "suggested_angle": "..."}}
+    {{"gap": "...", "solution": "merchandising|field_audit|field_sales|home_service|ai|general", "opportunity": "...", "suggested_angle": "..."}}
   ],
   "algorithm_notes": {{
     "instagram": "...",
@@ -187,6 +192,18 @@ class Phase1Research:
             )
             competitors = comp_result.scalars().all()
 
+            # Load focus solutions (E4b: research is gathered per solution).
+            sol_result = await db.execute(
+                select(BrandSolution)
+                .where(
+                    BrandSolution.brand_id == brand_id,
+                    BrandSolution.is_active == True,  # noqa: E712
+                    BrandSolution.is_focus == True,  # noqa: E712
+                )
+                .order_by(BrandSolution.priority.asc())
+            )
+            focus_solutions = [s.solution.value for s in sol_result.scalars().all()]
+
             # Load AI config for Phase 1
             config_result = await db.execute(
                 select(AIProviderConfig).where(
@@ -205,16 +222,45 @@ class Phase1Research:
         feeds = cfg.get("rss_feeds") or default_feeds(language)
         geo = cfg.get("trends_geo") or default_geo(language)
         country = cfg.get("search_country") or default_country(language)
-        keywords = cfg.get("search_keywords") or _default_keywords(brand)
         use_apify = bool(cfg.get("use_apify")) and self._apify is not None
+
+        # E4b: build per-solution search tasks. Each focus solution searches with
+        # its own keywords; a general bucket uses the brand-wide keywords. Falls
+        # back to brand-wide only (old behavior) when no per-solution keywords set.
+        solution_keywords = cfg.get("solution_keywords") or {}
+        sol_tasks: list = []
+        for sv in focus_solutions:
+            kws = solution_keywords.get(sv)
+            if kws:
+                sol_tasks.append((sv, list(kws)))
+        if sol_tasks:
+            gen_kws = cfg.get("search_keywords") or []
+        else:
+            gen_kws = cfg.get("search_keywords") or _default_keywords(brand)
+        if gen_kws:
+            sol_tasks.append((None, list(gen_kws)))
 
         rss_items = await fetch_rss(feeds)
         trends_items = await fetch_google_trends(geo)
-        search_items = (
-            await gather_search(self._search_provider, keywords, self._search_key, country=country)
-            if self._search_key and keywords
-            else []
-        )
+
+        search_items: list = []
+        if self._search_key:
+            seen_urls: set = set()
+            for sol, kws in sol_tasks:
+                if not kws:
+                    continue
+                found = await gather_search(
+                    self._search_provider, kws, self._search_key, country=country
+                )
+                for it in found:
+                    u = it.get("url")
+                    if u and u in seen_urls:
+                        continue
+                    if u:
+                        seen_urls.add(u)
+                    it["solution"] = sol
+                    search_items.append(it)
+
         competitor_data = (
             await self._scrape_competitors(competitors, max_posts_per_competitor)
             if use_apify
@@ -222,7 +268,10 @@ class Phase1Research:
         )
 
         gathered_sources = {
-            "keywords": keywords,
+            "keywords": gen_kws,
+            "solution_keywords": {
+                sv: solution_keywords[sv] for sv in focus_solutions if solution_keywords.get(sv)
+            },
             "search": search_items,
             "rss": rss_items,
             "trends": trends_items,
@@ -237,6 +286,7 @@ class Phase1Research:
             trends_items=trends_items,
             competitor_data=competitor_data,
             ai_config=ai_config,
+            focus_solutions=focus_solutions,
         )
         report.sources = gathered_sources
 
@@ -326,6 +376,7 @@ class Phase1Research:
         trends_items: list[dict],
         competitor_data: list[CompetitorData],
         ai_config,
+        focus_solutions: Optional[list] = None,
     ) -> TrendReportResult:
         """Send scraped data to AI and parse the structured response."""
 
@@ -364,6 +415,7 @@ class Phase1Research:
             brand_name=brand.display_name,
             industry=brand.industry or "B2B SaaS",
             planning_period=planning_period,
+            focus_solutions=", ".join(focus_solutions) if focus_solutions else "general",
             search_results=json.dumps(search_items, indent=2, ensure_ascii=False) if search_items else "(none)",
             google_trends=json.dumps(trends_items, indent=2, ensure_ascii=False) if trends_items else "(none)",
             rss_articles=json.dumps(rss_items, indent=2, ensure_ascii=False) if rss_items else "(none)",
