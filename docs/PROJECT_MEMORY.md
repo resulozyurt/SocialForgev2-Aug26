@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-27 — **E4b** (per-solution research; no migration).
+Last updated: 2026-08-27 — **E5 / R2b** (calendar review UI). Editability roadmap E0–E5 complete.
 
 ---
 
@@ -272,6 +272,13 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   tab gained a per-focus-solution keyword textarea each, and the pipeline report view shows
   the solution tag on every topic, gap, and source. `tsc` + `py_compile` clean. **E4 (a+b)
   complete.**
+- **2026-08-27 (E5 / R2b) — Calendar review UI:** the pipeline calendar view now
+  surfaces the solution model built in R2a/E2. Each calendar entry table gained a
+  **Solution** chip column and an **AI angle** column, and each calendar shows a
+  **distribution summary** (per-solution post counts + how many carry an AI angle) above
+  the entries. Frontend-only; no backend/migration. `tsc` clean. **The Editability &
+  Solution-First roadmap (E0–E5) is complete.** Next: resume the original chain — Phase D
+  (branded visual generation + Google Drive), then Copy polish.
 
 ---
 
@@ -362,7 +369,7 @@ https://claude.ai/code/artifact/38ea41ec-302d-4692-928a-2f99f8575272
 | E3 Competitors CRUD | competitor PATCH/DELETE + solution tag (migration); grouped-by-solution UI | **DONE** |
 | E4a Report controls | reject/delete/AI-edit report endpoints + UI (migration 0008) | **DONE** |
 | E4b Per-solution research | per-solution search + solution-tagged topics/gaps/sources | **DONE** |
-| E5 Back to Calendar | R2b review UI (solution chips + ai_angle + distribution), then resume Copy→Visual | TODO |
+| E5 Back to Calendar | R2b review UI (solution chips + ai_angle + distribution) | **DONE** |
 
 Notes: backend already has `PATCH /brands` (so post-limit is writable — E1 is UI
 only) and `GET/POST` competitors (E3 adds PATCH/DELETE + solution tag). E2 upgrades

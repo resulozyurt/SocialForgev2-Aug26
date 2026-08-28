@@ -559,6 +559,29 @@ export default function PipelinePage() {
                 </div>
               </div>
               {c.summary && <p className="sf-prose">{c.summary}</p>}
+              {(() => {
+                const entries = A(c.entries);
+                if (!entries.length) return null;
+                const bySol: Record<string, number> = {};
+                let withAi = 0;
+                for (const e of entries) {
+                  const o = O(e);
+                  const sol = S(o.solution) || "general";
+                  bySol[sol] = (bySol[sol] || 0) + 1;
+                  if (S(o.ai_angle)) withAi += 1;
+                }
+                const dist = Object.entries(bySol).sort((a, b) => b[1] - a[1]);
+                return (
+                  <div className="sf-caldist">
+                    {dist.map(([sol, n]) => (
+                      <span className="sf-caldist-chip" key={sol}>
+                        {sol} <b>{n}</b>
+                      </span>
+                    ))}
+                    <span className="sf-caldist-chip is-ai">AI angle <b>{withAi}</b></span>
+                  </div>
+                );
+              })()}
               <details className="sf-details">
                 <summary>View {A(c.entries).length} entries</summary>
                 <div className="sf-table-scroll">
@@ -566,10 +589,12 @@ export default function PipelinePage() {
                     <thead>
                       <tr>
                         <th>Date</th>
+                        <th>Solution</th>
                         <th>Platform</th>
                         <th>Type</th>
                         <th>Pillar</th>
                         <th>Hook</th>
+                        <th>AI angle</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -578,10 +603,18 @@ export default function PipelinePage() {
                         return (
                           <tr key={i}>
                             <td>{S(o.date)}</td>
+                            <td>
+                              {S(o.solution) ? (
+                                <span className="sf-sol-chip">{S(o.solution)}</span>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
                             <td>{S(o.platform)}</td>
                             <td>{S(o.content_type)}</td>
                             <td>{S(o.pillar)}</td>
                             <td>{S(o.hook_concept)}</td>
+                            <td>{S(o.ai_angle) || "—"}</td>
                           </tr>
                         );
                       })}

@@ -730,3 +730,36 @@ html, body {
   color: var(--accent-ink);
   opacity: 0.85;
 }
+
+/* ── E5 (R2b): calendar solution chips + distribution ───────────── */
+.sf-caldist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+.sf-caldist-chip {
+  font-size: 12px;
+  font-family: var(--font-mono), monospace;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: var(--muted);
+}
+.sf-caldist-chip b { color: var(--ink); }
+.sf-caldist-chip.is-ai {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+.sf-sol-chip {
+  display: inline-block;
+  font-size: 11px;
+  font-family: var(--font-mono), monospace;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-radius: 6px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
