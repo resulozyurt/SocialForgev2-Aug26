@@ -265,6 +265,9 @@ class TrendReportCard(Base):
 
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
     approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # E4a: human can reject a report (kept for audit, distinct from delete).
+    is_rejected: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    rejected_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

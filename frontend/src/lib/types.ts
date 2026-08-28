@@ -116,6 +116,7 @@ export interface TrendReport {
   brand_id: string;
   planning_period: string;
   is_approved: boolean;
+  is_rejected: boolean;
   trending_topics: Array<Record<string, unknown>> | null;
   hot_formats: Array<Record<string, unknown>> | null;
   content_gaps: Array<Record<string, unknown>> | null;

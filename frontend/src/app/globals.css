@@ -713,3 +713,20 @@ html, body {
 .sf-comp-notes { font-size: 13px; color: var(--muted); }
 .sf-comp-actions { display: flex; gap: 6px; flex: none; }
 .sf-comp-edit { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+
+/* ── E4a: report AI-edit + rejected badge ───────────────────────── */
+.sf-airow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.sf-badge.is-warn {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  opacity: 0.85;
+}

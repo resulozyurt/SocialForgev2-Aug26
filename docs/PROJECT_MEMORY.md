@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-27 — **E3** (competitors CRUD, tagged & grouped by solution; migration 0007).
+Last updated: 2026-08-27 — **E4a** (report reject/delete/AI-edit; migration 0008).
 
 ---
 
@@ -249,6 +249,17 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   **grouped by solution** (a "General / untagged" bucket for null), each row with
   inline Edit (name/handles/notes/solution/aspirational) and Delete. `tsc` +
   `py_compile` clean.
+- **2026-08-27 (E4a) — Report controls (reject/delete/AI-edit):** reports were
+  approve-only. Added `is_rejected` + `rejected_at` to `trend_report_cards`
+  (**migration 0008**, guarded) and three endpoints: `PATCH /research/reports/{id}/reject`
+  (keeps the record, marks dismissed), `DELETE /research/reports/{id}` (hard delete),
+  and `POST /research/reports/{id}/ai-edit` {instruction} — sends the current report
+  JSON + a human instruction to the brand's **Research** AIProviderConfig and rewrites
+  the report in place as a fresh unapproved draft (whole report or a section, driven by
+  the instruction text; sources are left untouched as the audit trail). Approve now also
+  clears rejection and stamps `approved_at`. Pipeline report cards gained Reject / Delete /
+  **Edit with AI** (inline instruction box) plus a Rejected badge. `tsc` + `py_compile`
+  clean.
 
 ---
 
@@ -337,7 +348,8 @@ https://claude.ai/code/artifact/38ea41ec-302d-4692-928a-2f99f8575272
 | E1 Identity/Voice editable | edit forms over existing `PATCH /brands` (incl. monthly_post_target) | **DONE** |
 | E2 Solutions + importance | add `importance` to brand_solutions (mig 0006); weighted auto-split; add/remove UI + live preview | **DONE** |
 | E3 Competitors CRUD | competitor PATCH/DELETE + solution tag (migration); grouped-by-solution UI | **DONE** |
-| E4 Research depth | per-solution research; report reject/delete/AI-edit endpoints + UI | TODO |
+| E4a Report controls | reject/delete/AI-edit report endpoints + UI (migration 0008) | **DONE** |
+| E4b Per-solution research | per-solution keywords + report sections | TODO |
 | E5 Back to Calendar | R2b review UI (solution chips + ai_angle + distribution), then resume Copy→Visual | TODO |
 
 Notes: backend already has `PATCH /brands` (so post-limit is writable — E1 is UI

@@ -111,6 +111,15 @@ export const api = {
   listReports: (id: string) => request<TrendReport[]>(`/research/${id}/reports`),
   approveReport: (reportId: string) =>
     request<unknown>(`/research/reports/${reportId}/approve`, { method: "PATCH" }),
+  rejectReport: (reportId: string) =>
+    request<unknown>(`/research/reports/${reportId}/reject`, { method: "PATCH" }),
+  deleteReport: (reportId: string) =>
+    request<void>(`/research/reports/${reportId}`, { method: "DELETE" }),
+  aiEditReport: (reportId: string, instruction: string) =>
+    request<TrendReport>(`/research/reports/${reportId}/ai-edit`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
+    }),
 
   // Phase 2 — calendar
   runCalendar: (id: string, body: CalendarRunRequest) =>

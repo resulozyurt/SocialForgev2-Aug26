@@ -33,6 +33,9 @@ export default function PipelinePage() {
 
   const [brand, setBrand] = useState<Brand | null>(null);
   const [reports, setReports] = useState<TrendReport[]>([]);
+  const [reportBusy, setReportBusy] = useState<string | null>(null);
+  const [editReportId, setEditReportId] = useState<string | null>(null);
+  const [editInstruction, setEditInstruction] = useState("");
   const [calendars, setCalendars] = useState<ContentCalendar[]>([]);
   const [packages, setPackages] = useState<ContentPackage[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -187,6 +190,49 @@ export default function PipelinePage() {
       setError(msg(e));
     }
   }
+  async function rejectReport(id: string) {
+    setReportBusy(id);
+    try {
+      await api.rejectReport(id);
+      addLog("Trend report rejected.", "info");
+      await refreshReports();
+    } catch (e) {
+      addLog(`Reject report: error — ${msg(e)}`, "err");
+      setError(msg(e));
+    } finally {
+      setReportBusy(null);
+    }
+  }
+  async function deleteReport(id: string) {
+    setReportBusy(id);
+    try {
+      await api.deleteReport(id);
+      addLog("Trend report deleted.", "info");
+      await refreshReports();
+    } catch (e) {
+      addLog(`Delete report: error — ${msg(e)}`, "err");
+      setError(msg(e));
+    } finally {
+      setReportBusy(null);
+    }
+  }
+  async function submitAiEdit(id: string) {
+    if (!editInstruction.trim()) return;
+    setReportBusy(id);
+    addLog("Report: AI is applying your edit…");
+    try {
+      await api.aiEditReport(id, editInstruction.trim());
+      addLog("Report: AI edit applied — review the updated draft.", "ok");
+      setEditReportId(null);
+      setEditInstruction("");
+      await refreshReports();
+    } catch (e) {
+      addLog(`AI edit: error — ${msg(e)}`, "err");
+      setError(msg(e));
+    } finally {
+      setReportBusy(null);
+    }
+  }
   async function approveCalendar(id: string) {
     try {
       await api.approveCalendar(id);
@@ -303,16 +349,62 @@ export default function PipelinePage() {
                   </span>
                 </div>
                 <div className="sf-item-actions">
-                  <span className={`sf-badge${r.is_approved ? " is-active" : ""}`}>
-                    {r.is_approved ? "Approved" : "Draft"}
+                  <span className={`sf-badge${r.is_approved ? " is-active" : r.is_rejected ? " is-warn" : ""}`}>
+                    {r.is_approved ? "Approved" : r.is_rejected ? "Rejected" : "Draft"}
                   </span>
                   {!r.is_approved && (
-                    <button className="sf-btn" onClick={() => approveReport(r.id)}>
+                    <button className="sf-btn" onClick={() => approveReport(r.id)} disabled={reportBusy === r.id}>
                       Approve
                     </button>
                   )}
+                  {!r.is_rejected && (
+                    <button className="sf-btn" onClick={() => rejectReport(r.id)} disabled={reportBusy === r.id}>
+                      Reject
+                    </button>
+                  )}
+                  <button
+                    className="sf-btn"
+                    onClick={() => {
+                      setEditReportId(editReportId === r.id ? null : r.id);
+                      setEditInstruction("");
+                    }}
+                    disabled={reportBusy === r.id}
+                  >
+                    Edit with AI
+                  </button>
+                  <button className="sf-btn" onClick={() => deleteReport(r.id)} disabled={reportBusy === r.id}>
+                    Delete
+                  </button>
                 </div>
               </div>
+              {editReportId === r.id && (
+                <div className="sf-airow">
+                  <textarea
+                    className="sf-input sf-textarea"
+                    value={editInstruction}
+                    onChange={(e) => setEditInstruction(e.target.value)}
+                    placeholder="Tell the AI what to change, e.g. 'Focus the content gaps on in-store AI compliance and drop the generic ones.'"
+                  />
+                  <div className="sf-form-actions">
+                    <button
+                      className="sf-btn sf-btn-accent"
+                      onClick={() => submitAiEdit(r.id)}
+                      disabled={reportBusy === r.id || !editInstruction.trim()}
+                    >
+                      {reportBusy === r.id ? "Applying…" : "Apply AI edit"}
+                    </button>
+                    <button
+                      className="sf-btn"
+                      onClick={() => {
+                        setEditReportId(null);
+                        setEditInstruction("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               <details className="sf-details">
                 <summary>View report</summary>
                 {A(r.trending_topics).length > 0 && (
