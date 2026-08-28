@@ -27,6 +27,11 @@ function currentPeriod(): string {
 type Running = { research: boolean; calendar: boolean; copy: boolean };
 type LogLine = { time: string; text: string; kind: "info" | "ok" | "err" };
 
+// A backend 404 on a by-id action means the row is already gone (deleted in
+// another tab, or the on-screen list is stale). Treat it as "missing" so the UI
+// can silently refresh and explain, instead of surfacing a scary error banner.
+const isMissingError = (e: unknown) => msg(e).includes("404");
+
 export default function PipelinePage() {
   const params = useParams();
   const brandId = String(params.id);
@@ -65,16 +70,28 @@ export default function PipelinePage() {
   }, [log]);
 
   const refreshReports = useCallback(
-    () => api.listReports(brandId).then(setReports).catch(() => {}),
-    [brandId]
+    () =>
+      api
+        .listReports(brandId)
+        .then(setReports)
+        .catch((e) => addLog(`Could not refresh reports: ${msg(e)}`, "err")),
+    [brandId, addLog]
   );
   const refreshCalendars = useCallback(
-    () => api.listCalendars(brandId).then(setCalendars).catch(() => {}),
-    [brandId]
+    () =>
+      api
+        .listCalendars(brandId)
+        .then(setCalendars)
+        .catch((e) => addLog(`Could not refresh calendars: ${msg(e)}`, "err")),
+    [brandId, addLog]
   );
   const refreshPackages = useCallback(
-    () => api.listPackages(brandId).then(setPackages).catch(() => {}),
-    [brandId]
+    () =>
+      api
+        .listPackages(brandId)
+        .then(setPackages)
+        .catch((e) => addLog(`Could not refresh packages: ${msg(e)}`, "err")),
+    [brandId, addLog]
   );
 
   useEffect(() => {
@@ -181,13 +198,21 @@ export default function PipelinePage() {
   }
 
   async function approveReport(id: string) {
+    setReportBusy(id);
     try {
       await api.approveReport(id);
       addLog("Trend report approved — you can now run the calendar.", "ok");
       await refreshReports();
     } catch (e) {
-      addLog(`Approve report: error — ${msg(e)}`, "err");
-      setError(msg(e));
+      if (isMissingError(e)) {
+        addLog("That report no longer exists — the list has been refreshed.", "info");
+        await refreshReports();
+      } else {
+        addLog(`Approve report: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
+    } finally {
+      setReportBusy(null);
     }
   }
   async function rejectReport(id: string) {
@@ -197,8 +222,13 @@ export default function PipelinePage() {
       addLog("Trend report rejected.", "info");
       await refreshReports();
     } catch (e) {
-      addLog(`Reject report: error — ${msg(e)}`, "err");
-      setError(msg(e));
+      if (isMissingError(e)) {
+        addLog("That report no longer exists — the list has been refreshed.", "info");
+        await refreshReports();
+      } else {
+        addLog(`Reject report: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
     } finally {
       setReportBusy(null);
     }
@@ -210,8 +240,13 @@ export default function PipelinePage() {
       addLog("Trend report deleted.", "info");
       await refreshReports();
     } catch (e) {
-      addLog(`Delete report: error — ${msg(e)}`, "err");
-      setError(msg(e));
+      if (isMissingError(e)) {
+        addLog("That report was already removed — the list has been refreshed.", "info");
+        await refreshReports();
+      } else {
+        addLog(`Delete report: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
     } finally {
       setReportBusy(null);
     }
@@ -227,8 +262,14 @@ export default function PipelinePage() {
       setEditInstruction("");
       await refreshReports();
     } catch (e) {
-      addLog(`AI edit: error — ${msg(e)}`, "err");
-      setError(msg(e));
+      if (isMissingError(e)) {
+        addLog("That report no longer exists — the list has been refreshed.", "info");
+        setEditReportId(null);
+        await refreshReports();
+      } else {
+        addLog(`AI edit: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
     } finally {
       setReportBusy(null);
     }
@@ -239,8 +280,13 @@ export default function PipelinePage() {
       addLog("Calendar approved — you can now run copy.", "ok");
       await refreshCalendars();
     } catch (e) {
-      addLog(`Approve calendar: error — ${msg(e)}`, "err");
-      setError(msg(e));
+      if (isMissingError(e)) {
+        addLog("That calendar no longer exists — the list has been refreshed.", "info");
+        await refreshCalendars();
+      } else {
+        addLog(`Approve calendar: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
     }
   }
   async function approvePackage(id: string) {
@@ -249,8 +295,13 @@ export default function PipelinePage() {
       addLog("Content package approved.", "ok");
       await refreshPackages();
     } catch (e) {
-      addLog(`Approve package: error — ${msg(e)}`, "err");
-      setError(msg(e));
+      if (isMissingError(e)) {
+        addLog("That content package no longer exists — the list has been refreshed.", "info");
+        await refreshPackages();
+      } else {
+        addLog(`Approve package: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
     }
   }
 

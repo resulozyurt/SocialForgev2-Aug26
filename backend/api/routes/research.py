@@ -198,9 +198,22 @@ async def reject_report(report_id: uuid.UUID, db: AsyncSession = Depends(get_db)
 
 @router.delete("/research/reports/{report_id}", status_code=204)
 async def delete_report(report_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    """Permanently delete a Trend Report Card."""
-    report = await _get_report(report_id, db)
-    await db.delete(report)
+    """Permanently delete a Trend Report Card. Idempotent: deleting an
+    already-removed report is treated as success, so a stale UI never sees a 404.
+    Any real delete failure surfaces a clear message instead of a bare 500."""
+    result = await db.execute(select(TrendReportCard).where(TrendReportCard.id == report_id))
+    report = result.scalar_one_or_none()
+    if report is None:
+        return  # already gone — the desired end state is reached
+    try:
+        await db.delete(report)
+        await db.flush()
+    except Exception as exc:  # noqa: BLE001 — surface the real reason to the client
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"Could not delete report: {exc}",
+        ) from exc
 
 
 @router.post("/research/reports/{report_id}/ai-edit", response_model=TrendReportResponse)

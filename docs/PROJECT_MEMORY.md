@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-27 — **E5 / R2b** (calendar review UI). Editability roadmap E0–E5 complete.
+Last updated: 2026-08-28 — **F1/F2** (pipeline 404 fix). Editability roadmap E0–E5 complete.
 
 ---
 
@@ -280,6 +280,28 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   Solution-First roadmap (E0–E5) is complete.** Next: resume the original chain — Phase D
   (branded visual generation + Google Drive), then Copy polish.
 
+- **2026-08-28 (F1) — Pipeline stale-state fix (root cause of the "404 — Report
+  not found" storm):** the backend was sound the whole time (verified live: a
+  freshly listed report id returns 200 on approve). The real defect was in the
+  pipeline UI: the three list refreshers swallowed every error
+  (`.catch(() => {})`), so after a row was deleted the page kept showing stale
+  cards; clicking one hit a by-id route for a row that no longer existed → 404
+  (and, on delete, an occasional bare 500). Fix (`/brands/[id]/pipeline`): the
+  refreshers now surface failures to the activity log instead of hiding them;
+  every by-id action (approve / reject / delete / ai-edit for reports, approve
+  for calendars + packages) detects a 404 via a shared `isMissingError` helper
+  and responds by auto-refreshing the list and logging "no longer exists —
+  refreshed" instead of a scary error; `approveReport` now sets `reportBusy` like
+  its siblings so its button disables while in flight. Frontend-only, no
+  migration. Verified `tsc --noEmit` clean.
+- **2026-08-28 (F2) — Delete report hardening:** `DELETE /research/reports/{id}`
+  is now idempotent and no longer emits a bare 500. Deleting an already-removed
+  report returns success (204) so a stale UI never sees a 404; a genuine delete
+  failure is wrapped and surfaced as a clear `409 Could not delete report: …`
+  instead of an empty 500. Backend-only, no migration. `py_compile` clean. The
+  diagnosis was confirmed live before any code changed (single Postgres, single
+  replica, stable list — the multi-instance hypothesis was ruled out).
+
 ---
 
 ## 8. Known Issues / Tech Debt
@@ -293,6 +315,9 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   for these is Phase C.
 - Phase 1 free RSS + Google Trends path shipped (C2); Apify is now optional
   (opt-in per brand via `research_sources.use_apify`).
+- Pipeline list refreshers used to swallow errors silently (`.catch(() => {})`),
+  which hid backend failures and left stale cards on screen — FIXED in F1. Apply
+  the same "surface errors + refresh on 404" pattern to any new list UI.
 
 ---
 
