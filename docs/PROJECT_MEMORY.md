@@ -325,6 +325,35 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   `general`, and signal strength renders as a small high/medium/low pill (`.sf-sig`).
   Reuses existing `.sf-tabs`/`.sf-caldist`/`.sf-sources` styles; frontend-only, no
   migration. `tsc --noEmit` clean.
+- **2026-08-28 (G1) — Per-solution research sources always populated:** the report's
+  solution tabs were empty of sources because Phase 1 only ran a per-solution search
+  when the brand had entered explicit `research_sources.solution_keywords` for that
+  solution; otherwise everything fell into the untagged "general" bucket (so all links
+  showed under General). Fix (`phases/phase1_research.py`): each focus solution now runs
+  its OWN tagged search using explicit keywords when set, else a baseline
+  `_SOLUTION_KEYWORDS` map (merchandising / field_audit / field_sales / home_service /
+  ai; unknown solutions derive `"<label> <industry>"`). The general bucket now runs only
+  when the brand set explicit brand-wide `search_keywords`, or when the brand has no focus
+  solutions at all. Result: every focus solution's report tab shows real, solution-specific
+  source links. Topics/gaps were already solution-tagged by the LLM. RSS feeds stay
+  brand-wide (shown under the Overview tab). Backend-only, no migration; `py_compile` clean.
+  To see it: re-run research for the brand after deploy.
+- **2026-08-28 (G2) — Real month-grid calendar + field glossary:** the calendar review
+  was a wide horizontal table where the on-image-relevant fields were hard to read.
+  Replaced it with a `CalendarView` component (`/brands/[id]/pipeline`): a real Mon–Sun
+  month grid (month derived from `planning_period`), each day cell showing its posts as
+  compact chips colored by solution and labeled by platform (IG/LI/X/…). Clicking a chip
+  opens a detail panel with every field — pillar, **hook concept**, AI angle, objective,
+  and the rationale. Posts whose date falls outside the month show under an "Other dates"
+  row so nothing is hidden. Clarified the field meanings for the human reviewer: **pillar**
+  = editorial theme (not on-image); **hook concept** = the scroll-stopping idea, which
+  becomes the actual on-image headline only later in the Copy stage
+  (`visual_direction.text_overlay.primary` + `hooks[0]`); **ai_angle** = how AI is woven
+  into the post (guidance, not necessarily on-image). Renamed the "Hook" label to "Hook
+  concept" and added dt tooltips. Solution chip colors added to `globals.css` via
+  `data-sol` attribute selectors. Frontend-only, no migration; `tsc --noEmit` clean.
+  Note for Phase D: the branded visual's headline text should be sourced from the Copy
+  stage `text_overlay.primary`, not the calendar hook concept.
 
 ---
 

@@ -195,6 +195,134 @@ function ReportView({ report }: { report: TrendReport }) {
   );
 }
 
+// ── G2: real month-grid calendar with click-to-open post detail ─────────────
+const PLATFORM_ABBR = (p: string): string => {
+  const k = p.toLowerCase();
+  if (k.startsWith("insta")) return "IG";
+  if (k.startsWith("linked")) return "LI";
+  if (k === "x" || k.startsWith("twit")) return "X";
+  if (k.startsWith("face")) return "FB";
+  if (k.startsWith("tik")) return "TT";
+  if (k.startsWith("you")) return "YT";
+  return p.slice(0, 2).toUpperCase();
+};
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function CalendarView({ calendar }: { calendar: ContentCalendar }) {
+  const entries = A(calendar.entries).map((e) => O(e));
+  const [sel, setSel] = useState<number | null>(null);
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const pm = S(calendar.planning_period).match(/^(\d{4})-(\d{2})/);
+  const yy = pm ? Number(pm[1]) : NaN;
+  const mm = pm ? Number(pm[2]) : NaN;
+  const valid = Number.isFinite(yy) && Number.isFinite(mm);
+
+  const byDate = new Map<string, number[]>();
+  entries.forEach((o, i) => {
+    const d = S(o.date);
+    if (!byDate.has(d)) byDate.set(d, []);
+    byDate.get(d)!.push(i);
+  });
+
+  const daysInMonth = valid ? new Date(Date.UTC(yy, mm, 0)).getUTCDate() : 0;
+  const firstWeekday = valid ? (new Date(Date.UTC(yy, mm - 1, 1)).getUTCDay() + 6) % 7 : 0;
+  const cells: (number | null)[] = [];
+  for (let b = 0; b < firstWeekday; b++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const inMonth = (d: string) => valid && d.startsWith(`${yy}-${pad(mm)}-`);
+  const stray = entries.map((o, i) => i).filter((i) => !inMonth(S(entries[i].date)));
+
+  const chip = (i: number) => {
+    const o = entries[i];
+    const sol = solKey(o.solution);
+    return (
+      <button
+        key={i}
+        className={`sf-cal-chip${sel === i ? " is-selected" : ""}`}
+        data-sol={sol}
+        title={`${S(o.platform)} · ${S(o.hook_concept)}`}
+        onClick={() => setSel(sel === i ? null : i)}
+      >
+        {PLATFORM_ABBR(S(o.platform))}
+      </button>
+    );
+  };
+
+  const detail = sel != null ? entries[sel] : null;
+
+  return (
+    <div className="sf-cal">
+      {valid ? (
+        <div className="sf-cal-grid">
+          {WEEKDAYS.map((w) => (
+            <div key={w} className="sf-cal-wd">{w}</div>
+          ))}
+          {cells.map((d, idx) => {
+            if (d === null) return <div key={idx} className="sf-cal-day is-empty" />;
+            const dateStr = `${yy}-${pad(mm)}-${pad(d)}`;
+            const posts = byDate.get(dateStr) ?? [];
+            return (
+              <div key={idx} className="sf-cal-day">
+                <span className="sf-cal-daynum">{d}</span>
+                <div className="sf-cal-chips">{posts.map((i) => chip(i))}</div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="sf-note">This calendar has no month set; showing all posts below.</p>
+      )}
+
+      {stray.length > 0 && (
+        <div className="sf-cal-stray">
+          <span className="sf-src-tag">Other dates</span>
+          <div className="sf-cal-chips">{stray.map((i) => chip(i))}</div>
+        </div>
+      )}
+
+      {detail && (
+        <div className="sf-cal-detail">
+          <div className="sf-cal-detail-head">
+            <span className="sf-cal-soltag" data-sol={solKey(detail.solution)}>
+              {solLabel(solKey(detail.solution))}
+            </span>
+            <strong>{S(detail.date)}</strong>
+            <span className="sf-src-tag">
+              {S(detail.platform)} · {S(detail.content_type)}
+            </span>
+            <button className="sf-linkbtn" onClick={() => setSel(null)}>
+              Close
+            </button>
+          </div>
+          <dl className="sf-cal-dl">
+            <dt>Pillar</dt>
+            <dd>{S(detail.pillar) || "—"}</dd>
+            <dt title="The scroll-stopping idea. It becomes the on-image headline in the Copy stage.">
+              Hook concept
+            </dt>
+            <dd className="sf-cal-hook">{S(detail.hook_concept) || "—"}</dd>
+            <dt title="How AI is woven into this post. Guidance for the copy, not necessarily on the image.">
+              AI angle
+            </dt>
+            <dd>{S(detail.ai_angle) || "—"}</dd>
+            <dt>Objective</dt>
+            <dd>{S(detail.objective) || "—"}</dd>
+            {S(detail.rationale) ? (
+              <>
+                <dt>Why this post</dt>
+                <dd>{S(detail.rationale)}</dd>
+              </>
+            ) : null}
+          </dl>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PipelinePage() {
   const params = useParams();
   const brandId = String(params.id);
@@ -703,43 +831,7 @@ export default function PipelinePage() {
               })()}
               <details className="sf-details">
                 <summary>View {A(c.entries).length} entries</summary>
-                <div className="sf-table-scroll">
-                  <table className="sf-table">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Solution</th>
-                        <th>Platform</th>
-                        <th>Type</th>
-                        <th>Pillar</th>
-                        <th>Hook</th>
-                        <th>AI angle</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {A(c.entries).map((e, i) => {
-                        const o = O(e);
-                        return (
-                          <tr key={i}>
-                            <td>{S(o.date)}</td>
-                            <td>
-                              {S(o.solution) ? (
-                                <span className="sf-sol-chip">{S(o.solution)}</span>
-                              ) : (
-                                "—"
-                              )}
-                            </td>
-                            <td>{S(o.platform)}</td>
-                            <td>{S(o.content_type)}</td>
-                            <td>{S(o.pillar)}</td>
-                            <td>{S(o.hook_concept)}</td>
-                            <td>{S(o.ai_angle) || "—"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <CalendarView calendar={c} />
               </details>
             </article>
           ))

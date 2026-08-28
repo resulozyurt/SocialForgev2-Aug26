@@ -57,6 +57,29 @@ def _default_keywords(brand) -> list[str]:
     ]
 
 
+# Baseline per-solution search terms, used when the brand has not entered its own
+# per-solution keywords on the Sources tab. This guarantees every focus solution
+# runs its OWN tagged search (so its report tab shows real, solution-specific
+# sources) instead of everything collapsing into the "general" bucket.
+_SOLUTION_KEYWORDS: dict[str, list[str]] = {
+    "merchandising": ["retail merchandising execution", "planogram compliance", "in-store execution"],
+    "field_audit": ["field audit", "retail store audit", "franchise compliance audit"],
+    "field_sales": ["field sales execution", "retail field sales", "territory sales management"],
+    "home_service": ["home service operations", "field service management", "service technician software"],
+    "ai": ["AI image recognition retail", "computer vision retail shelf", "AI in field operations"],
+}
+
+
+def _solution_default_keywords(solution_value: str, brand) -> list[str]:
+    """Per-solution fallback keywords when the Sources tab has none set for it."""
+    base = list(_SOLUTION_KEYWORDS.get(solution_value, []))
+    if base:
+        return base
+    label = str(solution_value).replace("_", " ").strip()
+    industry = getattr(brand, "industry", None)
+    return [f"{label} {industry}".strip()] if label else []
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Data Structures
 # ─────────────────────────────────────────────────────────────────────────────
@@ -230,13 +253,14 @@ class Phase1Research:
         solution_keywords = cfg.get("solution_keywords") or {}
         sol_tasks: list = []
         for sv in focus_solutions:
-            kws = solution_keywords.get(sv)
+            # Explicit per-solution keywords win; otherwise fall back to a baseline
+            # so the solution still gets its OWN tagged search (not the general bucket).
+            kws = solution_keywords.get(sv) or _solution_default_keywords(sv, brand)
             if kws:
                 sol_tasks.append((sv, list(kws)))
-        if sol_tasks:
-            gen_kws = cfg.get("search_keywords") or []
-        else:
-            gen_kws = cfg.get("search_keywords") or _default_keywords(brand)
+        # A general bucket only when the brand set explicit brand-wide keywords, or
+        # when there are no focus solutions at all (nothing to tag against).
+        gen_kws = cfg.get("search_keywords") or ([] if sol_tasks else _default_keywords(brand))
         if gen_kws:
             sol_tasks.append((None, list(gen_kws)))
 
