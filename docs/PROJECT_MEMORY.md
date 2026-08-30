@@ -401,6 +401,17 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   visible, no clicking. Entries with no valid date fall under an "Unscheduled" group.
   Frontend-only (`sf-cal2-*` styles), no migration; `tsc --noEmit` clean. Supersedes G2's
   grid; old `.sf-cal-*` grid styles are now unused but left in place.
+- **2026-08-28 (H2) — Readable, quality trend report:** the report was a terse wall of
+  lists that a non-expert could not follow. `ANALYSIS_PROMPT` now adds a WRITING QUALITY
+  rule (plain English, no buzzwords, grounded + specific) and enriches `algorithm_notes`
+  into a **narrative container**: `executive_summary` (3-5 plain sentences) + `solution_briefs`
+  (per focus solution: `whats_happening` / `why_it_matters` / `content_ideas[]`) + `platform`
+  notes — stored in the existing `algorithm_notes` JSONB, so **no migration**. The analysis
+  `max_tokens` is bumped to `max(config, 8000)` so the richer report never truncates.
+  Frontend `ReportView`: the Overview tab shows the executive summary as a highlighted
+  callout; each solution tab leads with that solution's brief (what's happening / why it
+  matters / what to create) above its topics, gaps and sources. `tsc` + `py_compile` clean.
+  Re-run research to populate the new narrative (old reports simply omit it).
 
 ---
 

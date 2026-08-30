@@ -55,6 +55,10 @@ function ReportView({ report }: { report: TrendReport }) {
   const search = A(src.search).map((x) => O(x));
   const rss = A(src.rss).map((x) => O(x));
   const trends = A(src.trends).map((x) => O(x));
+  const notes = O(report.algorithm_notes);
+  const execSummary = S(notes.executive_summary);
+  const briefs = A(notes.solution_briefs).map((b) => O(b));
+  const briefFor = (key: string) => briefs.find((b) => solKey(b.solution) === key);
 
   const present = new Set<string>();
   topics.forEach((t) => present.add(solKey(t.solution)));
@@ -88,6 +92,12 @@ function ReportView({ report }: { report: TrendReport }) {
 
       {active === "overview" ? (
         <div className="sf-report-panel">
+          {execSummary ? (
+            <div className="sf-report-exec">
+              <span className="sf-report-exec-label">Executive summary</span>
+              <p>{execSummary}</p>
+            </div>
+          ) : null}
           <div className="sf-caldist">
             {solutions.map((sol) => (
               <span key={sol} className={`sf-caldist-chip${sol === "ai" ? " is-ai" : ""}`}>
@@ -137,10 +147,37 @@ function ReportView({ report }: { report: TrendReport }) {
             const t = forSol(topics, active);
             const g = forSol(gaps, active);
             const so = forSol(search, active);
-            if (!t.length && !g.length && !so.length)
+            const brief = briefFor(active);
+            if (!t.length && !g.length && !so.length && !brief)
               return <p className="sf-note">Nothing tagged for {solLabel(active)} in this report.</p>;
             return (
               <>
+                {brief ? (
+                  <div className="sf-brief">
+                    {S(brief.whats_happening) ? (
+                      <>
+                        <h4 className="sf-h4">What&rsquo;s happening</h4>
+                        <p>{S(brief.whats_happening)}</p>
+                      </>
+                    ) : null}
+                    {S(brief.why_it_matters) ? (
+                      <>
+                        <h4 className="sf-h4">Why it matters</h4>
+                        <p>{S(brief.why_it_matters)}</p>
+                      </>
+                    ) : null}
+                    {A(brief.content_ideas).length > 0 ? (
+                      <>
+                        <h4 className="sf-h4">What to create</h4>
+                        <ul className="sf-list">
+                          {A(brief.content_ideas).map((c, i) => (
+                            <li key={`ci${i}`}>{S(c)}</li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
                 {t.length > 0 && (
                   <>
                     <h4 className="sf-h4">Trending topics</h4>

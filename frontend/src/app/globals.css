@@ -858,3 +858,19 @@ html, body {
   font-family: var(--font-mono), monospace; padding-top: 1px;
 }
 .sf-cal2-meta dd { margin: 0; color: var(--ink); }
+
+/* ── H2: enriched report (executive summary + solution briefs) ───── */
+.sf-report-exec {
+  background: var(--accent-soft); border: 1px solid #f0cdbd; border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 14px;
+}
+.sf-report-exec-label {
+  display: block; font-family: var(--font-mono), monospace; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 5px;
+}
+.sf-report-exec p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink); }
+.sf-brief {
+  border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; margin: 0 0 16px;
+}
+.sf-brief p { margin: 0 0 8px; font-size: 14px; line-height: 1.5; }
+.sf-brief .sf-h4:first-child { margin-top: 0; }

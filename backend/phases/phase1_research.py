@@ -147,7 +147,13 @@ Ground EVERY trend signal in the inputs above. In each "sources" array, put the
 actual article titles or URLs you used from the inputs — never invent a source.
 Spread trending_topics and content_gaps across the BRAND FOCUS SOLUTIONS above, and
 set each item's "solution" to the area it serves (one of the focus solutions, or
-"general"). Respond with a JSON object in exactly this structure:
+"general"). WRITING QUALITY — a human reviewer who is NOT a domain expert reads this report.
+Write in plain, concrete English: no buzzwords, no vague filler, no "leverage synergies".
+Every point must be specific and grounded in the inputs. Provide an "executive_summary"
+and one "solution_brief" for EACH focus solution that has any real signal, so the reviewer
+understands what is happening and what to create — even with no prior context.
+
+Respond with a JSON object in exactly this structure:
 {{
   "trending_topics": [
     {{"rank": 1, "topic": "...", "solution": "merchandising|field_audit|field_sales|home_service|ai|general", "signal_strength": "high|medium|low", "sources": ["..."], "why_it_matters": "..."}}
@@ -159,8 +165,11 @@ set each item's "solution" to the area it serves (one of the focus solutions, or
     {{"gap": "...", "solution": "merchandising|field_audit|field_sales|home_service|ai|general", "opportunity": "...", "suggested_angle": "..."}}
   ],
   "algorithm_notes": {{
-    "instagram": "...",
-    "linkedin": "..."
+    "executive_summary": "3-5 plain sentences a non-expert can follow: what is happening in this brand's space this period and what it means for the content plan. No jargon.",
+    "solution_briefs": [
+      {{"solution": "merchandising|field_audit|field_sales|home_service|ai|general", "whats_happening": "2-3 plain sentences on the real trend or tension in this area right now", "why_it_matters": "1-2 sentences on why it matters to this brand's audience", "content_ideas": ["a concrete content idea grounded in the inputs", "another concrete idea"]}}
+    ],
+    "platform": {{"instagram": "one specific algorithm/format note", "linkedin": "one specific algorithm/format note"}}
   }},
   "recommended_pillars": [
     {{"name": "...", "description": "...", "percentage": 20, "rationale": "..."}}
@@ -460,7 +469,9 @@ class Phase1Research:
             user_message=prompt,
             system_prompt=SYSTEM_PROMPT,
             temperature=ai_config.temperature,
-            max_tokens=ai_config.max_tokens,
+            # The enriched report (executive summary + per-solution briefs) is larger,
+            # so give it real headroom to avoid a truncated, unparseable response.
+            max_tokens=max(ai_config.max_tokens or 4096, 8000),
         )
 
         # Parse JSON response (model sometimes wraps it in ```json fences).
