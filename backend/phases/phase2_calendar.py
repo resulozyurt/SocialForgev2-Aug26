@@ -197,8 +197,11 @@ RULES:
   static/carousel/thread for LinkedIn).
 - Spread dates evenly across the planning month, preferring weekdays. Use ISO
   format "YYYY-MM-DD". Avoid scheduling more than ~2 posts on the same day.
-- "hook_concept" is a single punchy line describing the scroll-stopping idea —
-  not a full caption.
+- "headline" is the EXACT short line that will appear ON THE VISUAL — the on-image
+  hook the reviewer approves. Punchy, brand-voiced, ideally under ~8 words (e.g.
+  "Photos Don't Fix Shelves. Actions Do."). It is the words, not a description.
+- "hook_concept" is a single punchy line describing the scroll-stopping idea (the
+  angle behind the headline) — not a full caption.
 - "objective" is one of: awareness, engagement, conversion, retention, community.
 
 Respond with a JSON object in exactly this structure:
@@ -211,6 +214,7 @@ Respond with a JSON object in exactly this structure:
       "pillar": "...",
       "platform": "instagram",
       "content_type": "carousel",
+      "headline": "the exact on-image hook line (short, punchy, brand voice)",
       "hook_concept": "...",
       "ai_angle": "how AI enhances this post's solution, or empty string",
       "objective": "engagement",
@@ -433,6 +437,9 @@ class Phase2Calendar:
             e["solution"] = _normalize_solution(e.get("solution"))
             if not isinstance(e.get("ai_angle"), str):
                 e["ai_angle"] = ""
+            # Guarantee an on-image headline; fall back to the hook concept.
+            if not isinstance(e.get("headline"), str) or not e.get("headline", "").strip():
+                e["headline"] = (e.get("hook_concept") or "").strip()
             clean.append(e)
         return clean
 

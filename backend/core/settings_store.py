@@ -32,6 +32,18 @@ KNOWN_SETTINGS: dict[str, dict] = {
         "secret": True,
         "choices": None,
     },
+    "image_provider": {
+        "label": "Image provider",
+        "description": "Which image-generation backend Phase 4 branded visuals use. Currently: openai (gpt-image-1). The brand pill, logo and exact headline are composited on top.",
+        "secret": False,
+        "choices": ["openai"],
+    },
+    "image_api_key": {
+        "label": "Image API key",
+        "description": "Key for the selected image provider (e.g. your OpenAI API key).",
+        "secret": True,
+        "choices": None,
+    },
 }
 
 

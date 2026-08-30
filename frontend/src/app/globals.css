@@ -839,3 +839,22 @@ html, body {
   .sf-cal-dl dt { margin-top: 8px; }
   .sf-cal-day { min-height: 60px; }
 }
+
+/* ── H4: rich card board calendar ───────────────────────────────── */
+.sf-cal2 { margin-top: 8px; display: flex; flex-direction: column; gap: 18px; }
+.sf-cal2-wk {
+  font-family: var(--font-mono), monospace; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); margin: 0 0 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.sf-cal2-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.sf-cal2-card { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 12px 14px; }
+.sf-cal2-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.sf-cal2-date { font-family: var(--font-mono), monospace; font-size: 12px; font-weight: 600; color: var(--ink); }
+.sf-cal2-headline { font-size: 16px; font-weight: 600; line-height: 1.3; margin: 0 0 10px; color: var(--ink); }
+.sf-cal2-meta { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: 13px; }
+.sf-cal2-meta dt {
+  color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+  font-family: var(--font-mono), monospace; padding-top: 1px;
+}
+.sf-cal2-meta dd { margin: 0; color: var(--ink); }

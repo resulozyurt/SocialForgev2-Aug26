@@ -23,8 +23,10 @@ GOOGLE_TRENDS_RSS = "https://trends.google.com/trends/trendingsearches/daily/rss
 
 # Sensible default feeds when a brand has not configured its own.
 DEFAULT_FEEDS_EN = [
+    # Retail-operations relevant feeds only. Generic social/platform-news feeds
+    # (e.g. Social Media Today) were dropped — they produced off-topic noise
+    # (unrelated platform/affiliate stories) with no tie to field operations.
     "https://www.retaildive.com/feeds/news/",
-    "https://www.socialmediatoday.com/feeds/news/",
     "https://www.modernretail.co/feed/",
 ]
 DEFAULT_FEEDS_TR = [

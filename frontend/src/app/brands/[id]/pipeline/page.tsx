@@ -195,129 +195,88 @@ function ReportView({ report }: { report: TrendReport }) {
   );
 }
 
-// ── G2: real month-grid calendar with click-to-open post detail ─────────────
-const PLATFORM_ABBR = (p: string): string => {
-  const k = p.toLowerCase();
-  if (k.startsWith("insta")) return "IG";
-  if (k.startsWith("linked")) return "LI";
-  if (k === "x" || k.startsWith("twit")) return "X";
-  if (k.startsWith("face")) return "FB";
-  if (k.startsWith("tik")) return "TT";
-  if (k.startsWith("you")) return "YT";
-  return p.slice(0, 2).toUpperCase();
+// ── H4: rich card board calendar (week-grouped, all info visible, no clicking) ──
+const CAL_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtCalDate = (iso: string): string => {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${CAL_MONTHS[Number(m[2]) - 1]} ${Number(m[3])}` : iso;
 };
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function CalendarView({ calendar }: { calendar: ContentCalendar }) {
   const entries = A(calendar.entries).map((e) => O(e));
-  const [sel, setSel] = useState<number | null>(null);
-
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const pm = S(calendar.planning_period).match(/^(\d{4})-(\d{2})/);
-  const yy = pm ? Number(pm[1]) : NaN;
-  const mm = pm ? Number(pm[2]) : NaN;
-  const valid = Number.isFinite(yy) && Number.isFinite(mm);
-
-  const byDate = new Map<string, number[]>();
-  entries.forEach((o, i) => {
-    const d = S(o.date);
-    if (!byDate.has(d)) byDate.set(d, []);
-    byDate.get(d)!.push(i);
+  const rows = entries.map((o, i) => {
+    const iso = S(o.date);
+    const d = /^\d{4}-\d{2}-\d{2}/.test(iso) ? new Date(`${iso}T00:00:00Z`) : null;
+    return { o, i, t: d && !Number.isNaN(d.getTime()) ? d.getTime() : null };
   });
+  const scheduled = rows
+    .filter((r) => r.t != null)
+    .sort((a, b) => (a.t as number) - (b.t as number));
+  const unscheduled = rows.filter((r) => r.t == null);
 
-  const daysInMonth = valid ? new Date(Date.UTC(yy, mm, 0)).getUTCDate() : 0;
-  const firstWeekday = valid ? (new Date(Date.UTC(yy, mm - 1, 1)).getUTCDay() + 6) % 7 : 0;
-  const cells: (number | null)[] = [];
-  for (let b = 0; b < firstWeekday; b++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
+  const byWeek = new Map<string, typeof rows>();
+  for (const r of scheduled) {
+    const dow = (new Date(r.t as number).getUTCDay() + 6) % 7;
+    const monKey = new Date((r.t as number) - dow * 86400000).toISOString().slice(0, 10);
+    if (!byWeek.has(monKey)) byWeek.set(monKey, []);
+    byWeek.get(monKey)!.push(r);
+  }
+  const weeks = [...byWeek.keys()].sort().map((k) => byWeek.get(k)!);
 
-  const inMonth = (d: string) => valid && d.startsWith(`${yy}-${pad(mm)}-`);
-  const stray = entries.map((o, i) => i).filter((i) => !inMonth(S(entries[i].date)));
-
-  const chip = (i: number) => {
-    const o = entries[i];
+  const card = (r: { o: Record<string, unknown>; i: number }) => {
+    const o = r.o;
     const sol = solKey(o.solution);
+    const headline = S(o.headline) || S(o.hook_concept);
+    const hook = S(o.hook_concept);
     return (
-      <button
-        key={i}
-        className={`sf-cal-chip${sel === i ? " is-selected" : ""}`}
-        data-sol={sol}
-        title={`${S(o.platform)} · ${S(o.hook_concept)}`}
-        onClick={() => setSel(sel === i ? null : i)}
-      >
-        {PLATFORM_ABBR(S(o.platform))}
-      </button>
+      <article className="sf-cal2-card" key={r.i}>
+        <div className="sf-cal2-top">
+          <span className="sf-cal2-date">{fmtCalDate(S(o.date)) || "—"}</span>
+          <span className="sf-cal-soltag" data-sol={sol}>{solLabel(sol)}</span>
+          <span className="sf-src-tag">
+            {S(o.platform)} · {S(o.content_type)}
+          </span>
+        </div>
+        {headline ? <p className="sf-cal2-headline">{headline}</p> : null}
+        <dl className="sf-cal2-meta">
+          {S(o.pillar) ? (
+            <>
+              <dt>Pillar</dt>
+              <dd>{S(o.pillar)}</dd>
+            </>
+          ) : null}
+          {hook && hook !== headline ? (
+            <>
+              <dt>Hook</dt>
+              <dd>{hook}</dd>
+            </>
+          ) : null}
+          {S(o.ai_angle) ? (
+            <>
+              <dt>AI angle</dt>
+              <dd>{S(o.ai_angle)}</dd>
+            </>
+          ) : null}
+        </dl>
+      </article>
     );
   };
 
-  const detail = sel != null ? entries[sel] : null;
-
   return (
-    <div className="sf-cal">
-      {valid ? (
-        <div className="sf-cal-grid">
-          {WEEKDAYS.map((w) => (
-            <div key={w} className="sf-cal-wd">{w}</div>
-          ))}
-          {cells.map((d, idx) => {
-            if (d === null) return <div key={idx} className="sf-cal-day is-empty" />;
-            const dateStr = `${yy}-${pad(mm)}-${pad(d)}`;
-            const posts = byDate.get(dateStr) ?? [];
-            return (
-              <div key={idx} className="sf-cal-day">
-                <span className="sf-cal-daynum">{d}</span>
-                <div className="sf-cal-chips">{posts.map((i) => chip(i))}</div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="sf-note">This calendar has no month set; showing all posts below.</p>
-      )}
-
-      {stray.length > 0 && (
-        <div className="sf-cal-stray">
-          <span className="sf-src-tag">Other dates</span>
-          <div className="sf-cal-chips">{stray.map((i) => chip(i))}</div>
-        </div>
-      )}
-
-      {detail && (
-        <div className="sf-cal-detail">
-          <div className="sf-cal-detail-head">
-            <span className="sf-cal-soltag" data-sol={solKey(detail.solution)}>
-              {solLabel(solKey(detail.solution))}
-            </span>
-            <strong>{S(detail.date)}</strong>
-            <span className="sf-src-tag">
-              {S(detail.platform)} · {S(detail.content_type)}
-            </span>
-            <button className="sf-linkbtn" onClick={() => setSel(null)}>
-              Close
-            </button>
-          </div>
-          <dl className="sf-cal-dl">
-            <dt>Pillar</dt>
-            <dd>{S(detail.pillar) || "—"}</dd>
-            <dt title="The scroll-stopping idea. It becomes the on-image headline in the Copy stage.">
-              Hook concept
-            </dt>
-            <dd className="sf-cal-hook">{S(detail.hook_concept) || "—"}</dd>
-            <dt title="How AI is woven into this post. Guidance for the copy, not necessarily on the image.">
-              AI angle
-            </dt>
-            <dd>{S(detail.ai_angle) || "—"}</dd>
-            <dt>Objective</dt>
-            <dd>{S(detail.objective) || "—"}</dd>
-            {S(detail.rationale) ? (
-              <>
-                <dt>Why this post</dt>
-                <dd>{S(detail.rationale)}</dd>
-              </>
-            ) : null}
-          </dl>
-        </div>
+    <div className="sf-cal2">
+      {weeks.map((items, wi) => (
+        <section className="sf-cal2-week" key={wi}>
+          <h4 className="sf-cal2-wk">
+            Week {wi + 1} · {fmtCalDate(S(items[0].o.date))} – {fmtCalDate(S(items[items.length - 1].o.date))}
+          </h4>
+          <div className="sf-cal2-cards">{items.map((r) => card(r))}</div>
+        </section>
+      ))}
+      {unscheduled.length > 0 && (
+        <section className="sf-cal2-week">
+          <h4 className="sf-cal2-wk">Unscheduled</h4>
+          <div className="sf-cal2-cards">{unscheduled.map((r) => card(r))}</div>
+        </section>
       )}
     </div>
   );

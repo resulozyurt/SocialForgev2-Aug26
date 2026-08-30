@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-28 — **F1/F2** (pipeline 404 fix). Editability roadmap E0–E5 complete.
+Last updated: 2026-08-28 — **Phase D / D1** (branded visual generation, backend). Pipeline 404 + report/calendar UX (F1–G2) done.
 
 ---
 
@@ -103,7 +103,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | A Foundation | deps fix, Alembic, auth, Railway prep, DB URL norm | DONE |
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
-| D Visual | Phase 4 branded image generation | TODO |
+| D Visual | Phase 4 branded image generation | IN PROGRESS (D1 backend done; D2 overlay / D3 Drive / D4 UI next) |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
 
@@ -354,6 +354,53 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   `data-sol` attribute selectors. Frontend-only, no migration; `tsc --noEmit` clean.
   Note for Phase D: the branded visual's headline text should be sourced from the Copy
   stage `text_overlay.primary`, not the calendar hook concept.
+- **2026-08-28 (Phase D provider decision):** image provider = **OpenAI (gpt-image-1)**,
+  with the brand pill / logo / exact headline **composited by us** (Pillow, Phase D2)
+  rather than rendered by the model, because image models render text unreliably and both
+  brands need pixel-exact headlines and identity. Gemini/Imagen is a drop-in alternative
+  (same architecture); Canva Pro deferred. Key comes from the Settings page.
+- **2026-08-28 (D1) — Branded visual generation, backend:** new pluggable
+  `integrations/image_gen.py` (OpenAI gpt-image-1 via httpx, returns PNG bytes, raises
+  `ImageGenError` on failure); new `phases/phase4_visual.py` builds a **text-free scene
+  prompt** from the package's `visual_direction` (image_prompt/mood/composition) + the
+  brand's `visual_identity` (style keywords, motifs, ground tone) and explicitly tells the
+  model to leave negative space for the overlay; new `api/routes/visuals.py` exposes
+  `POST /visuals/{package_id}/generate` (background, requires the package's copy to be
+  APPROVED), `GET /visuals/{package_id}` (+ `/status`), and `PATCH .../approve|reject`
+  (Approval 3). Two new Settings keys (`image_provider`, `image_api_key`). The generated
+  image is stored as a base64 data URI in the existing `ContentPackage.asset_urls` JSONB
+  with `visual_status` (draft/approved/rejected) — **no migration**. `py_compile` clean.
+  D2 replaces the raw scene with a brand-composited image (pill + logo + exact headline);
+  D3 uploads the final asset to Google Drive and drops the heavy base64; D4 adds the Stage-4
+  pipeline UI. To test D1 live: Settings → set image_provider=openai + paste an OpenAI key,
+  approve a content package, then POST generate and GET the visual.
+- **2026-08-28 (H1) — Research relevance:** research was surfacing off-topic noise
+  (unrelated platform/affiliate/viral stories) because two inputs are inherently
+  brand-agnostic. Fixes: (a) **Google Trends daily-trending is now opt-in** per brand
+  (`research_sources.use_trends`, default off) instead of always mixed in — it is
+  region-wide viral noise; targeted per-solution search (G1) is the primary signal now.
+  (b) Dropped the **Social Media Today** default RSS feed (platform-news noise); default
+  EN feeds are retail-ops only (Retail Dive, Modern Retail). (c) `ANALYSIS_PROMPT` gained
+  a hard **RELEVANCE** rule: use only inputs clearly tied to the brand's industry + focus
+  solutions, silently discard off-topic items, prefer fewer sharper signals. Backend-only,
+  no migration; `py_compile` clean. Part of an in-progress research/calendar quality pass
+  (H1 done; H2 report depth, H3 on-image headline field, H4 calendar UI rebuild, H5
+  per-stage meaningful activity logs still to do).
+- **2026-08-28 (H3) — On-image headline field:** calendar entries only had a
+  `hook_concept` (the idea), so the reviewer never saw the actual words that will go
+  on the visual. Phase 2 now produces a distinct **`headline`** per entry — the exact,
+  short, brand-voiced on-image hook (e.g. "Photos Don't Fix Shelves. Actions Do.") —
+  added to the prompt rules + example, and `_normalize_entries` guarantees it (falls
+  back to `hook_concept` when the model omits it). Phase 4 visuals / Copy should source
+  the on-image text from here. Backend-only, no migration (entries are JSONB); `py_compile`
+  clean.
+- **2026-08-28 (H4) — Calendar rebuilt as a rich card board:** the month-grid + click-to-
+  expand (G2) was clunky (everything behind a click). Replaced `CalendarView` with a
+  **week-grouped card board**: every post is a full card showing date, solution color chip,
+  platform · type, the **headline** (prominent), pillar, hook concept, and AI angle — all
+  visible, no clicking. Entries with no valid date fall under an "Unscheduled" group.
+  Frontend-only (`sf-cal2-*` styles), no migration; `tsc --noEmit` clean. Supersedes G2's
+  grid; old `.sf-cal-*` grid styles are now unused but left in place.
 
 ---
 

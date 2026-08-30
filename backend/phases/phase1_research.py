@@ -136,6 +136,13 @@ RSS ARTICLES (recent industry / news headlines):
 COMPETITOR POSTS (optional; may be empty):
 {competitor_data}
 
+RELEVANCE — critical: use ONLY inputs clearly relevant to {brand_name}'s industry
+and the BRAND FOCUS SOLUTIONS above. Silently discard off-topic inputs — unrelated
+consumer/platform trends, viral or entertainment topics, generic marketing news that
+does not touch this brand's solutions. Never force an irrelevant item into the report
+to fill space; fewer, sharper, on-point signals beat many loose ones. If an input is
+only tangentially related, leave it out.
+
 Ground EVERY trend signal in the inputs above. In each "sources" array, put the
 actual article titles or URLs you used from the inputs — never invent a source.
 Spread trending_topics and content_gaps across the BRAND FOCUS SOLUTIONS above, and
@@ -265,7 +272,10 @@ class Phase1Research:
             sol_tasks.append((None, list(gen_kws)))
 
         rss_items = await fetch_rss(feeds)
-        trends_items = await fetch_google_trends(geo)
+        # Google Trends daily-trending is region-wide noise (unrelated viral topics),
+        # so it is opt-in per brand (research_sources.use_trends). Targeted per-solution
+        # search is the primary, relevant signal.
+        trends_items = await fetch_google_trends(geo) if cfg.get("use_trends") else []
 
         search_items: list = []
         if self._search_key:
