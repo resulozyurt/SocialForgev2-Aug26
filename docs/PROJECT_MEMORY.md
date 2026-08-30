@@ -412,6 +412,22 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   callout; each solution tab leads with that solution's brief (what's happening / why it
   matters / what to create) above its topics, gaps and sources. `tsc` + `py_compile` clean.
   Re-run research to populate the new narrative (old reports simply omit it).
+- **2026-08-28 (FieldPie profile seed) — comprehensive brand fill:** researched FieldPie
+  from fieldpie.com + public sources (all-in-one AI field-ops platform; solutions =
+  merchandising / retail execution, field audit, field sales, home service, image
+  recognition + AI route optimization; audience = CPG brands, retail-execution agencies,
+  F&B, multi-location retailers, and home-service trades; 27 countries, 10M+ jobs/yr,
+  clients incl. Coca-Cola, Danone, Mercedes-Benz; proof metrics 32% productivity / 64%
+  less paper / 12% profitability). New `scripts/seed_fieldpie_profile.py` (stdlib-only,
+  idempotent, live-API) fills FieldPie end-to-end: identity (teal #0EA5A4 / slate,
+  monthly_post_target 30), enriched voice_guide + voice_profile (problem->solution->proof),
+  visual_identity, solution focuses with **importance** (merch 5 / audit 4 / ai 4 / sales 3 /
+  home 3; general non-focus), **per-solution research keywords** (research_sources.
+  solution_keywords) + brand-wide keywords + retail-ops RSS + use_trends off, and real
+  competitors mapped by solution (YOOBIC, Repsly, Wiser, GoSpotCheck/FORM, SimplyDepo,
+  SalesRabbit, ServiceTitan, Connecteam; social handles left blank, not fabricated).
+  Run: `python scripts/seed_fieldpie_profile.py` from backend/ (asks for admin user/pass;
+  BACKEND_URL overridable). Idempotent — PATCH + upsert, adds only missing competitors.
 
 ---
 
