@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **V6** (visual redesign COMPLETE: Settings controls + polish). Awaiting owner's quality/format revisions.
+Last updated: 2026-08-31 — **A1** (content revision: copy now consumes the full calendar entry + builds on the approved headline).
 
 ---
 
@@ -844,6 +844,30 @@ each an independently deployable, owner-reviewed commit:
 - **V-SERIES COMPLETE.** Next: the owner's **quality/format revision requests** (prompt
   tuning, aspect/size defaults, candidate count, etc.) — gather each, then adjust. No
   code until the owner specifies a change.
+
+**Content & flow revision (approved 2026-08-31, post-demo).** Owner feedback after a
+full run surfaced four issues: (1) calendar headlines are generic/weak; (2) copy is
+disconnected from the calendar AND low quality; (3) the stage-by-stage flow doesn't
+scale to multiple months — the owner wants a post-centric, month-scoped view where
+clicking a calendar post opens one page with everything (on-visual text, caption,
+hashtags, image prompt, etc.) and generation happens there; (4) all generated images
+should persist and be selectable. Roadmap, two tracks:
+- **Track A — content quality & linkage (prompt/backend, fast):**
+  - **A1 DONE** — root cause of #2 found: `phase3_copy` fed copy only `hook_concept`
+    + `rationale`, dropping the calendar's `headline`, `solution`, and `ai_angle`, so
+    copy invented an unrelated visual. Fixed: the copy prompt now receives all of
+    them and is instructed to treat the APPROVED headline as locked direction (it
+    becomes `text_overlay.primary`, meaning/wording preserved) and keep the whole
+    package on that promise for that solution. Verified: py_compile + a
+    placeholder/format-parity check. Owner runs a live copy run to confirm quality.
+  - **A2 (NEXT)** — rewrite the copy prompt for quality (customer-facing, scroll-
+    stopping, platform-native; feed `voice_profile.example_headlines`/`avoid`).
+  - **A3** — rewrite the calendar headline prompt for quality (concrete, brand-voice
+    examples, ban generic phrasing).
+- **Track B — post-centric, month-scoped flow (architecture, larger):** B1 post
+  detail page (click a calendar post -> one page with all fields + inline
+  generate/select), B2 month scoping/navigation, B3 image history (persist every
+  generated image, all selectable). Recommended order: A1->A2->A3 then B1->B2->B3.
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).

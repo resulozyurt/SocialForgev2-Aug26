@@ -163,10 +163,13 @@ BRAND COLOR PALETTE (reuse these exact hex values; do NOT invent off-brand color
 VISUAL LANGUAGE (brand motifs/style to reflect in the image concept): {visual_language}
 PLATFORM: {platform}
 CONTENT TYPE: {content_type}
+SOLUTION AREA (this post belongs to this product area): {solution}
 CONTENT PILLAR: {pillar}
 OBJECTIVE: {objective}
 SCHEDULED DATE: {date}
-HOOK CONCEPT (the scroll-stopping idea to build on): {hook_concept}
+AI ANGLE (if non-empty, weave in how AI enhances THIS solution — never as a separate topic): {ai_angle}
+APPROVED ON-VISUAL HEADLINE (a human already approved this EXACT line for the image): {headline}
+HOOK CONCEPT (the scroll-stopping idea behind that headline): {hook_concept}
 WHY THIS POST (strategic context from the calendar): {rationale}
 
 Respond with a JSON object in exactly this structure:
@@ -189,11 +192,13 @@ Respond with a JSON object in exactly this structure:
     "color_palette": ["#RRGGBB"],
     "composition": "layout guidance",
     "image_prompt": "a detailed, model-ready image generation prompt",
-    "text_overlay": {{"primary": "exact text on the visual", "secondary": "supporting line"}}
+    "text_overlay": {{"primary": "the APPROVED ON-VISUAL HEADLINE above, verbatim (light punctuation/casing polish only)", "secondary": "a short supporting line that reinforces it"}}
   }}
 }}
 
 RULES:
+- LOCKED DIRECTION: the APPROVED ON-VISUAL HEADLINE is fixed creative already signed off by a human. Put it in "visual_direction.text_overlay.primary" keeping its exact meaning and wording (only light punctuation/casing polish). Do NOT invent a different visual idea.
+- The ENTIRE package — hooks, caption, CTA, hashtags, and visual — must deliver on THAT headline's promise for THIS solution area. Never drift to an unrelated topic.
 - Only fill "carousel_slides" if CONTENT TYPE is carousel; otherwise use an empty array [].
 - Only fill "thread" if PLATFORM is x or twitter; otherwise use an empty array [].
 - Match caption length to the platform (Instagram: punchy, scannable; LinkedIn: longer, value-dense, line breaks).
@@ -367,6 +372,9 @@ class Phase3Copy:
             pillar=entry.get("pillar", ""),
             objective=entry.get("objective", "engagement"),
             date=entry.get("date", ""),
+            solution=entry.get("solution", ""),
+            ai_angle=entry.get("ai_angle", ""),
+            headline=entry.get("headline", ""),
             hook_concept=entry.get("hook_concept", ""),
             rationale=entry.get("rationale", ""),
         )
