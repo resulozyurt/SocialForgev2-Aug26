@@ -373,6 +373,7 @@ class Phase3Copy:
                     data=data,
                     index=index,
                     period=period,
+                    calendar_id=calendar.id,
                     generate_tr=generate_tr,
                 )
                 packages.append(pkg)
@@ -446,6 +447,7 @@ class Phase3Copy:
         data: dict,
         index: int,
         period: str,
+        calendar_id,
         generate_tr: bool,
     ) -> ContentPackage:
         """Assemble a ContentPackage ORM object from the parsed AI output."""
@@ -458,6 +460,8 @@ class Phase3Copy:
             platform=_to_platform(entry.get("platform")),
             content_type=_to_content_type(entry.get("content_type")),
             solution=_to_solution(entry.get("solution")),
+            planning_period=period,
+            calendar_id=calendar_id,
             status=ContentStatusEnum.DRAFT,
             scheduled_at=_parse_date(entry.get("date")),
             trend_signal=entry.get("rationale"),

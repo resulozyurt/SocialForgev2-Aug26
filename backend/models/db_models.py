@@ -255,6 +255,12 @@ class ContentPackage(Base):
     # so the visual step can pull the matching reference library. Nullable for
     # legacy rows created before this column existed.
     solution: Mapped[Optional[SolutionEnum]] = mapped_column(Enum(SolutionEnum), nullable=True, index=True)
+    # B0: link each package to its source calendar + period, so the UI can group by
+    # month and show provenance ("which copy belongs where"). Nullable for legacy rows.
+    planning_period: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
+    calendar_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_calendars.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     status: Mapped[ContentStatusEnum] = mapped_column(Enum(ContentStatusEnum), default=ContentStatusEnum.DRAFT, index=True)
     scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), index=True)
 

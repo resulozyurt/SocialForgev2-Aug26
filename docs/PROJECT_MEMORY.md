@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **A3** (content revision: calendar headline quality on the brand voice profile). Track A complete.
+Last updated: 2026-08-31 — **B0a** (copy provenance: content_packages.planning_period + calendar_id, bulk-delete API; migration 0012).
 
 ---
 
@@ -49,7 +49,7 @@ explicitly.
    checkpoints (research / calendar / copy / visual). No fully autonomous publishing.
 
 **Infra.** Live on Railway: `SocialForge-Backend` (root `backend`), `SocialForge-Front`
-(root `frontend`), managed `Postgres`. Alembic **migration head = 0011**; deploy runs
+(root `frontend`), managed `Postgres`. Alembic **migration head = 0012**; deploy runs
 `alembic upgrade head` automatically. Repo is private.
 
 ---
@@ -874,14 +874,21 @@ should persist and be selectable. Roadmap, two tracks:
     filler, headlines distinct across the month). Verified: py_compile + format-parity.
   - **TRACK A COMPLETE.** Owner runs a fresh research->calendar->copy pass to feel the
     combined quality + linkage lift.
-- **Track B — post-centric, month-scoped flow (architecture, larger). NEXT.** The
-  copy screen is the owner's current pain: no bulk clean-up, and no way to see which
-  copy belongs to which calendar/month/entry. Track B fixes exactly this. Steps: B1
-  post detail page (click a calendar post -> one page with all fields + inline
-  generate/select), B2 month scoping/navigation + clearer copy list (group by
-  calendar/period, bulk delete, show source entry), B3 image history (persist every
-  generated image, all selectable). A small quick-win (bulk delete + group-by-period
-  on the copy list) can be pulled forward from B2 if the owner wants relief first.
+- **Track B — post-centric, month-scoped flow (architecture, larger). IN PROGRESS.**
+  The copy screen was the owner's pain: no bulk clean-up, no provenance. B0 (pulled
+  forward) fixes it first.
+  - **B0a DONE** — `ContentPackage` now has `planning_period` + `calendar_id`
+    (migration **0012**, guarded, FK SET NULL, indexed); `phase3_copy` persists both;
+    the copy response exposes `solution`/`planning_period`/`calendar_id`; new
+    `POST /copy/{brand_id}/bulk-delete` (selector: package_ids | planning_period |
+    calendar_id). Legacy packages have NULL period/calendar. Verified: full-backend
+    py_compile + a configure_mappers() check.
+  - **B0b (NEXT)** — copy list UI: group by planning_period (+ calendar), show each
+    package's source (solution/headline), multi-select + bulk delete, delete-all-in-month.
+  - **B1** — post detail page (click a calendar post -> one page with all fields +
+    inline generate/select).
+  - **B2** — month scoping/navigation across the pipeline.
+  - **B3** — image history (persist every generated image, all selectable).
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).

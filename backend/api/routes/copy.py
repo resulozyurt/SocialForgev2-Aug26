@@ -26,6 +26,7 @@ from models.db_models import (
     ContentTypeEnum,
     PhaseEnum,
     PlatformEnum,
+    SolutionEnum,
 )
 
 router = APIRouter()
@@ -42,6 +43,14 @@ class CopyRunResponse(BaseModel):
     brand_id: str
 
 
+class BulkDeletePayload(BaseModel):
+    # Provide exactly one selector. package_ids = explicit selection; else delete all
+    # packages for the brand under a planning_period or a source calendar_id.
+    package_ids: Optional[list[uuid.UUID]] = None
+    planning_period: Optional[str] = None
+    calendar_id: Optional[uuid.UUID] = None
+
+
 class ContentPackageResponse(BaseModel):
     id: uuid.UUID
     post_id: str
@@ -50,6 +59,9 @@ class ContentPackageResponse(BaseModel):
     content_type: ContentTypeEnum
     status: ContentStatusEnum
     is_rejected: bool = False
+    solution: Optional[SolutionEnum] = None
+    planning_period: Optional[str] = None
+    calendar_id: Optional[uuid.UUID] = None
     scheduled_at: Optional[datetime] = None
     objective: Optional[str] = None
     target_audience: Optional[str] = None
@@ -180,6 +192,42 @@ async def reject_package(package_id: uuid.UUID, db: AsyncSession = Depends(get_d
     if package.status == ContentStatusEnum.APPROVED:
         package.status = ContentStatusEnum.DRAFT
     return {"message": "Content package rejected.", "package_id": str(package_id)}
+
+
+@router.post("/copy/{brand_id}/bulk-delete")
+async def bulk_delete_packages(
+    brand_id: uuid.UUID,
+    payload: BulkDeletePayload,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete many content packages at once. Selector precedence: explicit
+    `package_ids` (scoped to this brand), else all packages for a `planning_period`,
+    else all for a `calendar_id`. Returns how many were removed."""
+    conditions = [ContentPackage.brand_id == brand_id]
+    if payload.package_ids:
+        conditions.append(ContentPackage.id.in_(payload.package_ids))
+    elif payload.planning_period:
+        conditions.append(ContentPackage.planning_period == payload.planning_period)
+    elif payload.calendar_id:
+        conditions.append(ContentPackage.calendar_id == payload.calendar_id)
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide package_ids, planning_period, or calendar_id to delete.",
+        )
+
+    result = await db.execute(select(ContentPackage).where(*conditions))
+    rows = result.scalars().all()
+    count = 0
+    try:
+        for row in rows:
+            await db.delete(row)
+            count += 1
+        await db.flush()
+    except Exception as exc:  # noqa: BLE001 — surface the real reason to the client
+        await db.rollback()
+        raise HTTPException(status_code=409, detail=f"Could not delete packages: {exc}") from exc
+    return {"message": f"Deleted {count} package(s).", "deleted": count}
 
 
 @router.delete("/copy/{package_id}", status_code=204)
