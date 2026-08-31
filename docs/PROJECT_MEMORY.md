@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **V5** (visual redesign: Stage-4 candidate gallery — pick / download / approve).
+Last updated: 2026-08-31 — **V6** (visual redesign COMPLETE: Settings controls + polish). Awaiting owner's quality/format revisions.
 
 ---
 
@@ -151,7 +151,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation (old design) | SUPERSEDED by V-series (D1 raw scene stays as placeholder; D2/D3 retired) |
-| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1-V5 done; V6 polish next)** |
+| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **DONE (V1-V6). Owner quality/format revisions next.** |
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
@@ -787,15 +787,16 @@ pillars).
 **Where we are (2026-08-31).** The full app is live end to end: research -> calendar
 -> copy -> (raw) visual, human approval at each gate. Studio UI rebuild (U1-U5) and
 the owner's review round (RV1-RV5, #1-#8) are complete. The **visual-generation
-redesign (V-series)**: **V1-V5 done** — data model (migrations **0010** reference library, **0011**
-`content_packages.solution`), reference-library API + full per-solution reference UI
-over a **binary-safe `/api` proxy**, copy tags each package with its solution, the
-**reference-conditioned `gpt-image-1` edits engine** producing N candidates, and the
-**Stage-4 candidate gallery** (pick / download / approve). **Live generation is
-confirmed working by the owner** (2026-08-31). Verified via full-backend py_compile,
-stubbed `configure_mappers()` checks, a Pillow downscale unit check, and `tsc --noEmit`.
-Alembic head is **0011**. **Next: V6** — Settings controls + error polish, then the
-owner's quality/format revisions.
+redesign (V-series)**: **V-SERIES COMPLETE (V1-V6)** — data model (migrations **0010** reference library,
+**0011** `content_packages.solution`), reference-library API + full per-solution
+reference UI over a **binary-safe `/api` proxy**, copy tags each package with its
+solution, the **reference-conditioned `gpt-image-1` edits engine** producing N
+candidates, the **Stage-4 candidate gallery** (pick / download / approve), and
+**Settings controls** for candidate count / quality / size. **Live generation confirmed
+working by the owner** (2026-08-31). Verified via full-backend py_compile, stubbed
+`configure_mappers()` checks, a Pillow downscale unit check, and `tsc --noEmit`. Alembic
+head is **0011**. **Next: the owner's quality/format revision requests** — gather each,
+then tune (prompt, size defaults, etc.).
 
 **Immediate next work: V-series visual redesign (approved 2026-08-31).** Roadmap,
 each an independently deployable, owner-reviewed commit:
@@ -835,9 +836,14 @@ each an independently deployable, owner-reviewed commit:
   candidate. Stage-4 pipeline UI: candidate thumbnail strip (click to select, highlighted),
   a **Download** button (selected candidate), a references-used note, and refreshed copy
   (removed the stale Phase-D2 overlay text). Approve/Reject/Regenerate unchanged.
-- **V6 (NEXT)** — polish: expose image provider + candidate count + quality + size on the
-  Settings page; surface generation errors clearly; final PROJECT_MEMORY pass. Then the
-  owner's quality/format revision requests.
+- **V6 DONE** — Settings page now exposes `image_candidates` (1-4), `image_quality`
+  (low/medium/high/auto), and `image_size` (square/portrait/landscape/auto) via the
+  generic KNOWN_SETTINGS registry; `phase4_visual` reads `image_size` too. Fixed the
+  stale `image_provider` description (reference-based, not the retired overlay).
+  Generation errors already surface in Stage-4 (the backend's real ImageGenError text).
+- **V-SERIES COMPLETE.** Next: the owner's **quality/format revision requests** (prompt
+  tuning, aspect/size defaults, candidate count, etc.) — gather each, then adjust. No
+  code until the owner specifies a change.
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).

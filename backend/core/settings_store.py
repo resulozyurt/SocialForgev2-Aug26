@@ -34,7 +34,7 @@ KNOWN_SETTINGS: dict[str, dict] = {
     },
     "image_provider": {
         "label": "Image provider",
-        "description": "Which image-generation backend Phase 4 branded visuals use. Currently: openai (gpt-image-1). The brand pill, logo and exact headline are composited on top.",
+        "description": "Which image-generation backend the visual step uses. openai = gpt-image-1; when a solution has reference images the model runs reference-conditioned edits. Add references on each solution's page.",
         "secret": False,
         "choices": ["openai"],
     },
@@ -43,6 +43,24 @@ KNOWN_SETTINGS: dict[str, dict] = {
         "description": "Key for the selected image provider (e.g. your OpenAI API key).",
         "secret": True,
         "choices": None,
+    },
+    "image_candidates": {
+        "label": "Image candidates",
+        "description": "How many candidate visuals to generate per post (1-4). More candidates give more choice but cost more and take longer. Default 2.",
+        "secret": False,
+        "choices": ["1", "2", "3", "4"],
+    },
+    "image_quality": {
+        "label": "Image quality",
+        "description": "gpt-image-1 render quality. Higher is sharper but slower and more expensive. Default medium.",
+        "secret": False,
+        "choices": ["low", "medium", "high", "auto"],
+    },
+    "image_size": {
+        "label": "Image size",
+        "description": "Output size / aspect: 1024x1024 (square), 1024x1536 (portrait), 1536x1024 (landscape), or auto. Default 1024x1024.",
+        "secret": False,
+        "choices": ["1024x1024", "1024x1536", "1536x1024", "auto"],
     },
 }
 

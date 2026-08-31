@@ -178,6 +178,7 @@ class Phase4Visual:
             except (TypeError, ValueError):
                 n = _DEFAULT_CANDIDATES
             quality = (await get_app_setting("image_quality")) or _DEFAULT_QUALITY
+            size = (await get_app_setting("image_size")) or _SIZE
 
             has_refs = len(references) > 0
             prompt = _scene_prompt(package, brand, solution_notes, has_refs)
@@ -188,7 +189,7 @@ class Phase4Visual:
                 api_key,
                 references=references,
                 n=n,
-                size=_SIZE,
+                size=size,
                 quality=quality,
             )
 
