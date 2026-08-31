@@ -16,6 +16,8 @@ import type {
   ProviderTestResult,
   ResearchRunRequest,
   TrendReport,
+  VisualResponse,
+  VisualStatus,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
@@ -150,4 +152,16 @@ export const api = {
   copyStatus: (id: string) => request<JobStatus>(`/copy/${id}/status`),
   approvePackage: (packageId: string) =>
     request<unknown>(`/copy/${packageId}/approve`, { method: "PATCH" }),
+
+  // Phase 4 — visual
+  generateVisual: (packageId: string) =>
+    request<{ message: string; package_id: string }>(`/visuals/${packageId}/generate`, {
+      method: "POST",
+    }),
+  visualStatus: (packageId: string) => request<VisualStatus>(`/visuals/${packageId}/status`),
+  getVisual: (packageId: string) => request<VisualResponse>(`/visuals/${packageId}`),
+  approveVisual: (packageId: string) =>
+    request<unknown>(`/visuals/${packageId}/approve`, { method: "PATCH" }),
+  rejectVisual: (packageId: string) =>
+    request<unknown>(`/visuals/${packageId}/reject`, { method: "PATCH" }),
 };

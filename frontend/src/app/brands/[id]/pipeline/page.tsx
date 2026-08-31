@@ -9,6 +9,7 @@ import type {
   ContentCalendar,
   ContentPackage,
   TrendReport,
+  VisualResponse,
 } from "@/lib/types";
 import {
   Button,
@@ -411,6 +412,12 @@ export default function PipelinePage() {
   const [period, setPeriod] = useState(currentPeriod());
   const [copyLimit, setCopyLimit] = useState<string>("");
   const [generateTr, setGenerateTr] = useState(true);
+  const [viewLang, setViewLang] = useState<"en" | "tr">("en");
+  const [visuals, setVisuals] = useState<Record<string, VisualResponse>>({});
+  const [visualBusy, setVisualBusy] = useState<Record<string, boolean>>({});
+  const [visualMsg, setVisualMsg] = useState<Record<string, string>>({});
+  const approvedPackages = packages.filter((p) => p.status === "approved");
+  const approvedPkgIds = approvedPackages.map((p) => p.id).join(",");
 
   const [logs, setLogs] = useState<Record<Stage, LogLine[]>>({
     research: [],
@@ -473,6 +480,27 @@ export default function PipelinePage() {
     refreshCalendars();
     refreshPackages();
   }, [brandId, refreshReports, refreshCalendars, refreshPackages]);
+
+  // Preload any visuals already generated for approved packages.
+  useEffect(() => {
+    const ids = approvedPkgIds ? approvedPkgIds.split(",") : [];
+    if (!ids.length) return;
+    let cancelled = false;
+    (async () => {
+      for (const id of ids) {
+        try {
+          const v = await api.getVisual(id);
+          if (!cancelled && v && v.image) setVisuals((prev) => ({ ...prev, [id]: v }));
+        } catch {
+          /* no visual yet — ignore */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approvedPkgIds]);
 
   const hasApprovedReport = reports.some((r) => r.is_approved);
   const hasApprovedCalendar = calendars.some((c) => c.is_approved);
@@ -684,6 +712,53 @@ export default function PipelinePage() {
         addLog("copy", `Approve package: error — ${msg(e)}`, "err");
         setError(msg(e));
       }
+    }
+  }
+
+  async function generateVisual(pkgId: string) {
+    setVisualBusy((b) => ({ ...b, [pkgId]: true }));
+    setVisualMsg((m) => ({ ...m, [pkgId]: "Generating the branded visual…" }));
+    try {
+      await api.generateVisual(pkgId);
+      for (let i = 0; i < 60; i++) {
+        await sleep(3000);
+        const st = await api.visualStatus(pkgId).catch(() => null);
+        if (st) setVisualMsg((m) => ({ ...m, [pkgId]: st.message || st.status }));
+        if (st?.status === "done") {
+          const v = await api.getVisual(pkgId);
+          setVisuals((prev) => ({ ...prev, [pkgId]: v }));
+          setVisualMsg((m) => ({ ...m, [pkgId]: "Visual ready — review below." }));
+          break;
+        }
+        if (st?.status === "error") {
+          setVisualMsg((m) => ({ ...m, [pkgId]: st.message }));
+          break;
+        }
+      }
+    } catch (e) {
+      setVisualMsg((m) => ({ ...m, [pkgId]: msg(e) }));
+    } finally {
+      setVisualBusy((b) => ({ ...b, [pkgId]: false }));
+    }
+  }
+  async function approveVisual(pkgId: string) {
+    try {
+      await api.approveVisual(pkgId);
+      const v = await api.getVisual(pkgId).catch(() => null);
+      if (v) setVisuals((prev) => ({ ...prev, [pkgId]: v }));
+      setVisualMsg((m) => ({ ...m, [pkgId]: "Visual approved." }));
+    } catch (e) {
+      setVisualMsg((m) => ({ ...m, [pkgId]: msg(e) }));
+    }
+  }
+  async function rejectVisual(pkgId: string) {
+    try {
+      await api.rejectVisual(pkgId);
+      const v = await api.getVisual(pkgId).catch(() => null);
+      if (v) setVisuals((prev) => ({ ...prev, [pkgId]: v }));
+      setVisualMsg((m) => ({ ...m, [pkgId]: "Visual rejected — you can regenerate." }));
+    } catch (e) {
+      setVisualMsg((m) => ({ ...m, [pkgId]: msg(e) }));
     }
   }
 
@@ -986,138 +1061,233 @@ export default function PipelinePage() {
       </Card>
 
       {/* ── Stage 3: Copy ─────────────────────────────────── */}
-      <section className="sf-stage">
-        <div className="sf-stage-head">
-          <div>
-            <span className="sf-stage-num">3</span>
-            <h2 className="sf-stage-title">Copy — content packages</h2>
+      <Card id="stage-copy" style={{ marginBottom: 20 }}>
+        <CardHead
+          title={
+            <>
+              <span className="ui-stage-num">3</span>Copy — content packages
+            </>
+          }
+          right={
+            <>
+              <span className="ui-inline-field">
+                <span className="ui-label">Limit</span>
+                <Input
+                  className="ui-input-sm"
+                  style={{ width: 84 }}
+                  value={copyLimit}
+                  onChange={(e) => setCopyLimit(e.target.value)}
+                  placeholder="all"
+                  type="number"
+                  min={1}
+                />
+              </span>
+              <label className="ui-check">
+                <input
+                  type="checkbox"
+                  checked={generateTr}
+                  onChange={(e) => setGenerateTr(e.target.checked)}
+                />
+                TR
+              </label>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={runCopy}
+                disabled={running.copy || !hasApprovedCalendar}
+              >
+                {running.copy ? "Running…" : "Run copy"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={refreshPackages} disabled={running.copy}>
+                Refresh
+              </Button>
+            </>
+          }
+        />
+        <CardBody>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}
+          >
+            <p className="ui-note" style={{ margin: 0, flex: 1, minWidth: 200 }}>
+              {hasApprovedCalendar
+                ? "One AI draft per calendar entry — a full month can take a few minutes. Leave Limit empty for all posts."
+                : "Approve a calendar above first."}
+            </p>
+            {packages.length > 0 && (
+              <div className="ui-langsw" role="group" aria-label="Copy language">
+                <button
+                  className={viewLang === "en" ? "active" : ""}
+                  aria-pressed={viewLang === "en"}
+                  onClick={() => setViewLang("en")}
+                >
+                  EN
+                </button>
+                <button
+                  className={viewLang === "tr" ? "active" : ""}
+                  aria-pressed={viewLang === "tr"}
+                  onClick={() => setViewLang("tr")}
+                >
+                  TR
+                </button>
+              </div>
+            )}
           </div>
-          <div className="sf-stage-actions">
-            <label className="sf-inline-field">
-              <span className="sf-label">Limit</span>
-              <input
-                className="sf-input sf-input-sm"
-                value={copyLimit}
-                onChange={(e) => setCopyLimit(e.target.value)}
-                placeholder="all"
-                type="number"
-                min={1}
-              />
-            </label>
-            <label className="sf-check">
-              <input
-                type="checkbox"
-                checked={generateTr}
-                onChange={(e) => setGenerateTr(e.target.checked)}
-              />
-              TR
-            </label>
-            <button
-              className="sf-btn sf-btn-accent"
-              onClick={runCopy}
-              disabled={running.copy || !hasApprovedCalendar}
-            >
-              {running.copy ? "Running…" : "Run copy"}
-            </button>
-            <button className="sf-btn" onClick={refreshPackages} disabled={running.copy}>
-              Refresh
-            </button>
-          </div>
-        </div>
-        <p className="sf-hint">
-          {hasApprovedCalendar
-            ? "Limit = how many posts to draft now (leave empty for all). TR = also write the Turkish version. One AI draft per entry — a full month can take a few minutes."
-            : "Approve a calendar above first."}
-        </p>
 
-        <StageLog lines={logs.copy} live={running.copy} onClear={() => clearLog("copy")} />
+          <StageLog lines={logs.copy} live={running.copy} onClear={() => clearLog("copy")} />
 
-        {packages.length === 0 ? (
-          <p className="sf-note">No content packages yet.</p>
-        ) : (
-          packages.map((p) => {
-            const en = O(p.copy_package_en);
-            const tr = O(p.copy_package_tr);
-            const vd = O(p.visual_direction);
-            const hashtags = O(en.hashtags);
-            const allTags = [
-              ...A(hashtags.broad),
-              ...A(hashtags.niche),
-              ...A(hashtags.branded),
-            ].map(S);
-            return (
-              <article className="sf-item" key={p.id}>
-                <div className="sf-item-head">
-                  <div>
-                    <span className="sf-item-title">{p.post_id}</span>
-                    <span className="sf-item-meta">
-                      {p.platform} · {p.content_type}
-                    </span>
-                  </div>
-                  <div className="sf-item-actions">
-                    <span className={`sf-badge${p.status === "approved" ? " is-active" : ""}`}>
-                      {p.status}
-                    </span>
-                    {p.status !== "approved" && (
-                      <button className="sf-btn" onClick={() => approvePackage(p.id)}>
-                        Approve
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <details className="sf-details">
-                  <summary>View copy &amp; visual</summary>
-                  {S(en.caption) && (
-                    <>
-                      <h4 className="sf-h4">Caption (EN)</h4>
-                      <p className="sf-prose">{S(en.caption)}</p>
-                    </>
-                  )}
-                  {A(en.hooks).length > 0 && (
-                    <>
-                      <h4 className="sf-h4">Hooks</h4>
-                      <ul className="sf-list">
-                        {A(en.hooks).map((h, i) => (
-                          <li key={i}>{S(h)}</li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                  {S(en.cta) && (
-                    <p className="sf-prose">
-                      <strong>CTA:</strong> {S(en.cta)}
-                    </p>
-                  )}
-                  {allTags.length > 0 && (
-                    <div className="sf-chips">
-                      {allTags.map((t, i) => (
-                        <span className="sf-chip" key={i}>
-                          {t.startsWith("#") ? t : `#${t}`}
-                        </span>
-                      ))}
+          {packages.length === 0 ? (
+            <EmptyState title="No content packages yet">Approve a calendar, then run copy.</EmptyState>
+          ) : (
+            <div className="ui-copygrid">
+              {packages.map((p) => {
+                const src = viewLang === "tr" ? O(p.copy_package_tr) : O(p.copy_package_en);
+                const en = O(p.copy_package_en);
+                const vd = O(p.visual_direction);
+                const overlay = O(vd.text_overlay);
+                const headline = S(overlay.primary);
+                const hashtags = O(src.hashtags);
+                const allTags = [
+                  ...A(hashtags.broad),
+                  ...A(hashtags.niche),
+                  ...A(hashtags.branded),
+                ].map(S);
+                const caption = S(src.caption) || S(en.caption);
+                return (
+                  <div className="ui-copycard" key={p.id}>
+                    <div className="ch">
+                      <span className="ui-item-meta" style={{ fontWeight: 600 }}>
+                        {p.platform} · {p.content_type}
+                      </span>
+                      <span className="pid">{p.post_id}</span>
                     </div>
-                  )}
-                  {S(tr.caption) && (
-                    <>
-                      <h4 className="sf-h4">Caption (TR)</h4>
-                      <p className="sf-prose">{S(tr.caption)}</p>
-                    </>
-                  )}
-                  {(S(vd.concept) || S(vd.image_prompt)) && (
-                    <>
-                      <h4 className="sf-h4">Visual direction</h4>
-                      {S(vd.concept) && <p className="sf-prose">{S(vd.concept)}</p>}
-                      {S(vd.image_prompt) && (
-                        <p className="sf-prose sf-mono-sm">{S(vd.image_prompt)}</p>
+                    <div className="cb">
+                      {headline ? <div className="hl">{headline}</div> : null}
+                      {caption ? <div className="cap">{caption}</div> : null}
+                      {allTags.length > 0 && (
+                        <div className="tagrow">
+                          {allTags.map((t, i) => (
+                            <span className="tag" key={i}>
+                              {t.startsWith("#") ? t : `#${t}`}
+                            </span>
+                          ))}
+                        </div>
                       )}
-                    </>
-                  )}
-                </details>
-              </article>
-            );
-          })
-        )}
-      </section>
+                      {S(vd.image_prompt) ? (
+                        <div className="ui-promptbox">
+                          <b>Visual prompt · </b>
+                          {S(vd.image_prompt)}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="cf">
+                      <Badge tone={p.status === "approved" ? "ok" : "neutral"}>{p.status}</Badge>
+                      {p.status !== "approved" && (
+                        <Button
+                          size="sm"
+                          onClick={() => approvePackage(p.id)}
+                          style={{ marginLeft: "auto" }}
+                        >
+                          Approve
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* ── Stage 4: Visual ───────────────────────────────── */}
+      <Card id="stage-visual" style={{ marginBottom: 20 }}>
+        <CardHead
+          title={
+            <>
+              <span className="ui-stage-num">4</span>Visual — branded image
+            </>
+          }
+          right={<span className="ui-item-meta">Approval 3 · OpenAI + brand overlay</span>}
+        />
+        <CardBody>
+          <p className="ui-note" style={{ marginTop: -4, marginBottom: 12 }}>
+            Generate a branded visual for each approved post, then approve the copy + visual together
+            (Approval 3). Set the image provider + key on the Settings page first. The pill, logo and exact
+            headline are composited by us (Phase D2) — until then the model returns a clean scene.
+          </p>
+          {approvedPackages.length === 0 ? (
+            <EmptyState title="No approved posts yet">
+              Approve a content package above to generate its visual.
+            </EmptyState>
+          ) : (
+            <div className="ui-copygrid">
+              {approvedPackages.map((p) => {
+                const v = visuals[p.id];
+                const vd = O(p.visual_direction);
+                const overlay = O(vd.text_overlay);
+                const headline = S(overlay.primary);
+                const busy = !!visualBusy[p.id];
+                const status = v?.visual_status ?? undefined;
+                return (
+                  <div className="ui-vcard" key={p.id}>
+                    <div className="ui-canvas2">
+                      {v?.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={v.image} alt={headline || p.post_id} />
+                      ) : (
+                        <div className="ui-canvas-empty">{busy ? "Generating…" : "No visual yet"}</div>
+                      )}
+                      {status ? <span className="ui-canvas-badge">{status}</span> : null}
+                    </div>
+                    <div className="cb">
+                      <div className="ui-item-meta" style={{ fontWeight: 600 }}>
+                        {p.post_id}
+                      </div>
+                      {headline ? (
+                        <div className="hl" style={{ fontSize: 15 }}>
+                          {headline}
+                        </div>
+                      ) : null}
+                      {visualMsg[p.id] ? (
+                        <div className="ui-note" style={{ fontSize: 12 }}>
+                          {visualMsg[p.id]}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="cf">
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => generateVisual(p.id)}
+                        disabled={busy}
+                      >
+                        {busy ? "Generating…" : v?.image ? "Regenerate" : "Generate"}
+                      </Button>
+                      {v?.image && status !== "approved" && (
+                        <Button size="sm" onClick={() => approveVisual(p.id)} disabled={busy}>
+                          Approve
+                        </Button>
+                      )}
+                      {v?.image && (
+                        <Button
+                          size="sm"
+                          variant="subtle"
+                          onClick={() => rejectVisual(p.id)}
+                          disabled={busy}
+                          style={{ marginLeft: "auto" }}
+                        >
+                          Reject
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
     </div>
   );
 }

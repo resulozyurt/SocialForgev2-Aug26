@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **Phase U / U3a** (UI rebuild: pipeline header + Stepper + Research/Calendar stages). Frontend-only; backend/API untouched.
+Last updated: 2026-08-31 — **Phase U / U3b** (UI rebuild: Copy stage + wired Visual stage; folds in D4). Frontend-only; backend/API untouched.
 
 ---
 
@@ -103,8 +103,8 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | A Foundation | deps fix, Alembic, auth, Railway prep, DB URL norm | DONE |
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
-| D Visual | Phase 4 branded image generation | IN PROGRESS (D1 backend done; D2 overlay / D3 Drive / D4 UI next) |
-| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1 shell + U2 primitives + U3a pipeline research/calendar done)** |
+| D Visual | Phase 4 branded image generation | IN PROGRESS (D1 backend + D4 UI done via U3b; D2 overlay / D3 Drive next) |
+| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1 shell + U2 primitives + U3 full pipeline done; U4 brand/settings next)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
 
@@ -505,6 +505,29 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   with the Visual stage. Verified `tsc --noEmit` clean. Frontend-only, no
   backend/migration. Next: **U3b** — rebuild the Copy stage (per-post cards, EN/TR
   toggle, hashtags, visual prompt) + add the Visual (Phase-4) stage placeholder.
+
+- **2026-08-31 (U3b) — Copy stage rebuilt + Visual (Phase 4) stage wired (also
+  completes D4's UI):** rebuilt Stage 3 (Copy) of `/brands/[id]/pipeline` on the
+  Studio primitives — per-post `.ui-copycard`s showing the on-image headline
+  (`visual_direction.text_overlay.primary`), caption, hashtag pills, and the visual
+  prompt, with a global **EN/TR** language toggle (`.ui-langsw`) over the whole grid,
+  plus per-card status `Badge` + Approve. Added a real **Stage 4 (Visual)** wired to
+  the existing D1 backend endpoints — new `api.ts` methods (`generateVisual`,
+  `visualStatus`, `getVisual`, `approveVisual`, `rejectVisual`) + `VisualStatus`/
+  `VisualResponse` types. The stage lists **approved** packages as `.ui-vcard`s; each
+  can Generate (background POST + 3s status poll, up to ~3 min), shows the returned
+  image (base64 data URI from D1) in a square canvas with a status badge, streams a
+  per-card progress message, and offers **Approve / Regenerate / Reject** (Approval
+  3). A load-time effect preloads any already-generated visuals for approved
+  packages. **This is effectively D4 (the Phase-4 pipeline UI), delivered inside the
+  UI rebuild.** All new pipeline logic is additive; the Research/Calendar/Copy run +
+  approval logic from before is untouched. Note: the image is still the **raw D1
+  scene** (the pill/logo/exact-headline overlay is D2, not yet built) — the UI says
+  so. `StageLog` (the shared activity box) intentionally kept on its U1-reskinned
+  `.sf-*` classes. Verified `tsc --noEmit` clean. Frontend-only, no backend/migration.
+  **Phase U pipeline rebuild (U3a+U3b) is complete.** Next options: **U4** (rebuild
+  brand detail + settings pages), or resume **D2** (Pillow brand overlay) so the
+  Visual stage renders true branded images, or the small **copy-run hardening** fix.
 
 ## 8. Known Issues / Tech Debt
 

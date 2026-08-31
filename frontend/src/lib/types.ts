@@ -180,3 +180,17 @@ export interface AppSetting {
   value: string | null;
   choices: string[] | null;
 }
+
+export interface VisualStatus {
+  status: "idle" | "running" | "done" | "error";
+  message: string;
+}
+
+export interface VisualResponse {
+  package_id: string;
+  visual_status: string | null;
+  image: string | null;
+  text_overlay: Record<string, unknown> | null;
+  provider: string | null;
+  generated_at: string | null;
+}
