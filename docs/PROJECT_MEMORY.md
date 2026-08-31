@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **RV2b** (AI-edit on calendar & copy). #2 complete (full research parity). No migration.
+Last updated: 2026-08-31 — **RV3** (smart brand switcher + brand-context sidebar + Dashboard). Frontend-only.
 
 ---
 
@@ -628,6 +628,24 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   reject + ai-edit on all stages) is fully done. Next: **RV3** — #4/#5/#6 sidebar +
   smart brand switcher (navigate to the same screen for the other brand) + brand-context
   menu + Dashboard link + remove empty Calendar/Assets items.
+
+- **2026-08-31 (RV3) — Smart brand switcher + brand-context sidebar (owner review
+  #4/#5/#6):** reworked `components/AppShell.tsx`. It now fetches the brand list
+  (`api.listBrands`) and the sidebar brand pills are **real brands that navigate**:
+  clicking a brand keeps you on the same screen for that brand — e.g. on
+  `/brands/A/pipeline`, clicking brand B goes to `/brands/B/pipeline` (path suffix
+  preserved; off a brand route it goes to `/brands/B`). The **accent now follows the
+  brand you are viewing** (derived from the route's brand via `accentOf`: slug
+  contains "evatro" → red, else teal), not a manual toggle; it falls back to the
+  last-used accent on non-brand pages. Sidebar nav restructured (#6): a **Dashboard**
+  link at the top (→ "/"), and when inside a brand it shows that brand's items —
+  **{Brand name}** (overview → /brands/{id}) and **Content Pipeline** — all real,
+  active links. The empty **Calendar / Assets** "soon" items were removed (#5, owner
+  chose remove). Topbar breadcrumb + brand chip now reflect the current brand. The
+  logo links to the dashboard. `tsc --noEmit` clean. Frontend-only, no
+  backend/migration. Next: **RV4** — #7 identity tab: real color pickers + fix the
+  cramped layout / Save-button overlap. Then **RV5** — #8 solutions/competitors nested
+  tabs.
 
 ## 8. Known Issues / Tech Debt
 

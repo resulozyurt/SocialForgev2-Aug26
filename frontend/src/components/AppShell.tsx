@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { api } from "@/lib/api";
+import type { Brand } from "@/lib/types";
 
-type Brand = "fieldpie" | "evatro";
 type Theme = "light" | "dark";
+type AccentKey = "fieldpie" | "evatro";
 
-const BRAND_LABEL: Record<Brand, { name: string; lang: string }> = {
-  fieldpie: { name: "FieldPie", lang: "EN" },
-  evatro: { name: "Evatro", lang: "TR" },
-};
+function accentOf(b?: Brand | null): AccentKey {
+  return b && (b.slug || "").toLowerCase().includes("evatro") ? "evatro" : "fieldpie";
+}
 
 function IconGrid() {
   return (
@@ -22,27 +23,19 @@ function IconGrid() {
     </svg>
   );
 }
+function IconBrand() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+    </svg>
+  );
+}
 function IconPipeline() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M4 6h16M4 12h16M4 18h10" />
       <circle cx="19" cy="18" r="2.4" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-function IconCalendar() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <path d="M3 9h18M8 4v16" />
-    </svg>
-  );
-}
-function IconAssets() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M4 15l4-4 3 3 5-6 4 5" />
     </svg>
   );
 }
@@ -72,15 +65,18 @@ function IconSun() {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
-  const [brand, setBrand] = useState<Brand>("fieldpie");
+  const router = useRouter();
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [theme, setTheme] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
-  // Read what the no-flash init script already applied to <html>.
+  useEffect(() => {
+    api.listBrands().then(setBrands).catch(() => {});
+  }, []);
+
+  // Read the theme the no-flash init script applied to <html>.
   useEffect(() => {
     const root = document.documentElement;
-    const b = (root.getAttribute("data-brand") as Brand) || "fieldpie";
-    setBrand(b === "evatro" ? "evatro" : "fieldpie");
     const explicit = root.getAttribute("data-theme") as Theme | null;
     const isDark = explicit
       ? explicit === "dark"
@@ -89,13 +85,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  function chooseBrand(b: Brand) {
-    setBrand(b);
-    document.documentElement.setAttribute("data-brand", b);
+  const brandMatch = pathname.match(/^\/brands\/([^/]+)(.*)$/);
+  const currentBrandId = brandMatch ? brandMatch[1] : null;
+  const suffix = brandMatch ? brandMatch[2] : "";
+  const currentBrand = brands.find((b) => b.id === currentBrandId) || null;
+
+  // Accent follows the brand you are viewing; otherwise the last-used one.
+  useEffect(() => {
+    const root = document.documentElement;
+    let key: AccentKey;
+    if (currentBrand) {
+      key = accentOf(currentBrand);
+    } else {
+      let stored: string | null = null;
+      try {
+        stored = localStorage.getItem("sf-brand");
+      } catch {}
+      key = stored === "evatro" ? "evatro" : "fieldpie";
+    }
+    root.setAttribute("data-brand", key);
     try {
-      localStorage.setItem("sf-brand", b);
+      localStorage.setItem("sf-brand", key);
     } catch {}
+  }, [currentBrand]);
+
+  function switchBrand(b: Brand) {
+    if (b.id === currentBrandId) return;
+    router.push(brandMatch ? `/brands/${b.id}${suffix}` : `/brands/${b.id}`);
   }
+
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -105,78 +123,68 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     } catch {}
   }
 
-  const onBrands = pathname === "/" || pathname.startsWith("/brands");
-  const onPipeline = /^\/brands\/[^/]+\/pipeline/.test(pathname);
+  const onDash = pathname === "/";
+  const onOverview = !!brandMatch && suffix === "";
+  const onPipeline = !!brandMatch && suffix.startsWith("/pipeline");
   const onSettings = pathname.startsWith("/settings");
+  const section = onSettings ? "Settings" : onPipeline ? "Pipeline" : brandMatch ? "Brand" : "Dashboard";
 
-  // Contextual pipeline link if we are inside a brand route.
-  const brandMatch = pathname.match(/^\/brands\/([^/]+)/);
-  const pipelineHref = brandMatch ? `/brands/${brandMatch[1]}/pipeline` : null;
-
-  const section = onSettings ? "Settings" : onPipeline ? "Pipeline" : "Brands";
-  const bl = BRAND_LABEL[brand];
+  const switcherBrands = brands.slice(0, 4);
 
   return (
     <div className="sfx-app">
       <aside className="sfx-side">
         <div className="sfx-brandpick">
-          <div className="sfx-logo">S</div>
+          <Link href="/" className="sfx-logo" aria-label="Dashboard">
+            S
+          </Link>
           <div className="sfx-wordmark">
             SocialForge
             <small>Content Studio</small>
           </div>
         </div>
 
-        <div className="sfx-brandtabs" role="group" aria-label="Active brand accent">
-          <button
-            className="sfx-brandtab fp"
-            aria-pressed={brand === "fieldpie"}
-            onClick={() => chooseBrand("fieldpie")}
-          >
-            <span className="sfx-dot" />
-            FieldPie
-          </button>
-          <button
-            className="sfx-brandtab ev"
-            aria-pressed={brand === "evatro"}
-            onClick={() => chooseBrand("evatro")}
-          >
-            <span className="sfx-dot" />
-            Evatro
-          </button>
-        </div>
+        {switcherBrands.length > 0 && (
+          <div className="sfx-brandtabs" role="group" aria-label="Switch brand">
+            {switcherBrands.map((b) => (
+              <button
+                key={b.id}
+                className={`sfx-brandtab ${accentOf(b) === "evatro" ? "ev" : "fp"}`}
+                aria-pressed={b.id === currentBrandId}
+                onClick={() => switchBrand(b)}
+                title={`Switch to ${b.display_name}`}
+              >
+                <span className="sfx-dot" />
+                {b.display_name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="sfx-navsec">Workspace</div>
         <nav className="sfx-nav">
-          <Link href="/" className={`sfx-navitem${onBrands && !onPipeline ? " active" : ""}`}>
+          <Link href="/" className={`sfx-navitem${onDash ? " active" : ""}`}>
             <IconGrid />
-            Brands
+            Dashboard
           </Link>
-          {pipelineHref ? (
-            <Link
-              href={pipelineHref}
-              className={`sfx-navitem${onPipeline ? " active" : ""}`}
-            >
-              <IconPipeline />
-              Content Pipeline
-            </Link>
-          ) : (
-            <span className="sfx-navitem soon" aria-disabled="true">
-              <IconPipeline />
-              Content Pipeline
-              <span className="sfx-soon">brand</span>
-            </span>
+          {brandMatch && (
+            <>
+              <Link
+                href={`/brands/${currentBrandId}`}
+                className={`sfx-navitem${onOverview ? " active" : ""}`}
+              >
+                <IconBrand />
+                {currentBrand ? currentBrand.display_name : "Brand"}
+              </Link>
+              <Link
+                href={`/brands/${currentBrandId}/pipeline`}
+                className={`sfx-navitem${onPipeline ? " active" : ""}`}
+              >
+                <IconPipeline />
+                Content Pipeline
+              </Link>
+            </>
           )}
-          <span className="sfx-navitem soon" aria-disabled="true">
-            <IconCalendar />
-            Calendar
-            <span className="sfx-soon">soon</span>
-          </span>
-          <span className="sfx-navitem soon" aria-disabled="true">
-            <IconAssets />
-            Assets
-            <span className="sfx-soon">soon</span>
-          </span>
         </nav>
 
         <div className="sfx-navsec">Configure</div>
@@ -202,11 +210,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <span>SocialForge</span>
             <span className="sep">/</span>
             <b>{section}</b>
+            {currentBrand && (
+              <>
+                <span className="sep">/</span>
+                <span>{currentBrand.display_name}</span>
+              </>
+            )}
           </div>
-          <span className="sfx-brandchip">
-            <span className="sfx-dot" />
-            {bl.name} · {bl.lang}
-          </span>
+          {currentBrand && (
+            <span className="sfx-brandchip">
+              <span className="sfx-dot" />
+              {currentBrand.display_name}
+              {currentBrand.language ? ` · ${currentBrand.language.toUpperCase()}` : ""}
+            </span>
+          )}
           <div className="sfx-spacer" />
           <button
             className="sfx-tbtn"
