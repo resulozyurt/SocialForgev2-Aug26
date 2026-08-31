@@ -1368,3 +1368,16 @@ textarea:focus-visible, [tabindex]:focus-visible, .ui-tab:focus-visible,
   html{ scroll-behavior:auto; }
   *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
 }
+
+
+/* ==========================================================================
+   STUDIO REVISE (RV1) — roomier 3-column calendar + tabbed pipeline nav.
+   ========================================================================== */
+.ui-calgrid{ grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px; }
+@media (max-width:1000px){ .ui-calgrid{ grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+@media (max-width:620px){ .ui-calgrid{ grid-template-columns:1fr; } }
+.ui-post h4{ font-size:15.5px; }
+.ui-post{ padding:15px 16px; }
+
+.ui-stepnav{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:22px; padding-top:16px; border-top:1px solid var(--border); }
+.ui-stepnav-label{ font-family:var(--font-display),sans-serif; font-weight:700; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }

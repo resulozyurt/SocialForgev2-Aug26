@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **Phase U COMPLETE** (UI rebuild done: U1–U5). Awaiting the owner's new visual-generation architecture before resuming Phase D.
+Last updated: 2026-08-31 — **Phase U-revise / RV1** (roomier calendar + fully tabbed pipeline). Owner review round after U-complete.
 
 ---
 
@@ -581,6 +581,20 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   + settings, all light/dark + per-brand accent. **Next up is the visual-generation
   step, which the owner is redesigning from scratch (see the on-hold note) — wait for
   that spec before writing any Phase D visual code.**
+
+- **2026-08-31 (RV1) — Pipeline view: 3-col calendar + fully tabbed nav (owner
+  review #1, #3):** the calendar card board is now a fixed **3 columns** (2 / 1 on
+  narrower screens) with roomier cards. The pipeline no longer stacks all stages and
+  scroll-jumps between them — it is now **fully tabbed**: only the selected stage
+  renders, driven by a `view` state; the Stepper selects the stage (no more
+  scroll-into-view), and a **Back / Next** bar at the bottom steps through
+  research → calendar → copy → visual. Free navigation (any stage viewable
+  regardless of gate). Frontend-only, no backend/migration. `tsc --noEmit` clean.
+  Owner review queue (from the U-complete screenshot): #1 done (RV1), #3 done (RV1);
+  remaining — #2 delete/reject/ai-edit on calendar+copy (RV2, needs backend),
+  #4/#5/#6 sidebar+brand-switch nav (RV3), #7 identity colors+layout (RV4),
+  #8 solutions/competitors nested tabs (RV5). Owner chose: remove Calendar/Assets
+  sidebar items; full parity (delete+reject+ai-edit) for RV2.
 
 ## 8. Known Issues / Tech Debt
 

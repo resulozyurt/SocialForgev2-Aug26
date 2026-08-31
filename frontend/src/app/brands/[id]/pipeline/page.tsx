@@ -65,6 +65,15 @@ const SOL_VAR: Record<string, string> = {
   ai: "var(--sol-ai)",
   general: "var(--sol-general)",
 };
+
+const STAGE_SEQ = ["research", "calendar", "copy", "visual"] as const;
+type StageView = (typeof STAGE_SEQ)[number];
+const STAGE_TITLE: Record<StageView, string> = {
+  research: "Research",
+  calendar: "Calendar",
+  copy: "Copy",
+  visual: "Visual",
+};
 const solKey = (v: unknown): string =>
   S(v).trim().toLowerCase().replace(/\s+/g, "_") || "general";
 const solLabel = (key: string): string =>
@@ -412,6 +421,7 @@ export default function PipelinePage() {
   const [period, setPeriod] = useState(currentPeriod());
   const [copyLimit, setCopyLimit] = useState<string>("");
   const [generateTr, setGenerateTr] = useState(true);
+  const [view, setView] = useState<StageView>("research");
   const [viewLang, setViewLang] = useState<"en" | "tr">("en");
   const [visuals, setVisuals] = useState<Record<string, VisualResponse>>({});
   const [visualBusy, setVisualBusy] = useState<Record<string, boolean>>({});
@@ -780,12 +790,8 @@ export default function PipelinePage() {
       />
 
       <Stepper
-        current={!hasApprovedReport ? "research" : !hasApprovedCalendar ? "calendar" : "copy"}
-        onSelect={(k) =>
-          document
-            .getElementById(`stage-${k}`)
-            ?.scrollIntoView({ behavior: "smooth", block: "start" })
-        }
+        current={view}
+        onSelect={(k) => setView(k as StageView)}
         items={[
           {
             key: "research",
@@ -822,14 +828,15 @@ export default function PipelinePage() {
       />
 
       <div className="ui-note" style={{ marginBottom: 18 }}>
-        Run each stage in order. A stage stays locked until you approve the one before it. Each stage
-        needs its AI provider set on the brand page. Runs happen in the background — the activity log in
-        each stage shows progress in real time.
+        Move between stages with the steps above or Next / Back. Each stage drafts a version you review
+        and approve; the next stage builds on the approved one. Set each stage&rsquo;s AI provider on the
+        brand page; runs happen in the background.
       </div>
 
       {error && <div className="ui-error">{error}</div>}
 
       {/* ── Stage 1: Research ─────────────────────────────── */}
+      {view === "research" && (
       <Card id="stage-research" style={{ marginBottom: 20 }}>
         <CardHead
           title={
@@ -955,8 +962,10 @@ export default function PipelinePage() {
           )}
         </CardBody>
       </Card>
+      )}
 
       {/* ── Stage 2: Calendar ─────────────────────────────── */}
+      {view === "calendar" && (
       <Card id="stage-calendar" style={{ marginBottom: 20 }}>
         <CardHead
           title={
@@ -1059,8 +1068,10 @@ export default function PipelinePage() {
           )}
         </CardBody>
       </Card>
+      )}
 
       {/* ── Stage 3: Copy ─────────────────────────────────── */}
+      {view === "copy" && (
       <Card id="stage-copy" style={{ marginBottom: 20 }}>
         <CardHead
           title={
@@ -1198,8 +1209,10 @@ export default function PipelinePage() {
           )}
         </CardBody>
       </Card>
+      )}
 
       {/* ── Stage 4: Visual ───────────────────────────────── */}
+      {view === "visual" && (
       <Card id="stage-visual" style={{ marginBottom: 20 }}>
         <CardHead
           title={
@@ -1287,6 +1300,33 @@ export default function PipelinePage() {
           )}
         </CardBody>
       </Card>
+      )}
+
+      <div className="ui-stepnav">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            const i = STAGE_SEQ.indexOf(view);
+            if (i > 0) setView(STAGE_SEQ[i - 1]);
+          }}
+          disabled={view === "research"}
+        >
+          ← Back
+        </Button>
+        <span className="ui-stepnav-label">{STAGE_TITLE[view]} stage</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            const i = STAGE_SEQ.indexOf(view);
+            if (i < STAGE_SEQ.length - 1) setView(STAGE_SEQ[i + 1]);
+          }}
+          disabled={view === "visual"}
+        >
+          Next →
+        </Button>
+      </div>
 
     </div>
   );
