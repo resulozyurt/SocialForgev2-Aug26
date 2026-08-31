@@ -15,6 +15,7 @@ from api.routes import (
     calendar_router,
     copy_router,
     visuals_router,
+    references_router,
 )
 
 
@@ -56,3 +57,4 @@ app.include_router(competitors_router, prefix="/api/v1", dependencies=_admin)
 app.include_router(calendar_router, prefix="/api/v1", dependencies=_admin)
 app.include_router(copy_router, prefix="/api/v1", dependencies=_admin)
 app.include_router(visuals_router, prefix="/api/v1", dependencies=_admin)
+app.include_router(references_router, prefix="/api/v1", dependencies=_admin)

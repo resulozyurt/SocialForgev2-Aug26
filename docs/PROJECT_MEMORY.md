@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **V1** (visual redesign: reference-image data model + migration 0010).
+Last updated: 2026-08-31 — **V2** (visual redesign: reference-library API + visual-notes endpoints).
 
 ---
 
@@ -151,7 +151,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation (old design) | SUPERSEDED by V-series (D1 raw scene stays as placeholder; D2/D3 retired) |
-| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1 done: data model + migration 0010)** |
+| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1 model+0010, V2 API done)** |
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
@@ -787,20 +787,24 @@ pillars).
 **Where we are (2026-08-31).** The full app is live end to end: research -> calendar
 -> copy -> (raw) visual, human approval at each gate. Studio UI rebuild (U1-U5) and
 the owner's review round (RV1-RV5, #1-#8) are complete. The **visual-generation
-redesign (V-series) has started**: **V1 is done** — new `solution_reference_images`
-table + `brand_solutions.visual_notes` + `SolutionReferenceImage` model, migration
-**0010** (guarded, reuses `solutionenum`). Verified via py_compile + a stubbed
-`configure_mappers()` check. Alembic head is **0010** (auto-applied on deploy; the
-owner has NOT run it against the live DB yet).
+redesign (V-series) has started**: **V1 + V2 done** — `solution_reference_images`
+table + `brand_solutions.visual_notes` + model (migration **0010**), and the
+reference-library API (`api/routes/references.py`). Verified via py_compile, a
+stubbed `configure_mappers()` check, and a Pillow downscale unit check. Alembic head
+is **0010** (auto-applied on deploy; the owner has NOT run it against the live DB
+yet — it applies on the next deploy).
 
 **Immediate next work: V-series visual redesign (approved 2026-08-31).** Roadmap,
 each an independently deployable, owner-reviewed commit:
 - **V1 DONE** — reference-image data model + migration 0010 + `visual_notes`.
-- **V2 (NEXT)** — reference-library API: upload (multipart, Pillow downscale on
-  upload), list, delete, reorder per (brand, solution); a route that serves the
-  stored image bytes; plus GET/PUT for `visual_notes`.
-- **V3a/V3b** — per-solution page UI: list references, then upload/delete/reorder +
-  edit the solution's visual note.
+- **V2 DONE** — `api/routes/references.py` (registered in main + routes __init__):
+  upload (multipart, Pillow downscale to JPEG <=1024px, cap 24/solution), list,
+  PATCH note/order, PUT reorder, delete, `GET /references/{id}/raw` (serves bytes),
+  and GET/PUT `.../visual-notes` (upserts a non-focus brand_solutions row if
+  missing). All under `/api/v1`, admin-guarded.
+- **V3a (NEXT)** — per-solution page UI shell + reference list (thumbnails via the
+  raw route).
+- **V3b** — upload/delete/reorder + edit the solution's visual note.
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).
