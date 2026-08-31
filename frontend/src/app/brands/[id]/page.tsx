@@ -171,6 +171,7 @@ export default function BrandDetailPage() {
   const brandId = String(params.id);
 
   const [tab, setTab] = useState<Tab>("identity");
+  const [solTab, setSolTab] = useState<"solutions" | "competitors">("solutions");
   const [brand, setBrand] = useState<Brand | null>(null);
   const [solutions, setSolutions] = useState<BrandSolution[]>([]);
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
@@ -732,7 +733,17 @@ export default function BrandDetailPage() {
 
       {/* Solutions */}
       {tab === "solutions" && (
-        <section className="sf-section">
+        <div>
+          <Tabs
+            items={[
+              { key: "solutions", label: "Solutions" },
+              { key: "competitors", label: "Competitors" },
+            ]}
+            active={solTab}
+            onChange={(k) => setSolTab(k as "solutions" | "competitors")}
+          />
+          {solTab === "solutions" && (
+          <section className="sf-section">
           <div className="sf-info">
             Pick which product areas this brand builds content around and how much
             weight each carries. <strong>Importance (1-5)</strong> drives how the monthly
@@ -838,7 +849,11 @@ export default function BrandDetailPage() {
             );
           })()}
 
-          <h2 className="sf-section-title" style={{ marginTop: 22 }}>Competitors by solution</h2>
+          </section>
+          )}
+          {solTab === "competitors" && (
+          <section className="sf-section">
+          <h2 className="sf-section-title">Competitors by solution</h2>
           <div className="sf-info">
             Track competitors under the solution area they compete in. Research and future
             social monitoring read these per solution. Leave the solution as General if it
@@ -964,7 +979,9 @@ export default function BrandDetailPage() {
               );
             })
           )}
-        </section>
+          </section>
+          )}
+        </div>
       )}
 
       {/* ── AI providers ────────────────────────────────────── */}

@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **RV4** (identity color pickers + roomier layout). Frontend-only.
+Last updated: 2026-08-31 — **RV5** (solutions/competitors nested tabs). Owner review #1–#8 ALL DONE.
 
 ---
 
@@ -660,6 +660,21 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   `tsc --noEmit` clean. Frontend-only, no backend/migration. Next: **RV5** (last in
   the review queue) — #8 solutions tab restructure: split Solutions vs Competitors
   with nested tabs so entering competitors no longer scrambles the solution data.
+
+- **2026-08-31 (RV5) — Solutions tab split into nested tabs (owner review #8;
+  review round COMPLETE):** the brand **Solutions** tab crammed solution editing +
+  the monthly-split preview + the full competitors CRUD into one long section, so
+  adding a competitor visually scrambled the solution data. Split it with a nested
+  `Tabs` (the same primitive): **Solutions** sub-tab (the six-area include/focus/
+  importance/priority/notes editor + Save + the live monthly-split preview) and
+  **Competitors** sub-tab (the grouped-by-solution competitor add form + list). New
+  `solTab` state drives it; each sub-tab is its own `.sf-section` card. Frontend-only,
+  no backend/migration. `tsc --noEmit` clean. **All eight owner-review items are now
+  done: #1 3-col calendar, #2 delete/reject/ai-edit on all stages, #3 fully tabbed
+  pipeline, #4 smart brand switcher, #5 removed empty nav items, #6 brand-context
+  sidebar + Dashboard, #7 identity color pickers + layout, #8 solutions/competitors
+  nested tabs.** Next: the owner will describe the new visual-generation architecture
+  (see the on-hold note); do not build old D2/D3 until then.
 
 ## 8. Known Issues / Tech Debt
 
