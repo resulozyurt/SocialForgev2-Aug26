@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { AppSetting } from "@/lib/types";
+import { PageHeader, Card, Badge, Button, Input } from "@/components/ui";
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong.");
 
@@ -49,83 +50,90 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) return <p className="sf-note">Loading settings…</p>;
+  if (loading) return <p className="ui-note">Loading settings…</p>;
 
   return (
     <div>
-      <div className="sf-page-head">
-        <div>
-          <p className="sf-eyebrow">Workspace</p>
-          <h1 className="sf-title">Settings</h1>
-          <p className="sf-subtitle">
-            API keys and integrations — managed here, never in code or the server.
-          </p>
-        </div>
+      <PageHeader
+        eyebrow="Workspace"
+        title="Settings"
+        subtitle="API keys and integrations — managed here, never in code or on the server."
+      />
+
+      <div className="ui-note" style={{ marginBottom: 18 }}>
+        Keys are stored encrypted and never shown again in full. The search provider is pluggable — pick
+        one and paste its key; you can switch anytime without touching the code.
       </div>
 
-      <div className="sf-info">
-        Keys are stored encrypted and never shown again in full. The search
-        provider is pluggable — pick one and paste its key; you can switch anytime
-        without touching the code.
-      </div>
+      {error && <div className="ui-error">{error}</div>}
 
-      {error && <div className="sf-error">{error}</div>}
-
-      <section className="sf-section">
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {settings.map((s) => (
-          <div className="sf-setting" key={s.key}>
-            <div className="sf-setting-head">
-              <div>
-                <span className="sf-setting-label">{s.label}</span>
-                <span className={`sf-badge${s.is_set ? " is-active" : ""}`}>
-                  {s.is_set ? (s.secret ? `set · ${s.masked}` : s.value) : "not set"}
-                </span>
-              </div>
-            </div>
-            <p className="sf-setting-desc">{s.description}</p>
-
-            <div className="sf-inline-row">
-              {s.choices ? (
-                <select
-                  className="sf-input"
-                  value={drafts[s.key] ?? ""}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
+          <Card key={s.key}>
+            <div className="ui-card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-display), sans-serif",
+                    fontWeight: 700,
+                    fontSize: 14.5,
+                    color: "var(--text)",
+                  }}
                 >
-                  {s.choices.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  className="sf-input"
-                  type={s.secret ? "password" : "text"}
-                  value={drafts[s.key] ?? ""}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
-                  placeholder={s.secret ? "Enter a new key to replace" : "Enter a value"}
-                  autoComplete="off"
-                />
-              )}
-              <button
-                className="sf-btn sf-btn-accent"
-                onClick={() => save(s.key, drafts[s.key] ?? "")}
-                disabled={busy[s.key]}
-              >
-                {busy[s.key] ? "Saving…" : "Save"}
-              </button>
-              {s.secret && s.is_set && (
-                <button
-                  className="sf-btn"
-                  onClick={() => save(s.key, "")}
+                  {s.label}
+                </span>
+                <Badge tone={s.is_set ? "ok" : "muted"}>
+                  {s.is_set ? (s.secret ? `set · ${s.masked}` : s.value) : "not set"}
+                </Badge>
+              </div>
+              <p className="ui-note" style={{ margin: 0 }}>
+                {s.description}
+              </p>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                {s.choices ? (
+                  <select
+                    className="ui-input"
+                    style={{ maxWidth: 320 }}
+                    value={drafts[s.key] ?? ""}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
+                  >
+                    {s.choices.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    style={{ maxWidth: 320 }}
+                    type={s.secret ? "password" : "text"}
+                    value={drafts[s.key] ?? ""}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
+                    placeholder={s.secret ? "Enter a new key to replace" : "Enter a value"}
+                    autoComplete="off"
+                  />
+                )}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => save(s.key, drafts[s.key] ?? "")}
                   disabled={busy[s.key]}
                 >
-                  Clear
-                </button>
-              )}
-              {note[s.key] && <span className="sf-test is-ok">{note[s.key]}</span>}
+                  {busy[s.key] ? "Saving…" : "Save"}
+                </Button>
+                {s.secret && s.is_set && (
+                  <Button size="sm" variant="subtle" onClick={() => save(s.key, "")} disabled={busy[s.key]}>
+                    Clear
+                  </Button>
+                )}
+                {note[s.key] && (
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ok)" }}>{note[s.key]}</span>
+                )}
+              </div>
             </div>
-          </div>
+          </Card>
         ))}
-      </section>
+      </div>
     </div>
   );
 }

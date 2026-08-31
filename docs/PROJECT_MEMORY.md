@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **Phase U / U3b** (UI rebuild: Copy stage + wired Visual stage; folds in D4). Frontend-only; backend/API untouched.
+Last updated: 2026-08-31 — **Phase U / U4a** (UI rebuild: Settings page + brand-detail chrome). Frontend-only; backend/API untouched.
 
 ---
 
@@ -104,7 +104,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation | IN PROGRESS (D1 backend + D4 UI done via U3b; D2 overlay / D3 Drive next) |
-| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1 shell + U2 primitives + U3 full pipeline done; U4 brand/settings next)** |
+| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1 shell + U2 primitives + U3 pipeline + U4a settings/chrome done; U4b brand sections next)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
 
@@ -528,6 +528,28 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   **Phase U pipeline rebuild (U3a+U3b) is complete.** Next options: **U4** (rebuild
   brand detail + settings pages), or resume **D2** (Pillow brand overlay) so the
   Visual stage renders true branded images, or the small **copy-run hardening** fix.
+
+- **2026-08-31 (U4a) — Settings rebuilt + brand-detail chrome:** rebuilt the whole
+  **Settings page** (`app/settings/page.tsx`) on the Studio primitives — each app
+  setting is now a `Card` (label + status `Badge`, description, an `Input`/select row
+  with Save/Clear and an inline saved-note). Same logic (`listAppSettings` /
+  `updateAppSetting`, secret masking, choices dropdown) unchanged. On the **brand
+  detail page** (`app/brands/[id]/page.tsx`) the header + tab bar were swapped to
+  `PageHeader` (with brand badges + a Content-pipeline button in the actions slot) +
+  the `Tabs` primitive + a back link. **The five tab section contents (identity /
+  voice / solutions / providers / sources forms + competitors CRUD) still use the
+  U1-reskinned `.sf-*` markup — that is U4b.** Verified `tsc --noEmit` clean.
+  Frontend-only, no backend/migration. Next: **U4b** — rebuild the five brand-detail
+  sections on primitives (`Field`/`Input`, `Button`, `Badge`, `SolutionChip`), then
+  **U5** polish.
+
+- **2026-08-31 — Visual generation on hold (owner directive):** the owner (Resul)
+  has a **different architecture idea for the whole visual-generation step** and will
+  describe it when the UI rebuild reaches the visual stage. **Do NOT build the old D2
+  (Pillow pill/logo/headline overlay) or D3 (Drive) as previously planned** — wait for
+  the new design. The current Visual stage (U3b) still works against D1 (raw scene) as
+  a placeholder. Ping the owner once the UI rebuild (U4/U5) is done so they can explain
+  the new visual approach.
 
 ## 8. Known Issues / Tech Debt
 

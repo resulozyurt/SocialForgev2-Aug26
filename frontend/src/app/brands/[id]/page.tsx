@@ -16,6 +16,7 @@ import type {
   ProviderTestResult,
   SolutionKey,
 } from "@/lib/types";
+import { PageHeader, Tabs, Badge } from "@/components/ui";
 
 const TABS = ["identity", "voice", "solutions", "providers", "sources"] as const;
 type Tab = (typeof TABS)[number];
@@ -526,47 +527,36 @@ export default function BrandDetailPage() {
 
   return (
     <div>
-      <Link href="/" className="sf-back">
+      <Link href="/" className="ui-btn ui-btn-subtle ui-btn-sm" style={{ marginBottom: 16 }}>
         ← All brands
       </Link>
 
-      <div className="sf-page-head">
-        <div>
-          <p className="sf-eyebrow">Brand</p>
-          <h1 className="sf-title">{brand.display_name}</h1>
-          <p className="sf-subtitle">
-            @{brand.slug}
-            {brand.industry ? ` · ${brand.industry}` : ""}
-          </p>
-        </div>
-        <div className="sf-head-side">
-          <div className="sf-head-badges">
-            <span className="sf-badge">{brand.language.toUpperCase()}</span>
-            <span className="sf-badge">{brand.monthly_post_target} posts/mo</span>
-            <span className={`sf-badge${brand.is_active ? " is-active" : ""}`}>
-              {brand.is_active ? "Active" : "Inactive"}
-            </span>
+      <PageHeader
+        eyebrow="Brand"
+        title={brand.display_name}
+        subtitle={`@${brand.slug}${brand.industry ? ` · ${brand.industry}` : ""}`}
+        actions={
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <Badge tone="accent" dot={false}>{brand.language.toUpperCase()}</Badge>
+              <Badge tone="neutral" dot={false}>{brand.monthly_post_target} posts/mo</Badge>
+              <Badge tone={brand.is_active ? "ok" : "muted"}>{brand.is_active ? "Active" : "Inactive"}</Badge>
+            </div>
+            <Link href={`/brands/${brandId}/pipeline`} className="ui-btn ui-btn-primary ui-btn-sm">
+              Content pipeline →
+            </Link>
           </div>
-          <Link href={`/brands/${brandId}/pipeline`} className="sf-btn sf-btn-accent">
-            Content pipeline →
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
-      {error && <div className="sf-error">{error}</div>}
+      {error && <div className="ui-error">{error}</div>}
 
       {/* ── Tab bar ─────────────────────────────────────────── */}
-      <div className="sf-tabs">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            className={`sf-tab${tab === t ? " is-active" : ""}`}
-            onClick={() => setTab(t)}
-          >
-            {TAB_LABELS[t]}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={TABS.map((t) => ({ key: t, label: TAB_LABELS[t] }))}
+        active={tab}
+        onChange={(k) => setTab(k as Tab)}
+      />
 
       {/* ── Identity ────────────────────────────────────────── */}
       {tab === "identity" && (
