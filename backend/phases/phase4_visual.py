@@ -28,6 +28,7 @@ from models.db_models import (
     ContentPackage,
     ContentStatusEnum,
     SolutionReferenceImage,
+    VisualGeneration,
 )
 
 logger = logging.getLogger(__name__)
@@ -193,38 +194,46 @@ class Phase4Visual:
                 quality=quality,
             )
 
-            candidates = []
+            # B3: persist every generated image as a VisualGeneration row (image
+            # history), so all runs stay selectable — not just the latest run.
+            new_gen_ids: list[str] = []
             for img in image_list:
-                data_uri = "data:image/png;base64," + base64.b64encode(img).decode()
-                candidates.append({"id": uuid.uuid4().hex, "image": data_uri})
-
-            vd = package.visual_direction if isinstance(package.visual_direction, dict) else {}
-            overlay = vd.get("text_overlay")
+                gen = VisualGeneration(
+                    package_id=package.id,
+                    image_data=img,
+                    content_type="image/png",
+                    used_references=has_refs,
+                    reference_count=len(references),
+                    provider=provider,
+                    scene_prompt=prompt,
+                )
+                db.add(gen)
+                await db.flush()  # assign gen.id
+                new_gen_ids.append(str(gen.id))
 
             assets = dict(package.asset_urls or {})
             assets.update(
                 {
-                    # Backward-compat single field (current Stage-4 UI reads this);
-                    # the V5 gallery reads `candidates`.
-                    "image": candidates[0]["image"] if candidates else None,
-                    "candidates": candidates,
-                    "selected_id": None,
+                    "selected_generation_id": new_gen_ids[0] if new_gen_ids else assets.get("selected_generation_id"),
                     "provider": provider,
                     "scene_prompt": prompt,
-                    "text_overlay": overlay,
                     "used_references": has_refs,
                     "reference_count": len(references),
                     "visual_status": "draft",
                     "generated_at": datetime.now(timezone.utc).isoformat(),
                 }
             )
+            # Drop legacy inline data-uris now that history is persisted in its own table.
+            assets.pop("image", None)
+            assets.pop("candidates", None)
+            assets.pop("selected_id", None)
             package.asset_urls = assets
             await db.flush()
             logger.info(
-                "Phase 4 generated %d candidate(s) for package %s (refs=%d, provider=%s)",
-                len(candidates),
+                "Phase 4 generated %d image(s) for package %s (refs=%d, provider=%s)",
+                len(new_gen_ids),
                 package_id,
                 len(references),
                 provider,
             )
-            return {"visual_status": "draft", "candidates": len(candidates), "used_references": has_refs}
+            return {"visual_status": "draft", "generated": len(new_gen_ids), "used_references": has_refs}

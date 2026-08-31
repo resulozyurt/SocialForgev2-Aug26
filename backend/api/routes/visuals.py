@@ -1,6 +1,11 @@
 """
 api/routes/visuals.py
 Phase 4 — branded visual generation + review (Approval 3: copy + visual).
+
+B3: every generated image is persisted as a VisualGeneration row (image history),
+so all runs stay selectable — not just the latest. Bytes are served from
+`/visuals/generations/{id}/raw`; the chosen one is tracked by
+`ContentPackage.asset_urls['selected_generation_id']`.
 """
 
 from __future__ import annotations
@@ -9,13 +14,13 @@ import logging
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from models.db_models import ContentPackage, ContentStatusEnum
+from models.db_models import ContentPackage, ContentStatusEnum, VisualGeneration
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -33,18 +38,16 @@ class VisualStatusResponse(BaseModel):
 class VisualResponse(BaseModel):
     package_id: str
     visual_status: Optional[str] = None
-    image: Optional[str] = None
-    candidates: Optional[list[dict]] = None
-    selected_id: Optional[str] = None
+    selected_generation_id: Optional[str] = None
+    generations: list[dict] = []      # [{id, created_at, used_references, reference_count}]
     used_references: Optional[bool] = None
     reference_count: Optional[int] = None
-    text_overlay: Optional[dict] = None
     provider: Optional[str] = None
     generated_at: Optional[str] = None
 
 
-class SelectCandidatePayload(BaseModel):
-    candidate_id: str
+class SelectGenerationPayload(BaseModel):
+    generation_id: str
 
 
 async def _get_package(package_id: uuid.UUID, db: AsyncSession) -> ContentPackage:
@@ -55,14 +58,24 @@ async def _get_package(package_id: uuid.UUID, db: AsyncSession) -> ContentPackag
     return package
 
 
+async def _list_generations(package_id: uuid.UUID, db: AsyncSession) -> list[VisualGeneration]:
+    res = await db.execute(
+        select(VisualGeneration)
+        .where(VisualGeneration.package_id == package_id)
+        .order_by(VisualGeneration.created_at.desc())
+    )
+    return list(res.scalars().all())
+
+
 @router.post("/visuals/{package_id}/generate")
 async def generate_visual(
     package_id: uuid.UUID,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate a branded visual for an APPROVED content package (runs in the
-    background — poll /visuals/{package_id}/status)."""
+    """Generate branded visual candidates for an APPROVED content package (runs in
+    the background — poll /visuals/{package_id}/status). Each run appends to the
+    package's image history."""
     package = await _get_package(package_id, db)
     if package.status != ContentStatusEnum.APPROVED:
         raise HTTPException(
@@ -94,20 +107,52 @@ async def visual_status(package_id: uuid.UUID):
     return VisualStatusResponse(**job)
 
 
+# Declared before /visuals/{package_id} so the literal "generations" segment wins.
+@router.get("/visuals/generations/{gen_id}/raw")
+async def get_generation_raw(gen_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """Serve the stored bytes of one generated image."""
+    res = await db.execute(select(VisualGeneration).where(VisualGeneration.id == gen_id))
+    gen = res.scalar_one_or_none()
+    if not gen:
+        raise HTTPException(status_code=404, detail="Generation not found.")
+    return Response(
+        content=gen.image_data,
+        media_type=gen.content_type or "image/png",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
 @router.get("/visuals/{package_id}", response_model=VisualResponse)
 async def get_visual(package_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    """Returns the current visual (base64 data URI in D1) and its review status."""
+    """Return the package's visual review state plus its full generation history
+    (newest first). The UI builds thumbnail URLs from each generation id."""
     package = await _get_package(package_id, db)
     a = package.asset_urls or {}
+    gens = await _list_generations(package_id, db)
+
+    generations = [
+        {
+            "id": str(g.id),
+            "created_at": g.created_at.isoformat() if g.created_at else None,
+            "used_references": g.used_references,
+            "reference_count": g.reference_count,
+        }
+        for g in gens
+    ]
+    selected = a.get("selected_generation_id")
+    if not selected and generations:
+        selected = generations[0]["id"]
+
+    # Reference stats of the selected generation (fallback: newest).
+    sel_gen = next((g for g in gens if str(g.id) == selected), gens[0] if gens else None)
+
     return VisualResponse(
         package_id=str(package_id),
         visual_status=a.get("visual_status"),
-        image=a.get("image"),
-        candidates=a.get("candidates"),
-        selected_id=a.get("selected_id"),
-        used_references=a.get("used_references"),
-        reference_count=a.get("reference_count"),
-        text_overlay=a.get("text_overlay"),
+        selected_generation_id=selected,
+        generations=generations,
+        used_references=(sel_gen.used_references if sel_gen else a.get("used_references")),
+        reference_count=(sel_gen.reference_count if sel_gen else a.get("reference_count")),
         provider=a.get("provider"),
         generated_at=a.get("generated_at"),
     )
@@ -120,30 +165,37 @@ def _set_visual_status(package: ContentPackage, value: str) -> None:
 
 
 @router.patch("/visuals/{package_id}/select")
-async def select_candidate(
+async def select_generation(
     package_id: uuid.UUID,
-    payload: SelectCandidatePayload,
+    payload: SelectGenerationPayload,
     db: AsyncSession = Depends(get_db),
 ):
-    """Pick which candidate is the chosen visual for this post. Sets `image` to the
-    selected candidate so approve/download act on it."""
+    """Pick which generation from the history is the chosen visual for this post."""
     package = await _get_package(package_id, db)
+    try:
+        gen_uuid = uuid.UUID(payload.generation_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid generation id.")
+    res = await db.execute(
+        select(VisualGeneration).where(
+            VisualGeneration.id == gen_uuid,
+            VisualGeneration.package_id == package_id,
+        )
+    )
+    if not res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Generation not found for this package.")
     assets = dict(package.asset_urls or {})
-    candidates = assets.get("candidates") or []
-    match = next((c for c in candidates if c.get("id") == payload.candidate_id), None)
-    if not match:
-        raise HTTPException(status_code=404, detail="Candidate not found for this package.")
-    assets["selected_id"] = payload.candidate_id
-    assets["image"] = match.get("image")
+    assets["selected_generation_id"] = payload.generation_id
     package.asset_urls = assets
-    return {"message": "Candidate selected.", "package_id": str(package_id), "selected_id": payload.candidate_id}
+    return {"message": "Generation selected.", "package_id": str(package_id), "selected_generation_id": payload.generation_id}
 
 
 @router.patch("/visuals/{package_id}/approve")
 async def approve_visual(package_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     """Approval 3 — the human approves the branded visual for this post."""
     package = await _get_package(package_id, db)
-    if not (package.asset_urls or {}).get("image"):
+    gens = await _list_generations(package_id, db)
+    if not gens:
         raise HTTPException(status_code=400, detail="Generate a visual before approving it.")
     _set_visual_status(package, "approved")
     return {"message": "Visual approved.", "package_id": str(package_id)}

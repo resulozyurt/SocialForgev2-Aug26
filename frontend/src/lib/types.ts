@@ -192,20 +192,20 @@ export interface VisualStatus {
   message: string;
 }
 
-export interface VisualCandidate {
+export interface VisualGeneration {
   id: string;
-  image: string;
+  created_at: string | null;
+  used_references: boolean | null;
+  reference_count: number | null;
 }
 
 export interface VisualResponse {
   package_id: string;
   visual_status: string | null;
-  image: string | null;
-  candidates: VisualCandidate[] | null;
-  selected_id: string | null;
+  selected_generation_id: string | null;
+  generations: VisualGeneration[];
   used_references: boolean | null;
   reference_count: number | null;
-  text_overlay: Record<string, unknown> | null;
   provider: string | null;
   generated_at: string | null;
 }

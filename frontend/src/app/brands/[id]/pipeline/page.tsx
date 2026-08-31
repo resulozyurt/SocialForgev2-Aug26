@@ -530,7 +530,7 @@ export default function PipelinePage() {
       for (const id of ids) {
         try {
           const v = await api.getVisual(id);
-          if (!cancelled && v && v.image) setVisuals((prev) => ({ ...prev, [id]: v }));
+          if (!cancelled && v && v.generations && v.generations.length) setVisuals((prev) => ({ ...prev, [id]: v }));
         } catch {
           /* no visual yet — ignore */
         }
@@ -964,19 +964,15 @@ export default function PipelinePage() {
       setVisualMsg((m) => ({ ...m, [pkgId]: msg(e) }));
     }
   }
-  async function selectCandidate(pkgId: string, candidateId: string) {
+  async function selectCandidate(pkgId: string, generationId: string) {
     // Optimistic: reflect the selection immediately, then persist.
     setVisuals((prev) => {
       const v = prev[pkgId];
       if (!v) return prev;
-      const chosen = (v.candidates ?? []).find((c) => c.id === candidateId);
-      return {
-        ...prev,
-        [pkgId]: { ...v, selected_id: candidateId, image: chosen?.image ?? v.image },
-      };
+      return { ...prev, [pkgId]: { ...v, selected_generation_id: generationId } };
     });
     try {
-      await api.selectVisualCandidate(pkgId, candidateId);
+      await api.selectVisualGeneration(pkgId, generationId);
     } catch (e) {
       setVisualMsg((m) => ({ ...m, [pkgId]: msg(e) }));
       const v = await api.getVisual(pkgId).catch(() => null);
@@ -985,9 +981,10 @@ export default function PipelinePage() {
   }
   function downloadVisual(pkgId: string) {
     const v = visuals[pkgId];
-    if (!v?.image) return;
+    const sel = v?.selected_generation_id ?? v?.generations?.[0]?.id;
+    if (!sel) return;
     const a = document.createElement("a");
-    a.href = v.image;
+    a.href = api.visualGenerationRawUrl(sel);
     a.download = `${pkgId}.png`;
     document.body.appendChild(a);
     a.click();
@@ -1672,37 +1669,32 @@ export default function PipelinePage() {
                 const headline = S(overlay.primary);
                 const busy = !!visualBusy[p.id];
                 const status = v?.visual_status ?? undefined;
+                const sel = v?.selected_generation_id ?? v?.generations?.[0]?.id;
+                const selUrl = sel ? api.visualGenerationRawUrl(sel) : "";
                 return (
                   <div className="ui-vcard" key={p.id}>
                     <div className="ui-canvas2">
-                      {v?.image ? (
+                      {selUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={v.image} alt={headline || p.post_id} />
+                        <img src={selUrl} alt={headline || p.post_id} />
                       ) : (
                         <div className="ui-canvas-empty">{busy ? "Generating…" : "No visual yet"}</div>
                       )}
                       {status ? <span className="ui-canvas-badge">{status}</span> : null}
                     </div>
-                    {v?.candidates && v.candidates.length > 1 ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 8,
-                          flexWrap: "wrap",
-                          marginTop: 8,
-                        }}
-                      >
-                        {v.candidates.map((c, ci) => {
-                          const sel = (v.selected_id ?? v.candidates?.[0]?.id) === c.id;
+                    {v?.generations && v.generations.length > 1 ? (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                        {v.generations.map((g, ci) => {
+                          const gsel = sel === g.id;
                           return (
                             <button
-                              key={c.id}
+                              key={g.id}
                               type="button"
-                              title={`Candidate ${ci + 1}`}
-                              onClick={() => selectCandidate(p.id, c.id)}
+                              title={`Version ${v.generations.length - ci}`}
+                              onClick={() => selectCandidate(p.id, g.id)}
                               style={{
                                 padding: 0,
-                                border: sel
+                                border: gsel
                                   ? "2px solid var(--sf-accent, #0ea5a4)"
                                   : "2px solid transparent",
                                 borderRadius: 8,
@@ -1714,8 +1706,8 @@ export default function PipelinePage() {
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={c.image}
-                                alt={`candidate ${ci + 1}`}
+                                src={api.visualGenerationRawUrl(g.id)}
+                                alt={`version ${ci + 1}`}
                                 style={{ width: 64, height: 64, objectFit: "cover", display: "block" }}
                               />
                             </button>
@@ -1723,13 +1715,13 @@ export default function PipelinePage() {
                         })}
                       </div>
                     ) : null}
-                    {v?.image && v.used_references === false ? (
+                    {selUrl && v?.used_references === false ? (
                       <div className="ui-note" style={{ fontSize: 12, marginTop: 6 }}>
                         No references for this solution — generated from text only. Upload references
                         on the solution page for on-brand results.
                       </div>
                     ) : null}
-                    {v?.image && v.used_references ? (
+                    {selUrl && v?.used_references ? (
                       <div className="ui-note" style={{ fontSize: 12, marginTop: 6 }}>
                         Generated from {v.reference_count ?? 0} reference image
                         {(v.reference_count ?? 0) === 1 ? "" : "s"}.
@@ -1757,19 +1749,19 @@ export default function PipelinePage() {
                         onClick={() => generateVisual(p.id)}
                         disabled={busy}
                       >
-                        {busy ? "Generating…" : v?.image ? "Regenerate" : "Generate"}
+                        {busy ? "Generating…" : selUrl ? "Regenerate" : "Generate"}
                       </Button>
-                      {v?.image && status !== "approved" && (
+                      {selUrl && status !== "approved" && (
                         <Button size="sm" onClick={() => approveVisual(p.id)} disabled={busy}>
                           Approve
                         </Button>
                       )}
-                      {v?.image && (
+                      {selUrl && (
                         <Button size="sm" variant="subtle" onClick={() => downloadVisual(p.id)} disabled={busy}>
                           Download
                         </Button>
                       )}
-                      {v?.image && (
+                      {selUrl && (
                         <Button
                           size="sm"
                           variant="subtle"

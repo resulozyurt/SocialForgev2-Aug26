@@ -286,6 +286,27 @@ class ContentPackage(Base):
     brand: Mapped["Brand"] = relationship(back_populates="content_packages")
 
 
+class VisualGeneration(Base):
+    """B3: image-generation history. Every generated candidate is persisted here
+    (bytes in Postgres, like reference images) so all runs stay selectable — not
+    just the latest run. The chosen one is tracked by
+    `ContentPackage.asset_urls['selected_generation_id']`."""
+    __tablename__ = "visual_generations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    package_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_packages.id", ondelete="CASCADE"), index=True
+    )
+    image_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    content_type: Mapped[str] = mapped_column(String(64), nullable=False, default="image/png", server_default="image/png")
+    used_references: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    reference_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    provider: Mapped[Optional[str]] = mapped_column(String(64))
+    scene_prompt: Mapped[Optional[str]] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class TrendReportCard(Base):
     __tablename__ = "trend_report_cards"
 

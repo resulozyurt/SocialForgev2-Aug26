@@ -116,14 +116,10 @@ export default function PostDetailPage() {
       setVmsg(msg(e));
     }
   }
-  async function selectCandidate(candidateId: string) {
-    setVisual((v) => {
-      if (!v) return v;
-      const chosen = (v.candidates ?? []).find((c) => c.id === candidateId);
-      return { ...v, selected_id: candidateId, image: chosen?.image ?? v.image };
-    });
+  async function selectCandidate(generationId: string) {
+    setVisual((v) => (v ? { ...v, selected_generation_id: generationId } : v));
     try {
-      await api.selectVisualCandidate(packageId, candidateId);
+      await api.selectVisualGeneration(packageId, generationId);
     } catch (e) {
       setVmsg(msg(e));
       const v = await api.getVisual(packageId).catch(() => null);
@@ -151,9 +147,10 @@ export default function PostDetailPage() {
     }
   }
   function download() {
-    if (!visual?.image) return;
+    const sel = visual?.selected_generation_id ?? visual?.generations?.[0]?.id;
+    if (!sel) return;
     const a = document.createElement("a");
-    a.href = visual.image;
+    a.href = api.visualGenerationRawUrl(sel);
     a.download = `${pkg?.post_id ?? packageId}.png`;
     document.body.appendChild(a);
     a.click();
@@ -178,6 +175,8 @@ export default function PostDetailPage() {
   const altText = S(copy.alt_text);
   const approved = pkg.status === "approved";
   const status = visual?.visual_status ?? undefined;
+  const selGen = visual?.selected_generation_id ?? visual?.generations?.[0]?.id;
+  const selUrl = selGen ? api.visualGenerationRawUrl(selGen) : "";
 
   return (
     <div>
@@ -320,24 +319,24 @@ export default function PostDetailPage() {
                     marginBottom: 10,
                   }}
                 >
-                  {visual?.image ? (
+                  {selUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={visual.image} alt={headline || pkg.post_id} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img src={selUrl} alt={headline || pkg.post_id} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
                     <span className="sf-hint">{busy ? "Generating…" : "No visual yet"}</span>
                   )}
                 </div>
 
-                {visual?.candidates && visual.candidates.length > 1 ? (
+                {visual?.generations && visual.generations.length > 1 ? (
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-                    {visual.candidates.map((c, ci) => {
-                      const sel = (visual.selected_id ?? visual.candidates?.[0]?.id) === c.id;
+                    {visual.generations.map((g, ci) => {
+                      const sel = selGen === g.id;
                       return (
                         <button
-                          key={c.id}
+                          key={g.id}
                           type="button"
-                          title={`Candidate ${ci + 1}`}
-                          onClick={() => selectCandidate(c.id)}
+                          title={`Version ${visual.generations.length - ci}`}
+                          onClick={() => selectCandidate(g.id)}
                           style={{
                             padding: 0,
                             border: sel ? "2px solid var(--sf-accent, #0ea5a4)" : "2px solid transparent",
@@ -349,19 +348,19 @@ export default function PostDetailPage() {
                           }}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={c.image} alt={`candidate ${ci + 1}`} style={{ width: 56, height: 56, objectFit: "cover", display: "block" }} />
+                          <img src={api.visualGenerationRawUrl(g.id)} alt={`version ${ci + 1}`} style={{ width: 56, height: 56, objectFit: "cover", display: "block" }} />
                         </button>
                       );
                     })}
                   </div>
                 ) : null}
 
-                {visual?.image && visual.used_references === false ? (
+                {selUrl && visual?.used_references === false ? (
                   <p className="sf-note" style={{ fontSize: 12, marginTop: 0 }}>
                     No references for this solution — generated from text only. Add references on the solution page.
                   </p>
                 ) : null}
-                {visual?.image && visual.used_references ? (
+                {selUrl && visual?.used_references ? (
                   <p className="sf-note" style={{ fontSize: 12, marginTop: 0 }}>
                     Generated from {visual.reference_count ?? 0} reference image{(visual.reference_count ?? 0) === 1 ? "" : "s"}.
                   </p>
@@ -372,15 +371,15 @@ export default function PostDetailPage() {
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Button size="sm" variant="primary" onClick={generate} disabled={busy}>
-                    {busy ? "Generating…" : visual?.image ? "Regenerate" : "Generate"}
+                    {busy ? "Generating…" : selUrl ? "Regenerate" : "Generate"}
                   </Button>
-                  {visual?.image && status !== "approved" ? (
+                  {selUrl && status !== "approved" ? (
                     <Button size="sm" onClick={approveVisual} disabled={busy}>Approve</Button>
                   ) : null}
-                  {visual?.image ? (
+                  {selUrl ? (
                     <Button size="sm" variant="subtle" onClick={download} disabled={busy}>Download</Button>
                   ) : null}
-                  {visual?.image ? (
+                  {selUrl ? (
                     <Button size="sm" variant="subtle" onClick={rejectVisual} disabled={busy}>Reject</Button>
                   ) : null}
                 </div>

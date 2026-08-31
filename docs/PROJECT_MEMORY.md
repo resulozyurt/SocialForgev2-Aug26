@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **HOTFIX 0012 migration id (>32 chars broke deploy)** + B2 month scoping + trend_signal.
+Last updated: 2026-08-31 — **B3** (image history: every generated visual persisted + selectable). Track B complete.
 
 ---
 
@@ -49,7 +49,7 @@ explicitly.
    checkpoints (research / calendar / copy / visual). No fully autonomous publishing.
 
 **Infra.** Live on Railway: `SocialForge-Backend` (root `backend`), `SocialForge-Front`
-(root `frontend`), managed `Postgres`. Alembic **migration head = 0012**; deploy runs
+(root `frontend`), managed `Postgres`. Alembic **migration head = 0013**; deploy runs
 `alembic upgrade head` automatically. Repo is private.
 
 ---
@@ -909,9 +909,18 @@ should persist and be selectable. Roadmap, two tracks:
     the Visual stage to one period, killing the multi-month soup. Also completed the
     post detail page: `trend_signal` is now exposed in the copy API response +
     ContentPackage type and shown under Strategy. Verified: py_compile + tsc clean.
-  - **B3 (NEXT)** — image history: persist every generated image (not just the latest
-    run's candidates) so all are selectable. Likely a `visual_generations` table or an
-    append-only list in asset_urls; expose + a picker on the post page and Stage-4.
+  - **B3 DONE** — new `visual_generations` table (bytes in Postgres, migration **0013**,
+    id `0013_visual_generations`) persists EVERY generated image; each run appends.
+    `phase4_visual` inserts a row per candidate and records
+    `asset_urls.selected_generation_id` (dropped the old inline data-uris
+    image/candidates/selected_id). visuals API rewritten: `GET /visuals/{id}` returns
+    `generations[]` (newest first) + `selected_generation_id`; `GET
+    /visuals/generations/{id}/raw` serves bytes; `PATCH /visuals/{id}/select` takes
+    `{generation_id}`; approve requires a generation to exist. Both the Stage-4 gallery
+    and the post detail page now show the full history (thumbnails via the raw route,
+    labeled Version N) and select/download from it. Verified: full-backend py_compile +
+    configure_mappers() + tsc clean.
+  - **TRACK B COMPLETE.** Post-centric, month-scoped flow with image history is in.
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).

@@ -193,10 +193,11 @@ export const api = {
     request<unknown>(`/visuals/${packageId}/approve`, { method: "PATCH" }),
   rejectVisual: (packageId: string) =>
     request<unknown>(`/visuals/${packageId}/reject`, { method: "PATCH" }),
-  selectVisualCandidate: (packageId: string, candidateId: string) =>
-    request<{ message: string; selected_id: string }>(`/visuals/${packageId}/select`, {
+  visualGenerationRawUrl: (genId: string) => `${API_BASE}/visuals/generations/${genId}/raw`,
+  selectVisualGeneration: (packageId: string, generationId: string) =>
+    request<{ message: string; selected_generation_id: string }>(`/visuals/${packageId}/select`, {
       method: "PATCH",
-      body: JSON.stringify({ candidate_id: candidateId }),
+      body: JSON.stringify({ generation_id: generationId }),
     }),
 
   // Solution reference library (visual redesign V2/V3). The raw thumbnail URL is
