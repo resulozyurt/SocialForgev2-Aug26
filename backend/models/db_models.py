@@ -251,6 +251,10 @@ class ContentPackage(Base):
 
     platform: Mapped[PlatformEnum] = mapped_column(Enum(PlatformEnum), nullable=False)
     content_type: Mapped[ContentTypeEnum] = mapped_column(Enum(ContentTypeEnum), nullable=False)
+    # V4: the solution area this post belongs to (carried from the calendar entry)
+    # so the visual step can pull the matching reference library. Nullable for
+    # legacy rows created before this column existed.
+    solution: Mapped[Optional[SolutionEnum]] = mapped_column(Enum(SolutionEnum), nullable=True, index=True)
     status: Mapped[ContentStatusEnum] = mapped_column(Enum(ContentStatusEnum), default=ContentStatusEnum.DRAFT, index=True)
     scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), index=True)
 

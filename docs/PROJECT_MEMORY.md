@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **V3b** (visual redesign: reference upload/delete/reorder + editable visual note).
+Last updated: 2026-08-31 — **V4a** (visual redesign: content_packages.solution column, migration 0011).
 
 ---
 
@@ -49,7 +49,7 @@ explicitly.
    checkpoints (research / calendar / copy / visual). No fully autonomous publishing.
 
 **Infra.** Live on Railway: `SocialForge-Backend` (root `backend`), `SocialForge-Front`
-(root `frontend`), managed `Postgres`. Alembic **migration head = 0010**; deploy runs
+(root `frontend`), managed `Postgres`. Alembic **migration head = 0011**; deploy runs
 `alembic upgrade head` automatically. Repo is private.
 
 ---
@@ -151,7 +151,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation (old design) | SUPERSEDED by V-series (D1 raw scene stays as placeholder; D2/D3 retired) |
-| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1-V3 done; V4 generation next)** |
+| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1-V3 + V4a done; V4b engine next)** |
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
@@ -787,13 +787,14 @@ pillars).
 **Where we are (2026-08-31).** The full app is live end to end: research -> calendar
 -> copy -> (raw) visual, human approval at each gate. Studio UI rebuild (U1-U5) and
 the owner's review round (RV1-RV5, #1-#8) are complete. The **visual-generation
-redesign (V-series) has started**: **V1-V3 done** — data model (migration **0010**),
-the reference-library API (`api/routes/references.py`), and the complete per-solution
-reference UI (`brands/[id]/solutions/[solution]`): upload / delete / reorder + an
-editable visual note, over a **binary-safe `/api` proxy**. Verified via py_compile, a
-stubbed `configure_mappers()` check, a Pillow downscale unit check, and `tsc --noEmit`
-(clean). Alembic head is **0010** (auto-applied on deploy). **Next: V4** — the
-reference-conditioned `gpt-image-1` edits generation engine.
+redesign (V-series) has started**: **V1-V3 + V4a done** — data model (migrations
+**0010** reference library, **0011** `content_packages.solution`), the reference-library
+API, the complete per-solution reference UI (upload / delete / reorder + editable
+visual note) over a **binary-safe `/api` proxy**, and copy now tags each package with
+its solution. Verified via py_compile, stubbed `configure_mappers()` checks, a Pillow
+downscale unit check, and `tsc --noEmit` (clean). Alembic head is **0011** (auto-applied
+on deploy). **Next: V4b** — the reference-conditioned `gpt-image-1` edits engine (live
+key; owner runs it).
 
 **Immediate next work: V-series visual redesign (approved 2026-08-31).** Roadmap,
 each an independently deployable, owner-reviewed commit:
@@ -815,11 +816,16 @@ each an independently deployable, owner-reviewed commit:
   multiple), **delete**, **reorder** (◀ ▶ per card -> PUT order), and an **editable
   visual note** (textarea -> PUT visual-notes). Optimistic reorder reconciles on
   failure. The reference library UI is complete.
-- **V4 (NEXT)** — rewrite `phases/phase4_visual.py`: for an approved package, load its
-  solution's references + `visual_notes` + brand identity + copy, call OpenAI
-  `gpt-image-1` **edits** (multi-reference) and return **N candidate drafts (default
-  2)**. Extend `integrations/image_gen.py` with an edits path. Owner runs the live
-  call (needs the image key). Storage of candidates + the Stage-4 UI gallery is V5.
+- **V4a DONE** — `content_packages.solution` column (migration **0011**, guarded,
+  reuses `solutionenum`, indexed) so a post knows its solution; copy phase
+  (`phase3_copy._build_package`) now persists `entry['solution']` via `_to_solution`.
+  Legacy packages have NULL solution (V4b falls back). No key needed.
+- **V4b (NEXT)** — rewrite `phases/phase4_visual.py` + extend `integrations/image_gen.py`
+  with a `gpt-image-1` **edits** (multi-reference) path: for an approved package, load
+  its solution's references + `visual_notes` + brand identity + copy, produce **N
+  candidate drafts (default 2)**; fall back to text-only generation when a solution has
+  no references. Owner runs the live call (needs the image key). Candidate storage +
+  the Stage-4 gallery UI is V5.
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).

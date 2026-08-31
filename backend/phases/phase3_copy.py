@@ -33,6 +33,7 @@ from models.db_models import (
     ContentTypeEnum,
     PhaseEnum,
     PlatformEnum,
+    SolutionEnum,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,14 @@ def _to_content_type(value: Optional[str]) -> ContentTypeEnum:
         return ContentTypeEnum(str(value).lower())
     except (ValueError, AttributeError):
         return ContentTypeEnum.STATIC
+
+
+def _to_solution(value: Optional[str]) -> Optional[SolutionEnum]:
+    """Coerce a calendar entry's solution string to the enum; None if unknown."""
+    try:
+        return SolutionEnum(str(value).lower())
+    except (ValueError, AttributeError):
+        return None
 
 
 def _parse_date(value: Optional[str]) -> Optional[datetime]:
@@ -389,6 +398,7 @@ class Phase3Copy:
             brand_id=brand_id,
             platform=_to_platform(entry.get("platform")),
             content_type=_to_content_type(entry.get("content_type")),
+            solution=_to_solution(entry.get("solution")),
             status=ContentStatusEnum.DRAFT,
             scheduled_at=_parse_date(entry.get("date")),
             trend_signal=entry.get("rationale"),
