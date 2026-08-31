@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **Phase U / U4a** (UI rebuild: Settings page + brand-detail chrome). Frontend-only; backend/API untouched.
+Last updated: 2026-08-31 — **Phase U / U4b** (UI rebuild: brand-detail sections unified). Frontend-only; backend/API untouched.
 
 ---
 
@@ -104,7 +104,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation | IN PROGRESS (D1 backend + D4 UI done via U3b; D2 overlay / D3 Drive next) |
-| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1 shell + U2 primitives + U3 pipeline + U4a settings/chrome done; U4b brand sections next)** |
+| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1–U4 done: shell, primitives, full pipeline, brand+settings; U5 polish next)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
 
@@ -550,6 +550,24 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   the new design. The current Visual stage (U3b) still works against D1 (raw scene) as
   a placeholder. Ping the owner once the UI rebuild (U4/U5) is done so they can explain
   the new visual approach.
+
+- **2026-08-31 (U4b) — Brand-detail sections unified with the Studio system:** the
+  five brand-detail tabs (identity / voice / solutions / providers / sources) + the
+  competitors CRUD are heavily form-driven (~1200 lines of stable TSX using
+  high-frequency `.sf-*` classes: `sf-input` ×45, `sf-label` ×38, `sf-field` ×38,
+  `sf-btn`, `sf-section`, `sf-info`, `sf-textarea`…). Rather than rewrite that TSX,
+  U4b appends a **"STUDIO BRIDGE" CSS block** to `globals.css` that redefines those
+  `.sf-*` form/section classes to match the Studio primitives exactly (sf-section →
+  Card, sf-input/sf-textarea → the ui-input shape + focus ring, sf-btn/sf-btn-accent →
+  ghost/primary buttons, sf-label/sf-field/sf-row, sf-badge tones, sf-info/sf-error
+  callouts, plus light polish on the provider table / competitor / distribution /
+  swatch blocks). Appended last so it wins over the originals. Result: all five tabs
+  read as one system with **zero TSX change and near-zero risk**; the pipeline
+  `StageLog`'s `.sf-log*` classes are deliberately left untouched. Verified `tsc
+  --noEmit` clean (no TSX changed). Frontend-only, no backend/migration. **Phase U4
+  (brand + settings) complete.** Next: **U5** polish (empty/loading states, focus,
+  responsive, micro-interactions) — then the UI rebuild is done and the owner will
+  describe the new visual-generation architecture (see the on-hold note above).
 
 ## 8. Known Issues / Tech Debt
 
