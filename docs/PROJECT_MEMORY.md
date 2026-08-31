@@ -7,6 +7,51 @@ Last updated: 2026-08-31 — **RV5** (solutions/competitors nested tabs). Owner 
 
 ---
 
+## 0. Working Agreement & Collaboration Rules (READ FIRST)
+
+**Language.** Converse with the owner (Resul) in **Turkish**. ALL development output
+— code, comments, README, this PROJECT_MEMORY.md, commit messages, and UI strings —
+is **native American English**. Content exception: **Evatro** generated content is
+Turkish; **FieldPie** generated content is English.
+
+**Cadence & approval.** Every step advances **only with the owner's approval**; do
+not jump to the next phase/step unattended. Break big work into **small,
+independently deployable sub-steps** (e.g. D2a/D2b, RV2a/RV2b). Explain steps simply
+and always end with a separate **"Senin yapman gerekenler"** heading listing the
+owner's actions step by step.
+
+**End of every step.** Edit the files, update this PROJECT_MEMORY.md, and hand the
+owner **ONE copyable commit** (native American English message). The **owner does all
+commit/push** — Claude must **NOT run git** (no git via device_bash); Claude only
+edits files.
+
+**Editing.** Work in place via `device_bash` (repo mounted under `$HOME/mnt/socialforge-ai`).
+Use anchored Python read-modify-write for edits; write new files via heredoc. Prefer
+targeted commands (a broad `find` is slow on the device).
+
+**Verification (Claude runs these).** Backend: `python -m py_compile <files>`.
+Frontend: `./node_modules/.bin/tsc --noEmit` from `frontend/` (the direct binary, NOT
+npx; it can take ~45s on the device). Anything needing live keys/DB (AI calls, image
+generation, migrations against the live DB, seeds) is run by the **owner** — say so
+explicitly.
+
+**Locked decisions.**
+1. API keys come from the **in-app Settings page** (`app_settings`, Fernet-encrypted),
+   never from code or env.
+2. Image provider was OpenAI `gpt-image-1`, **but the whole visual-generation step is
+   being redesigned by the owner** — do **NOT** build the old D2 (Pillow overlay) or D3
+   (Drive); wait for the owner's new architecture spec.
+3. Auth: admin panel HTTP Basic; frontend `/api` proxy is same-origin; Railway backend
+   `replicas=1` (in-memory job/status state depends on this).
+4. **Human-in-the-loop is non-negotiable**: the system drafts; a human approves at the
+   checkpoints (research / calendar / copy / visual). No fully autonomous publishing.
+
+**Infra.** Live on Railway: `SocialForge-Backend` (root `backend`), `SocialForge-Front`
+(root `frontend`), managed `Postgres`. Alembic **migration head = 0009**; deploy runs
+`alembic upgrade head` automatically. Repo is private.
+
+---
+
 ## 1. Mission
 
 Automate 70–80% of the social content chain for two brands — **FieldPie** (US /
@@ -724,32 +769,31 @@ pillars).
 
 ## 10. How to Resume
 
-Phase B is committed. **Apply it after pulling** (Resul, on Windows, DB reachable):
-`alembic upgrade head` (applies `0002`), then `python -m scripts.seed_brands`
-(idempotent — safe to re-run). Verify with `GET /api/v1/brands` and
-`GET /api/v1/brands/{id}/solutions`.
+**Where we are (2026-08-31).** The full app is live and working end to end:
+research -> calendar -> copy -> (raw) visual, with human approval at each gate.
+The **Studio UI rebuild (Phase U, U1-U5) is complete** and the owner's post-rebuild
+**review round (RV1-RV5, items #1-#8) is complete** — see the decision log for each.
+Alembic head is **0009** (auto-applied on deploy).
 
-Phase C is complete. Now in **Phase R (Research Depth)**: R1 shipped — pluggable
-web search, in-app Settings page for keys, per-brand Sources tab, and auditable
-source links in the report. **To use R1 live:** deploy (migrations 0004/0005 run
-automatically), then Settings -> pick `search_provider` (serper recommended; Brave
-is paid now) + paste its key; optionally set brand keywords under the Sources tab;
-run research to see real source links. **R2a shipped** (backend): the calendar is
-now solution-aware with a deterministic per-solution quota and AI woven in as a
-cross-cutting `ai_angle`; FieldPie's target is 30/mo. To apply R2a live: deploy
-(no migration), then re-seed or PATCH FieldPie so `monthly_post_target=30`, and run
-the pipeline to see solution/ai_angle on each calendar entry. After R2a, live demo feedback reprioritized the work into an approved
-**Editability & Solution-First roadmap (see section 11)**: E0 (calendar fix) is
-DONE; next is **E1** (make Identity/Voice fully editable). R2b (calendar review UI)
-is now folded in as **E5**, after the editability + solution work. Phase D (visuals
-+ Google Drive) still follows.
+**Immediate next work: visual generation — NEW architecture (owner-driven).** The
+owner has a different design for the whole visual-generation step and will describe
+it. **Do NOT build the old D2 (Pillow pill/logo/headline overlay) or D3 (Google
+Drive).** The current Stage-4 Visual UI works against D1 (OpenAI raw scene) as a
+placeholder. When the owner gives the spec: first do a gap analysis + a sub-stepped
+plan (no code yet), get approval, then build.
 
-To exercise the pipeline in the live app: open a brand, set a Research (and
-Calendar, Copy) AI provider under AI providers, then use 'Content pipeline' to run
-and approve each stage. Live brands' `research_sources` is null until re-seeded,
-but Phase 1 falls back to language-based default feeds, so research runs anyway.
+**Other open items (not started):**
+- Copy-run hardening: the copy poll window (~6 min) can end before a 30-post batch
+  finishes; surface "N generated / M failed" and let a partial run resume.
+- Research depth R3 (competitor discovery) + R4 (Apify social monitoring, optional/paid).
+- Phase E — assisted Schedule / Publish / Metrics (APScheduler already a dep; NOT autonomous).
+- No automated tests yet (pytest from here on).
 
----
+**To verify locally:** backend `python -m py_compile`, frontend `./node_modules/.bin/tsc
+--noEmit`. To exercise live: open a brand, set its Research/Calendar/Copy AI providers
+under AI Providers, set the search + image keys on Settings, then run the pipeline and
+approve each stage.
+
 
 ## 11. Editability & Solution-First Roadmap (approved 2026-08-27)
 
