@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **Phase U / U1** (UI rebuild: Studio design system + app shell). Frontend-only; backend/API untouched.
+Last updated: 2026-08-31 — **Phase U / U2** (UI rebuild: reusable primitives + Brands page). Frontend-only; backend/API untouched.
 
 ---
 
@@ -104,7 +104,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation | IN PROGRESS (D1 backend done; D2 overlay / D3 Drive / D4 UI next) |
-| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1 done: tokens+shell)** |
+| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1 shell + U2 primitives/Brands done)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
 
@@ -468,6 +468,22 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   dark-mode contrast quirks (a few hardcoded companion colors in `.sf-*`) until
   each page's U-step. Next: **U2** (primitives: Button/Card/Tabs/Chip/Stat/Stepper,
   applied to the Brands home page).
+
+- **2026-08-31 (U2) — Studio primitives + Brands page rebuilt:** added a small
+  reusable component library under **`src/components/ui/`** (barrel `index.ts`):
+  `Button` (primary/ghost/subtle/danger, sm/md), `Card` + `CardHead/CardBody/CardFoot`,
+  `Badge` (ok/warn/bad/accent/muted), `SolutionChip` (data-sol colored), `Stat`+`Stats`,
+  `Field`+`Input`, `PageHeader`, `EmptyState`. All are thin wrappers over new **`.ui-*`
+  CSS** appended to `globals.css` (token-driven, so they follow theme + brand accent).
+  Rebuilt the **Brands home page** (`app/page.tsx`) on these primitives: a `PageHeader`,
+  a small summary stat strip (brands / active / combined monthly target), the create
+  form using `Field`/`Input`, and brand `Card`s with a footer `Badge` + Open link.
+  Functionality is unchanged (list / create / loading / error / empty). **Tabs and
+  Stepper were intentionally deferred to U3**, where the pipeline is their real
+  consumer (no speculative components). Verified `tsc --noEmit` clean. Frontend-only,
+  no backend/migration. Next: **U3** — rebuild the pipeline page (`/brands/[id]/pipeline`)
+  on the primitives, adding Tabs + Stepper; likely split U3a (research + calendar) /
+  U3b (copy + visual).
 
 ## 8. Known Issues / Tech Debt
 

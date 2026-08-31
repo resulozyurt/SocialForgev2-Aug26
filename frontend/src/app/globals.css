@@ -1043,3 +1043,100 @@ html, body {
   .sfx-content{ padding:18px 14px 48px; }
 }
 @media (prefers-reduced-motion:reduce){ .sfx-navitem, .sfx-tbtn, .sfx-brandtab{ transition:none; } }
+
+
+/* ==========================================================================
+   STUDIO PRIMITIVES (U2) — reusable .ui-* components (Button, Card, Badge,
+   SolutionChip, Stat, Field, PageHeader, EmptyState). Token-driven, so they
+   follow the active theme + brand accent. Consumed by React components in
+   src/components/ui/.
+   ========================================================================== */
+
+/* ---- page header ---- */
+.ui-pagehead{ display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:22px; }
+.ui-pagehead .grow{ min-width:0; }
+.ui-eyebrow{ margin:0 0 6px; font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--accent); }
+:root[data-theme="dark"] .ui-eyebrow, :root:not([data-theme="light"]) .ui-eyebrow{ color:var(--accent-2); }
+.ui-title{ margin:0; font-family:var(--font-display),sans-serif; font-weight:800; font-size:26px; letter-spacing:-.025em; color:var(--text); }
+.ui-subtitle{ margin:6px 0 0; color:var(--muted); font-size:14px; max-width:64ch; line-height:1.55; }
+.ui-actions{ margin-left:auto; display:flex; gap:10px; flex-wrap:wrap; }
+
+/* ---- button ---- */
+.ui-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  height:38px; padding:0 16px; border-radius:10px; font-family:inherit;
+  font-weight:600; font-size:13.5px; border:1px solid transparent; transition:.14s;
+  white-space:nowrap; cursor:pointer; text-decoration:none;
+}
+.ui-btn svg{ width:16px; height:16px; }
+.ui-btn:disabled{ opacity:.55; cursor:not-allowed; }
+.ui-btn-sm{ height:32px; padding:0 12px; font-size:12.5px; border-radius:9px; }
+.ui-btn-primary{ background:var(--accent); color:var(--accent-ink); box-shadow:0 6px 16px -8px var(--ring); }
+.ui-btn-primary:not(:disabled):hover{ filter:brightness(1.06); transform:translateY(-1px); }
+.ui-btn-ghost{ background:var(--surface); border-color:var(--border-strong); color:var(--text-2); }
+.ui-btn-ghost:not(:disabled):hover{ border-color:var(--accent); color:var(--text); }
+.ui-btn-subtle{ background:var(--surface-2); color:var(--text-2); }
+.ui-btn-subtle:not(:disabled):hover{ background:var(--surface-3); color:var(--text); }
+.ui-btn-danger{ background:var(--surface); border-color:var(--border-strong); color:var(--bad); }
+.ui-btn-danger:not(:disabled):hover{ border-color:var(--bad); background:var(--bad-soft); }
+
+/* ---- card ---- */
+.ui-card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); }
+.ui-card-pad{ padding:18px 20px; }
+.ui-card.interactive{ transition:.15s; }
+.ui-card.interactive:hover{ box-shadow:var(--shadow-lg); transform:translateY(-2px); border-color:var(--border-strong); }
+.ui-card-head{ display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--border); }
+.ui-card-head h3{ margin:0; font-family:var(--font-display),sans-serif; font-size:16px; font-weight:700; color:var(--text); }
+.ui-card-head .sub{ font-size:12.5px; color:var(--muted); }
+.ui-card-body{ padding:20px; }
+.ui-card-foot{ display:flex; align-items:center; gap:10px; padding:14px 20px; border-top:1px solid var(--border); background:var(--surface-2); border-radius:0 0 var(--radius) var(--radius); }
+
+/* ---- badge ---- */
+.ui-badge{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:2px 9px; border-radius:20px; background:var(--surface-2); color:var(--text-2); border:1px solid var(--border); }
+.ui-badge::before{ content:""; width:7px; height:7px; border-radius:50%; background:currentColor; opacity:.8; }
+.ui-badge.plain::before{ display:none; }
+.ui-badge-ok{ background:var(--ok-soft); color:var(--ok); border-color:color-mix(in srgb,var(--ok) 25%,transparent); }
+.ui-badge-warn{ background:var(--warn-soft); color:var(--warn); border-color:color-mix(in srgb,var(--warn) 25%,transparent); }
+.ui-badge-bad{ background:var(--bad-soft); color:var(--bad); border-color:color-mix(in srgb,var(--bad) 25%,transparent); }
+.ui-badge-accent{ background:var(--accent-weak); color:var(--accent); border-color:color-mix(in srgb,var(--accent) 25%,transparent); }
+:root[data-theme="dark"] .ui-badge-accent, :root:not([data-theme="light"]) .ui-badge-accent{ color:var(--accent-2); }
+.ui-badge-muted{ color:var(--muted); }
+
+/* ---- solution chip ---- */
+.ui-chip{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:2px 9px 2px 8px; border-radius:20px; background:var(--surface-2); color:var(--text-2); white-space:nowrap; }
+.ui-chip::before{ content:""; width:8px; height:8px; border-radius:50%; background:var(--sc,var(--sol-general)); }
+.ui-chip[data-sol="merchandising"]{ --sc:var(--sol-merch); }
+.ui-chip[data-sol="field_audit"]{ --sc:var(--sol-audit); }
+.ui-chip[data-sol="field_sales"]{ --sc:var(--sol-sales); }
+.ui-chip[data-sol="home_service"]{ --sc:var(--sol-home); }
+.ui-chip[data-sol="ai"]{ --sc:var(--sol-ai); }
+.ui-chip[data-sol="general"]{ --sc:var(--sol-general); }
+
+/* ---- stat ---- */
+.ui-stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; }
+.ui-stat{ position:relative; overflow:hidden; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow); }
+.ui-stat .lbl{ font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; }
+.ui-stat .val{ font-family:var(--font-display),sans-serif; font-weight:800; font-size:28px; letter-spacing:-.03em; margin-top:6px; color:var(--text); line-height:1.1; font-variant-numeric:tabular-nums; display:flex; align-items:baseline; gap:8px; }
+.ui-stat .val small{ font-size:12px; font-weight:600; color:var(--ok); }
+.ui-stat .note{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+
+/* ---- field / input ---- */
+.ui-row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:560px){ .ui-row{ grid-template-columns:1fr; } }
+.ui-field{ display:flex; flex-direction:column; gap:6px; }
+.ui-label{ font-size:12px; font-weight:600; color:var(--text-2); letter-spacing:.01em; }
+.ui-input{
+  height:38px; padding:0 12px; border:1px solid var(--border-strong); border-radius:10px;
+  background:var(--surface); color:var(--text); font-family:inherit; font-size:13.5px; transition:.13s; width:100%;
+}
+.ui-input::placeholder{ color:var(--muted); opacity:.75; }
+.ui-input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+
+/* ---- misc ---- */
+.ui-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+.ui-empty{ border:1px dashed var(--border-strong); border-radius:var(--radius); padding:40px 24px; text-align:center; color:var(--muted); background:var(--surface); }
+.ui-empty h4{ margin:0 0 6px; font-family:var(--font-display),sans-serif; font-size:16px; color:var(--text); font-weight:700; }
+.ui-error{ border:1px solid color-mix(in srgb,var(--bad) 30%,transparent); background:var(--bad-soft); color:var(--bad); border-radius:var(--radius-sm); padding:11px 14px; font-size:13px; margin-bottom:16px; }
+.ui-note{ color:var(--muted); font-size:13.5px; }
+.ui-form{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:22px; display:flex; flex-direction:column; gap:16px; }
+.ui-form-actions{ display:flex; gap:10px; }
