@@ -885,6 +885,35 @@ export default function PipelinePage() {
       setVisualMsg((m) => ({ ...m, [pkgId]: msg(e) }));
     }
   }
+  async function selectCandidate(pkgId: string, candidateId: string) {
+    // Optimistic: reflect the selection immediately, then persist.
+    setVisuals((prev) => {
+      const v = prev[pkgId];
+      if (!v) return prev;
+      const chosen = (v.candidates ?? []).find((c) => c.id === candidateId);
+      return {
+        ...prev,
+        [pkgId]: { ...v, selected_id: candidateId, image: chosen?.image ?? v.image },
+      };
+    });
+    try {
+      await api.selectVisualCandidate(pkgId, candidateId);
+    } catch (e) {
+      setVisualMsg((m) => ({ ...m, [pkgId]: msg(e) }));
+      const v = await api.getVisual(pkgId).catch(() => null);
+      if (v) setVisuals((prev) => ({ ...prev, [pkgId]: v }));
+    }
+  }
+  function downloadVisual(pkgId: string) {
+    const v = visuals[pkgId];
+    if (!v?.image) return;
+    const a = document.createElement("a");
+    a.href = v.image;
+    a.download = `${pkgId}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
 
 
   return (
@@ -1430,13 +1459,13 @@ export default function PipelinePage() {
               <span className="ui-stage-num">4</span>Visual — branded image
             </>
           }
-          right={<span className="ui-item-meta">Approval 3 · OpenAI + brand overlay</span>}
+          right={<span className="ui-item-meta">Approval 3 · reference-based generation</span>}
         />
         <CardBody>
           <p className="ui-note" style={{ marginTop: -4, marginBottom: 12 }}>
-            Generate a branded visual for each approved post, then approve the copy + visual together
-            (Approval 3). Set the image provider + key on the Settings page first. The pill, logo and exact
-            headline are composited by us (Phase D2) — until then the model returns a clean scene.
+            Generate on-brand candidates for each approved post from that solution&apos;s reference
+            library, pick the best one, then approve the copy + visual together (Approval 3). Set the
+            image provider + key on the Settings page, and upload references on each solution&apos;s page.
           </p>
           {approvedPackages.length === 0 ? (
             <EmptyState title="No approved posts yet">
@@ -1462,6 +1491,58 @@ export default function PipelinePage() {
                       )}
                       {status ? <span className="ui-canvas-badge">{status}</span> : null}
                     </div>
+                    {v?.candidates && v.candidates.length > 1 ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          flexWrap: "wrap",
+                          marginTop: 8,
+                        }}
+                      >
+                        {v.candidates.map((c, ci) => {
+                          const sel = (v.selected_id ?? v.candidates?.[0]?.id) === c.id;
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              title={`Candidate ${ci + 1}`}
+                              onClick={() => selectCandidate(p.id, c.id)}
+                              style={{
+                                padding: 0,
+                                border: sel
+                                  ? "2px solid var(--sf-accent, #0ea5a4)"
+                                  : "2px solid transparent",
+                                borderRadius: 8,
+                                overflow: "hidden",
+                                cursor: "pointer",
+                                lineHeight: 0,
+                                background: "none",
+                              }}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={c.image}
+                                alt={`candidate ${ci + 1}`}
+                                style={{ width: 64, height: 64, objectFit: "cover", display: "block" }}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    {v?.image && v.used_references === false ? (
+                      <div className="ui-note" style={{ fontSize: 12, marginTop: 6 }}>
+                        No references for this solution — generated from text only. Upload references
+                        on the solution page for on-brand results.
+                      </div>
+                    ) : null}
+                    {v?.image && v.used_references ? (
+                      <div className="ui-note" style={{ fontSize: 12, marginTop: 6 }}>
+                        Generated from {v.reference_count ?? 0} reference image
+                        {(v.reference_count ?? 0) === 1 ? "" : "s"}.
+                      </div>
+                    ) : null}
                     <div className="cb">
                       <div className="ui-item-meta" style={{ fontWeight: 600 }}>
                         {p.post_id}
@@ -1489,6 +1570,11 @@ export default function PipelinePage() {
                       {v?.image && status !== "approved" && (
                         <Button size="sm" onClick={() => approveVisual(p.id)} disabled={busy}>
                           Approve
+                        </Button>
+                      )}
+                      {v?.image && (
+                        <Button size="sm" variant="subtle" onClick={() => downloadVisual(p.id)} disabled={busy}>
+                          Download
                         </Button>
                       )}
                       {v?.image && (

@@ -184,6 +184,11 @@ export const api = {
     request<unknown>(`/visuals/${packageId}/approve`, { method: "PATCH" }),
   rejectVisual: (packageId: string) =>
     request<unknown>(`/visuals/${packageId}/reject`, { method: "PATCH" }),
+  selectVisualCandidate: (packageId: string, candidateId: string) =>
+    request<{ message: string; selected_id: string }>(`/visuals/${packageId}/select`, {
+      method: "PATCH",
+      body: JSON.stringify({ candidate_id: candidateId }),
+    }),
 
   // Solution reference library (visual redesign V2/V3). The raw thumbnail URL is
   // proxy-relative (same-origin `/api` -> backend `/api/v1`), NOT the backend's

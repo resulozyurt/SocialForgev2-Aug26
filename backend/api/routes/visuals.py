@@ -34,9 +34,17 @@ class VisualResponse(BaseModel):
     package_id: str
     visual_status: Optional[str] = None
     image: Optional[str] = None
+    candidates: Optional[list[dict]] = None
+    selected_id: Optional[str] = None
+    used_references: Optional[bool] = None
+    reference_count: Optional[int] = None
     text_overlay: Optional[dict] = None
     provider: Optional[str] = None
     generated_at: Optional[str] = None
+
+
+class SelectCandidatePayload(BaseModel):
+    candidate_id: str
 
 
 async def _get_package(package_id: uuid.UUID, db: AsyncSession) -> ContentPackage:
@@ -95,6 +103,10 @@ async def get_visual(package_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
         package_id=str(package_id),
         visual_status=a.get("visual_status"),
         image=a.get("image"),
+        candidates=a.get("candidates"),
+        selected_id=a.get("selected_id"),
+        used_references=a.get("used_references"),
+        reference_count=a.get("reference_count"),
         text_overlay=a.get("text_overlay"),
         provider=a.get("provider"),
         generated_at=a.get("generated_at"),
@@ -105,6 +117,26 @@ def _set_visual_status(package: ContentPackage, value: str) -> None:
     assets = dict(package.asset_urls or {})
     assets["visual_status"] = value
     package.asset_urls = assets
+
+
+@router.patch("/visuals/{package_id}/select")
+async def select_candidate(
+    package_id: uuid.UUID,
+    payload: SelectCandidatePayload,
+    db: AsyncSession = Depends(get_db),
+):
+    """Pick which candidate is the chosen visual for this post. Sets `image` to the
+    selected candidate so approve/download act on it."""
+    package = await _get_package(package_id, db)
+    assets = dict(package.asset_urls or {})
+    candidates = assets.get("candidates") or []
+    match = next((c for c in candidates if c.get("id") == payload.candidate_id), None)
+    if not match:
+        raise HTTPException(status_code=404, detail="Candidate not found for this package.")
+    assets["selected_id"] = payload.candidate_id
+    assets["image"] = match.get("image")
+    package.asset_urls = assets
+    return {"message": "Candidate selected.", "package_id": str(package_id), "selected_id": payload.candidate_id}
 
 
 @router.patch("/visuals/{package_id}/approve")
