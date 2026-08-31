@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **V3a** (visual redesign: per-solution page + reference list UI; binary-safe proxy).
+Last updated: 2026-08-31 — **V3b** (visual redesign: reference upload/delete/reorder + editable visual note).
 
 ---
 
@@ -151,7 +151,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation (old design) | SUPERSEDED by V-series (D1 raw scene stays as placeholder; D2/D3 retired) |
-| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1 model+0010, V2 API, V3a UI done)** |
+| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1-V3 done; V4 generation next)** |
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
@@ -787,12 +787,13 @@ pillars).
 **Where we are (2026-08-31).** The full app is live end to end: research -> calendar
 -> copy -> (raw) visual, human approval at each gate. Studio UI rebuild (U1-U5) and
 the owner's review round (RV1-RV5, #1-#8) are complete. The **visual-generation
-redesign (V-series) has started**: **V1 + V2 + V3a done** — data model (migration
-**0010**), the reference-library API (`api/routes/references.py`), and the per-solution
-page UI (`brands/[id]/solutions/[solution]`) that lists references + shows the visual
-note, plus a **binary-safe `/api` proxy**. Verified via py_compile, a stubbed
-`configure_mappers()` check, a Pillow downscale unit check, and `tsc --noEmit` (clean).
-Alembic head is **0010** (auto-applied on deploy).
+redesign (V-series) has started**: **V1-V3 done** — data model (migration **0010**),
+the reference-library API (`api/routes/references.py`), and the complete per-solution
+reference UI (`brands/[id]/solutions/[solution]`): upload / delete / reorder + an
+editable visual note, over a **binary-safe `/api` proxy**. Verified via py_compile, a
+stubbed `configure_mappers()` check, a Pillow downscale unit check, and `tsc --noEmit`
+(clean). Alembic head is **0010** (auto-applied on deploy). **Next: V4** — the
+reference-conditioned `gpt-image-1` edits generation engine.
 
 **Immediate next work: V-series visual redesign (approved 2026-08-31).** Roadmap,
 each an independently deployable, owner-reviewed commit:
@@ -810,8 +811,15 @@ each an independently deployable, owner-reviewed commit:
   is proxy-relative). **Also made the `/api` proxy binary-safe** (forwards request +
   response bodies as bytes via arrayBuffer, not text) — required so image bytes and
   future multipart uploads pass through the same-origin proxy intact.
-- **V3b (NEXT)** — wire upload (multipart), delete, reorder, and the editable visual
-  note into the per-solution page.
+- **V3b DONE** — per-solution page is now interactive: multipart **upload** (image/*,
+  multiple), **delete**, **reorder** (◀ ▶ per card -> PUT order), and an **editable
+  visual note** (textarea -> PUT visual-notes). Optimistic reorder reconciles on
+  failure. The reference library UI is complete.
+- **V4 (NEXT)** — rewrite `phases/phase4_visual.py`: for an approved package, load its
+  solution's references + `visual_notes` + brand identity + copy, call OpenAI
+  `gpt-image-1` **edits** (multi-reference) and return **N candidate drafts (default
+  2)**. Extend `integrations/image_gen.py` with an edits path. Owner runs the live
+  call (needs the image key). Storage of candidates + the Stage-4 UI gallery is V5.
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).
