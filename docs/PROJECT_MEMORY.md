@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **B2** (month scoping: period selector filters Copy + Visual) + trend_signal shown on the post page.
+Last updated: 2026-08-31 — **HOTFIX 0012 migration id (>32 chars broke deploy)** + B2 month scoping + trend_signal.
 
 ---
 
@@ -737,6 +737,13 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   (see the on-hold note); do not build old D2/D3 until then.
 
 ## 8. Known Issues / Tech Debt
+
+- **Alembic revision ids MUST be <= 32 chars** — `alembic_version.version_num`
+  is VARCHAR(32). Migration 0012's id was `0012_content_package_calendar_link` (34
+  chars), which made the version UPDATE fail (StringDataRightTruncationError) and
+  rolled back the whole migration, so **deploys for B0a/B0b/B1 all failed** and live
+  stayed on A3. Fixed by shortening the id to `0012_pkg_calendar_link` (filename kept).
+  Keep every future revision id short (e.g. `0013_visual_generations`).
 
 - `json_repair` was used but missing from requirements — FIXED in Phase A.
 - Redis/APScheduler are declared but unused (intended for Phase 5).

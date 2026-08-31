@@ -1,6 +1,6 @@
 """content_packages.planning_period + calendar_id
 
-Revision ID: 0012_content_package_calendar_link
+Revision ID: 0012_pkg_calendar_link
 Revises: 0011_content_package_solution
 Create Date: 2026-08-31
 
@@ -15,7 +15,9 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision = "0012_content_package_calendar_link"
+# NOTE: revision id must be <= 32 chars (alembic_version.version_num is
+# VARCHAR(32)). The descriptive filename is fine; the id below is the short form.
+revision = "0012_pkg_calendar_link"
 down_revision = "0011_content_package_solution"
 branch_labels = None
 depends_on = None
