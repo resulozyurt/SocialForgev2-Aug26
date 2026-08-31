@@ -16,7 +16,7 @@ import type {
   ProviderTestResult,
   SolutionKey,
 } from "@/lib/types";
-import { PageHeader, Tabs, Badge } from "@/components/ui";
+import { PageHeader, Tabs, Badge, Loading } from "@/components/ui";
 
 const TABS = ["identity", "voice", "solutions", "providers", "sources"] as const;
 type Tab = (typeof TABS)[number];
@@ -510,7 +510,7 @@ export default function BrandDetailPage() {
     }
   }
 
-  if (loading) return <p className="sf-note">Loading brand…</p>;
+  if (loading) return <Loading label="Loading brand…" />;
   if (error && !brand) return <div className="sf-error">{error}</div>;
   if (!brand) return <div className="sf-error">Brand not found.</div>;
 

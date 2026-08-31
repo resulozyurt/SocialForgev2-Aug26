@@ -1333,3 +1333,38 @@ button.ui-step:hover{ background:var(--surface-2); }
 .sf-comp-group{ margin-bottom:14px; }
 .sf-comp-grouptitle{ font-family:var(--font-display),sans-serif; font-weight:700; font-size:13px; color:var(--text); margin:0 0 8px; }
 .sf-swatch-chip, .sf-swatch{ border-radius:6px; border:1px solid var(--border); }
+
+
+/* ==========================================================================
+   STUDIO POLISH (U5) — spinner/loading, focus-visible a11y, smooth scroll,
+   custom scrollbars, details reveal, reduced-motion. System-wide finish.
+   ========================================================================== */
+html{ scroll-behavior:smooth; }
+
+.ui-spinner{ display:inline-block; border:2.5px solid var(--surface-3); border-top-color:var(--accent); border-radius:50%; animation:ui-spin .7s linear infinite; flex:0 0 auto; }
+@keyframes ui-spin{ to{ transform:rotate(360deg); } }
+.ui-loading{ display:flex; align-items:center; justify-content:center; gap:12px; padding:56px 20px; color:var(--muted); font-size:14px; font-weight:500; }
+
+::selection{ background:color-mix(in srgb, var(--accent) 26%, transparent); }
+
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+textarea:focus-visible, [tabindex]:focus-visible, .ui-tab:focus-visible,
+.ui-step:focus-visible, summary:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px; border-radius:8px;
+}
+
+* { scrollbar-width:thin; scrollbar-color:var(--border-strong) transparent; }
+::-webkit-scrollbar{ width:11px; height:11px; }
+::-webkit-scrollbar-thumb{ background:var(--border-strong); border-radius:20px; border:3px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover{ background:var(--muted); }
+::-webkit-scrollbar-track{ background:transparent; }
+
+.ui-details[open] > *:not(summary){ animation:ui-reveal .18s ease; }
+@keyframes ui-reveal{ from{ opacity:0; transform:translateY(-4px); } to{ opacity:1; transform:none; } }
+
+.sfx-navitem.active svg{ color:var(--accent); opacity:1; }
+
+@media (prefers-reduced-motion:reduce){
+  html{ scroll-behavior:auto; }
+  *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+}

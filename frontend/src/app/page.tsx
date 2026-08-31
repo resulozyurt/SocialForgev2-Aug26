@@ -15,6 +15,7 @@ import {
   Input,
   PageHeader,
   EmptyState,
+  Loading,
 } from "@/components/ui";
 
 const EMPTY_FORM: BrandCreate = {
@@ -162,7 +163,7 @@ export default function BrandsPage() {
       )}
 
       {loading ? (
-        <p className="ui-note">Loading brands…</p>
+        <Loading label="Loading brands…" />
       ) : brands.length === 0 ? (
         <EmptyState title="No brands yet">
           Create your first brand to start a content pipeline.

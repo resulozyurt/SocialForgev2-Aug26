@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { AppSetting } from "@/lib/types";
-import { PageHeader, Card, Badge, Button, Input } from "@/components/ui";
+import { PageHeader, Card, Badge, Button, Input, Loading } from "@/components/ui";
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong.");
 
@@ -50,7 +50,7 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) return <p className="ui-note">Loading settings…</p>;
+  if (loading) return <Loading label="Loading settings…" />;
 
   return (
     <div>

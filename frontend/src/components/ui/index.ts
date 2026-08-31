@@ -11,3 +11,4 @@ export { Tabs } from "./Tabs";
 export type { TabItem } from "./Tabs";
 export { Stepper } from "./Stepper";
 export type { StepItem, StepState } from "./Stepper";
+export { Spinner, Loading } from "./Spinner";

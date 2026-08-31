@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **Phase U / U4b** (UI rebuild: brand-detail sections unified). Frontend-only; backend/API untouched.
+Last updated: 2026-08-31 — **Phase U COMPLETE** (UI rebuild done: U1–U5). Awaiting the owner's new visual-generation architecture before resuming Phase D.
 
 ---
 
@@ -104,7 +104,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation | IN PROGRESS (D1 backend + D4 UI done via U3b; D2 overlay / D3 Drive next) |
-| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1–U4 done: shell, primitives, full pipeline, brand+settings; U5 polish next)** |
+| U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
 
@@ -568,6 +568,19 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   (brand + settings) complete.** Next: **U5** polish (empty/loading states, focus,
   responsive, micro-interactions) — then the UI rebuild is done and the owner will
   describe the new visual-generation architecture (see the on-hold note above).
+
+- **2026-08-31 (U5) — Polish pass; Phase U (UI rebuild) COMPLETE:** added a
+  `Spinner` + `Loading` primitive and wired it into the three loading states
+  (Brands, Settings, brand detail). Added a system-wide "STUDIO POLISH" CSS block:
+  keyboard `:focus-visible` rings on all interactive elements, smooth scroll (for the
+  stepper jumps), accent `::selection`, custom thin scrollbars, a subtle reveal
+  animation on open `<details>`, active-nav icon accent, and a global
+  `prefers-reduced-motion` guard. Verified `tsc --noEmit` clean. Frontend-only, no
+  backend/migration. **The Studio UI rebuild is done end to end** — app shell +
+  primitives + full pipeline (research/calendar/copy/visual) + brands + brand detail
+  + settings, all light/dark + per-brand accent. **Next up is the visual-generation
+  step, which the owner is redesigning from scratch (see the on-hold note) — wait for
+  that spec before writing any Phase D visual code.**
 
 ## 8. Known Issues / Tech Debt
 
