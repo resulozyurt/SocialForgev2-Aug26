@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-28 — **Phase D / D1** (branded visual generation, backend). Pipeline 404 + report/calendar UX (F1–G2) done.
+Last updated: 2026-08-31 — **Phase U / U1** (UI rebuild: Studio design system + app shell). Frontend-only; backend/API untouched.
 
 ---
 
@@ -104,6 +104,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation | IN PROGRESS (D1 backend done; D2 overlay / D3 Drive / D4 UI next) |
+| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1 done: tokens+shell)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
 
@@ -440,6 +441,33 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   BACKEND_URL overridable). Idempotent — PATCH + upsert, adds only missing competitors.
 
 ---
+
+- **2026-08-31 (U1) — Studio design system + app shell (UI rebuild, part 1):** the
+  old admin UI was the AI-default cream/terracotta + serif look and the manager
+  disliked it. After an approved interactive mockup, we picked the **"Studio"**
+  direction (clean modern SaaS, airy, per-brand accent: FieldPie teal / Evatro
+  red). U1 is **frontend-only, backend/API untouched.** `globals.css` `:root` was
+  rewritten to the Studio palette **keeping the old token names** (`--paper`,
+  `--surface`, `--ink`, `--muted`, `--line`, `--accent`, `--accent-soft`, `--ok`
+  …) so **every existing `.sf-*` page re-skins automatically** — plus new tokens
+  (`--text-2`, `--border-strong`, `--accent-2`, `--ring`, semantic warn/bad/info,
+  six `--sol-*` solution hues, `--radius-*`, `--shadow-lg`). Fonts switched via
+  next/font from Fraunces/Hanken to **Plus Jakarta Sans (display) + Inter (body) +
+  JetBrains Mono**, which de-serifs all headings instantly. Dark theme + per-brand
+  accent are appended at the end of `globals.css` (they remap the same token
+  names, so old pages get dark mode for free), guarded so an explicit
+  `data-theme="light"` beats a dark OS. New **`components/AppShell.tsx`** (client)
+  replaces the old top-header `layout.tsx`: left **sidebar** (logo, brand-accent
+  switcher, Workspace/Configure nav with a contextual Pipeline link + "soon" items,
+  admin footer) + **topbar** (breadcrumb, brand chip, light/dark toggle). Theme +
+  brand persist in `localStorage` (`sf-theme` / `sf-brand`); a no-flash inline
+  script in `layout.tsx` applies them before first paint. All existing pages render
+  unchanged inside the new shell. Verified `tsc --noEmit` clean. **Note:** the
+  brand switcher only re-themes the accent for now (does not navigate); it will be
+  wired to real brand context in U3. Not-yet-rebuilt page internals may show minor
+  dark-mode contrast quirks (a few hardcoded companion colors in `.sf-*`) until
+  each page's U-step. Next: **U2** (primitives: Button/Card/Tabs/Chip/Stat/Stepper,
+  applied to the Brands home page).
 
 ## 8. Known Issues / Tech Debt
 

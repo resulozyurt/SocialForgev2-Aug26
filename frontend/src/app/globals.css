@@ -8,19 +8,47 @@
 */
 
 :root {
-  --paper:       #F4F1E9;
-  --surface:     #FCFAF5;
-  --surface-2:   #F0EBDD;
-  --ink:         #1C1A17;
-  --muted:       #797266;
-  --line:        #E2DBCB;
-  --accent:      #C2410C;
-  --accent-ink:  #FFFFFF;
-  --accent-soft: #FBE9DF;
-  --ok:          #4D7C0F;
-  --ok-soft:     #EDF3DE;
-  --radius:      10px;
-  --shadow:      0 1px 2px rgba(28, 26, 23, 0.04), 0 8px 24px rgba(28, 26, 23, 0.05);
+  /* SocialForge "Studio" design system (U1). Token names kept from the old
+     system so every existing .sf-* component re-skins automatically; new tokens
+     added for the app shell + future primitives. Light palette below; dark +
+     per-brand accent overrides live at the end of this file. */
+  --paper:        #f6f7f9;
+  --bg:           #f6f7f9;
+  --surface:      #ffffff;
+  --surface-2:    #f1f3f6;
+  --surface-3:    #e9edf2;
+  --ink:          #0d141c;
+  --text:         #0d141c;
+  --text-2:       #3d4753;
+  --muted:        #697586;
+  --line:         #e2e6ec;
+  --border:       #e2e6ec;
+  --border-strong:#d3d9e2;
+  --accent:       #0d9488;
+  --accent-2:     #0ea5a4;
+  --accent-ink:   #ffffff;
+  --accent-soft:  #d7f2ef;
+  --accent-weak:  #d7f2ef;
+  --ring:         rgba(13,148,136,.34);
+  --ok:           #16a34a;
+  --ok-soft:      #e7f6ec;
+  --warn:         #c2790b;
+  --warn-soft:    #fbf1dd;
+  --bad:          #dc2626;
+  --bad-soft:     #fbe9e9;
+  --info:         #2563eb;
+  --info-soft:    #e8effc;
+  --sol-merch:    #7c3aed;
+  --sol-audit:    #0891b2;
+  --sol-sales:    #d97706;
+  --sol-home:     #db2777;
+  --sol-ai:       #2563eb;
+  --sol-general:  #64748b;
+  --radius:       12px;
+  --radius-sm:    9px;
+  --radius-lg:    18px;
+  --shadow:       0 1px 2px rgba(13,20,28,.05), 0 1px 3px rgba(13,20,28,.06);
+  --shadow-lg:    0 10px 30px -12px rgba(13,20,28,.16);
 }
 
 * { box-sizing: border-box; }
@@ -884,3 +912,134 @@ html, body {
   padding: 8px 12px 10px;
 }
 .sf-stagelog .sf-log { max-height: 220px; overflow-y: auto; }
+
+
+/* ==========================================================================
+   STUDIO SHELL (U1) — per-brand accent, dark theme, and the app shell.
+   Kept at the end so these override the base :root tokens above. The dark
+   block remaps the SAME token names, so existing .sf-* pages get dark mode
+   and brand accents for free until each page is rebuilt in later U-steps.
+   ========================================================================== */
+
+/* ---- per-brand accent (works on both light & dark grounds) ---- */
+:root[data-brand="fieldpie"]{ --accent:#0d9488; --accent-2:#0ea5a4; --accent-soft:#d7f2ef; --accent-weak:#d7f2ef; --ring:rgba(13,148,136,.34); }
+:root[data-brand="evatro"]  { --accent:#e11d48; --accent-2:#f43f5e; --accent-soft:#fbe1e7; --accent-weak:#fbe1e7; --ring:rgba(225,29,72,.32); }
+
+/* ---- dark theme: default = follow OS unless an explicit light choice ---- */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0b0f14; --bg:#0b0f14; --surface:#111820; --surface-2:#161f29; --surface-3:#1d2833;
+    --ink:#eef2f6; --text:#eef2f6; --text-2:#c0cad6; --muted:#8593a3;
+    --line:#233040; --border:#233040; --border-strong:#2d3c4d;
+    --accent-soft:#0d2d2b; --accent-weak:#0d2d2b;
+    --ok-soft:#0f2a1a; --warn-soft:#2a2110; --bad-soft:#2a1414; --info-soft:#111f38;
+    --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-lg:0 18px 40px -16px rgba(0,0,0,.6);
+  }
+  :root:not([data-theme="light"])[data-brand="evatro"]{ --accent-soft:#2c1119; --accent-weak:#2c1119; }
+}
+/* ---- explicit dark choice wins in both directions ---- */
+:root[data-theme="dark"]{
+  --paper:#0b0f14; --bg:#0b0f14; --surface:#111820; --surface-2:#161f29; --surface-3:#1d2833;
+  --ink:#eef2f6; --text:#eef2f6; --text-2:#c0cad6; --muted:#8593a3;
+  --line:#233040; --border:#233040; --border-strong:#2d3c4d;
+  --accent-soft:#0d2d2b; --accent-weak:#0d2d2b;
+  --ok-soft:#0f2a1a; --warn-soft:#2a2110; --bad-soft:#2a1414; --info-soft:#111f38;
+  --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-lg:0 18px 40px -16px rgba(0,0,0,.6);
+}
+:root[data-theme="dark"][data-brand="evatro"]{ --accent-soft:#2c1119; --accent-weak:#2c1119; }
+
+/* ---- app shell layout ---- */
+.sfx-app{ display:grid; grid-template-columns:248px 1fr; min-height:100vh; }
+.sfx-side{
+  background:var(--surface); color:var(--text-2); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; gap:4px; padding:16px 12px;
+  position:sticky; top:0; height:100vh;
+}
+.sfx-brandpick{ display:flex; align-items:center; gap:10px; padding:8px 10px 12px; }
+.sfx-logo{
+  width:34px; height:34px; border-radius:10px; flex:0 0 auto;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  display:grid; place-items:center; color:#fff;
+  font-family:var(--font-display),sans-serif; font-weight:800; font-size:18px;
+  box-shadow:0 4px 12px -4px var(--ring);
+}
+.sfx-wordmark{ font-family:var(--font-display),sans-serif; font-weight:800; font-size:16px; letter-spacing:-.02em; color:var(--text); line-height:1.1; }
+.sfx-wordmark small{ display:block; font-weight:500; font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); margin-top:2px; }
+
+.sfx-brandtabs{ display:flex; gap:6px; padding:0 8px 12px; }
+.sfx-brandtab{
+  flex:1; border:1px solid transparent; border-radius:9px; padding:7px 8px;
+  background:transparent; color:var(--text-2); font-family:inherit; font-size:12px; font-weight:600;
+  display:inline-flex; align-items:center; justify-content:center; gap:7px; opacity:.7; transition:.15s;
+}
+.sfx-brandtab .sfx-dot{ width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+.sfx-brandtab.fp .sfx-dot{ background:#0d9488; }
+.sfx-brandtab.ev .sfx-dot{ background:#e11d48; }
+.sfx-brandtab[aria-pressed="true"]{ opacity:1; background:var(--surface-2); border-color:var(--border); color:var(--text); }
+.sfx-brandtab:hover{ opacity:1; }
+
+.sfx-navsec{ font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); padding:14px 12px 6px; font-weight:700; }
+.sfx-nav{ display:flex; flex-direction:column; gap:2px; }
+.sfx-navitem{
+  display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:9px;
+  color:var(--text-2); text-decoration:none; font-weight:500; font-size:13.5px; transition:.13s; border:none; background:transparent; width:100%; text-align:left; font-family:inherit; cursor:pointer;
+}
+.sfx-navitem svg{ width:17px; height:17px; opacity:.85; flex:0 0 auto; }
+.sfx-navitem:hover{ background:var(--surface-2); color:var(--text); }
+.sfx-navitem.active{ background:var(--surface-2); color:var(--text); font-weight:600; box-shadow:inset 3px 0 0 var(--accent); }
+.sfx-navitem.soon{ opacity:.5; cursor:default; }
+.sfx-navitem.soon:hover{ background:transparent; color:var(--text-2); }
+.sfx-soon{ margin-left:auto; font-size:9.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); background:var(--surface-2); border-radius:20px; padding:2px 7px; }
+.sfx-badge{ margin-left:auto; font-size:11px; font-weight:700; background:var(--accent); color:var(--accent-ink); border-radius:20px; padding:1px 8px; min-width:20px; text-align:center; }
+
+.sfx-foot{ margin-top:auto; padding:12px 10px 4px; display:flex; align-items:center; gap:10px; border-top:1px solid var(--border); }
+.sfx-avatar{ width:30px; height:30px; border-radius:50%; background:var(--surface-3); display:grid; place-items:center; font-weight:700; font-size:12px; color:var(--text-2); }
+.sfx-foot .nm{ font-size:12.5px; font-weight:600; color:var(--text); }
+.sfx-foot small{ color:var(--muted); font-size:11px; }
+
+/* ---- main + topbar ---- */
+.sfx-main{ display:flex; flex-direction:column; min-width:0; }
+.sfx-topbar{
+  position:sticky; top:0; z-index:20;
+  background:color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter:saturate(1.5) blur(10px);
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:14px; padding:12px 26px; min-height:58px;
+}
+.sfx-crumb{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); }
+.sfx-crumb b{ color:var(--text); font-weight:600; }
+.sfx-crumb .sep{ opacity:.5; }
+.sfx-brandchip{
+  display:inline-flex; align-items:center; gap:7px; font-weight:600; font-size:12.5px;
+  padding:4px 11px; border-radius:20px; background:var(--accent-weak); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+}
+:root[data-theme="dark"] .sfx-brandchip, :root:not([data-theme="light"]) .sfx-brandchip{ color:var(--accent-2); }
+.sfx-brandchip .sfx-dot{ width:8px; height:8px; border-radius:50%; background:currentColor; }
+.sfx-spacer{ flex:1; }
+.sfx-tbtn{
+  display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 12px;
+  border:1px solid var(--border-strong); background:var(--surface); color:var(--text-2);
+  border-radius:9px; font-size:12.5px; font-weight:500; transition:.13s; font-family:inherit; cursor:pointer;
+}
+.sfx-tbtn:hover{ border-color:var(--accent); color:var(--text); }
+.sfx-tbtn svg{ width:15px; height:15px; }
+
+.sfx-content{ padding:26px; max-width:1180px; width:100%; margin:0 auto; }
+
+/* ---- responsive: collapse the sidebar into a top strip ---- */
+@media (max-width:900px){
+  .sfx-app{ grid-template-columns:1fr; }
+  .sfx-side{
+    position:static; height:auto; flex-direction:row; flex-wrap:wrap; align-items:center;
+    border-right:none; border-bottom:1px solid var(--border); gap:8px; padding:10px 14px;
+  }
+  .sfx-brandpick{ padding:0; }
+  .sfx-wordmark small{ display:none; }
+  .sfx-navsec, .sfx-foot{ display:none; }
+  .sfx-nav{ flex-direction:row; flex-wrap:wrap; }
+  .sfx-navitem{ width:auto; padding:8px 10px; }
+  .sfx-navitem.active{ box-shadow:none; border:1px solid var(--border); }
+  .sfx-content{ padding:18px 14px 48px; }
+}
+@media (prefers-reduced-motion:reduce){ .sfx-navitem, .sfx-tbtn, .sfx-brandtab{ transition:none; } }

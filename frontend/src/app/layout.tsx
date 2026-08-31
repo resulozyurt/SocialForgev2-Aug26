@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { Fraunces, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
-import Link from "next/link";
+import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import AppShell from "@/components/AppShell";
 
-const display = Fraunces({
+const display = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["400", "500", "600", "700"],
+  weight: ["600", "700", "800"],
 });
 
-const sans = Hanken_Grotesk({
+const sans = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600"],
 });
 
 const mono = JetBrains_Mono({
@@ -26,26 +26,21 @@ export const metadata: Metadata = {
   description: "Multi-brand social media intelligence & content automation.",
 };
 
+// Set theme + brand before first paint so there is no flash of the wrong palette.
+const themeInit = `(function(){try{var t=localStorage.getItem('sf-theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);var b=localStorage.getItem('sf-brand');document.documentElement.setAttribute('data-brand',(b==='evatro'||b==='fieldpie')?b:'fieldpie');}catch(e){document.documentElement.setAttribute('data-brand','fieldpie');}})();`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+      </head>
       <body className={`${display.variable} ${sans.variable} ${mono.variable}`}>
-        <header className="sf-header">
-          <div className="sf-header-inner">
-            <Link href="/" className="sf-wordmark">
-              SocialForge<span>AI</span>
-            </Link>
-            <nav className="sf-nav">
-              <Link href="/">Brands</Link>
-              <Link href="/settings">Settings</Link>
-            </nav>
-          </div>
-        </header>
-        <main className="sf-shell">{children}</main>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
