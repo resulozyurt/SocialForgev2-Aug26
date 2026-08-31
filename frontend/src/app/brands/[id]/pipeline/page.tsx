@@ -1531,6 +1531,12 @@ export default function PipelinePage() {
                             Reject
                           </Button>
                         )}
+                        <Link
+                          href={`/brands/${brandId}/posts/${p.id}`}
+                          className="ui-btn ui-btn-subtle ui-btn-sm"
+                        >
+                          Open
+                        </Link>
                         <Button
                           size="sm"
                           variant="subtle"

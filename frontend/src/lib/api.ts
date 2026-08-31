@@ -160,6 +160,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   listPackages: (id: string) => request<ContentPackage[]>(`/copy/${id}`),
+  getPackage: (packageId: string) => request<ContentPackage>(`/copy/detail/${packageId}`),
   copyStatus: (id: string) => request<JobStatus>(`/copy/${id}/status`),
   approvePackage: (packageId: string) =>
     request<unknown>(`/copy/${packageId}/approve`, { method: "PATCH" }),

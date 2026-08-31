@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **B0b** (copy list: grouped by month, provenance shown, multi-select + bulk delete). B0 complete.
+Last updated: 2026-08-31 — **B1** (post detail page: one page with all fields + inline visual generate/select).
 
 ---
 
@@ -890,9 +890,15 @@ should persist and be selectable. Roadmap, two tracks:
     ContentPackage type carries solution/planning_period/calendar_id. Verified: tsc clean.
   - **B0 COMPLETE.** The copy screen is now usable: provenance is visible and old runs
     are bulk-deletable.
-  - **B1** — post detail page (click a calendar post -> one page with all fields +
-    inline generate/select).
-  - **B2** — month scoping/navigation across the pipeline.
+  - **B1 DONE** — new route `brands/[id]/posts/[packageId]/page.tsx`: a post-centric
+    page showing everything for one post (on-visual headline, hooks, caption, CTA,
+    hashtags, alt text, carousel/thread, strategy, visual direction) with an EN/TR
+    toggle, plus an inline visual panel (approve copy -> generate -> candidate gallery
+    -> select/approve/download, reusing the visuals API). Copy cards in the pipeline
+    now have an **Open** link to it. Added `api.getPackage` (GET /copy/detail/{id}).
+    Verified: tsc clean.
+  - **B2 (NEXT)** — month scoping/navigation across the pipeline (period selector;
+    calendar entry -> its post).
   - **B3** — image history (persist every generated image, all selectable).
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
