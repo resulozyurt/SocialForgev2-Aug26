@@ -1140,3 +1140,109 @@ html, body {
 .ui-note{ color:var(--muted); font-size:13.5px; }
 .ui-form{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:22px; display:flex; flex-direction:column; gap:16px; }
 .ui-form-actions{ display:flex; gap:10px; }
+
+
+/* ==========================================================================
+   STUDIO PIPELINE (U3) — Tabs, Stepper, and the research/calendar presentation
+   (executive callout, solution briefs, source cards, distribution bar, card
+   board). Token-driven; consumed by the pipeline page + Tabs/Stepper primitives.
+   ========================================================================== */
+
+/* ---- tabs ---- */
+.ui-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.ui-tab{ border:1px solid var(--border); background:var(--surface); border-radius:9px; padding:6px 12px; font-size:12.5px; font-weight:600; color:var(--muted); display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-family:inherit; transition:.12s; }
+.ui-tab:hover{ color:var(--text); }
+.ui-tab.active{ border-color:var(--accent); color:var(--text); background:var(--accent-weak); }
+:root[data-theme="dark"] .ui-tab.active, :root:not([data-theme="light"]) .ui-tab.active{ color:var(--text); }
+.ui-tab-count{ font-size:11px; background:var(--surface-2); border-radius:20px; padding:0 7px; color:var(--muted); }
+
+/* ---- stepper ---- */
+.ui-stepper{ display:flex; gap:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:6px; box-shadow:var(--shadow); overflow-x:auto; margin-bottom:22px; }
+.ui-step{ flex:1; min-width:150px; display:flex; align-items:center; gap:11px; padding:12px 14px; border-radius:calc(var(--radius) - 6px); background:transparent; border:none; text-align:left; color:var(--text-2); transition:.14s; font-family:inherit; }
+button.ui-step{ cursor:pointer; }
+button.ui-step:hover{ background:var(--surface-2); }
+.ui-step[aria-current="true"]{ background:var(--accent-weak); }
+.ui-step .ico{ width:30px; height:30px; border-radius:9px; flex:0 0 auto; display:grid; place-items:center; font-weight:700; font-size:13px; border:1.5px solid var(--border-strong); color:var(--muted); background:var(--surface); font-variant-numeric:tabular-nums; }
+.ui-step[data-state="done"] .ico{ background:var(--ok); border-color:var(--ok); color:#fff; }
+.ui-step[data-state="active"] .ico{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+.ui-step .txt{ display:flex; flex-direction:column; line-height:1.25; min-width:0; }
+.ui-step .txt b{ font-family:var(--font-display),sans-serif; font-weight:700; font-size:13.5px; color:var(--text); }
+.ui-step .txt span{ font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ui-step .arrow{ margin-left:auto; color:var(--border-strong); flex:0 0 auto; }
+.ui-step[aria-current="true"] .arrow{ color:var(--accent); }
+
+/* ---- stage card head extras ---- */
+.ui-stage-num{ display:inline-grid; place-items:center; width:24px; height:24px; border-radius:7px; background:var(--accent-weak); color:var(--accent); font-weight:800; font-size:12.5px; margin-right:9px; font-family:var(--font-display),sans-serif; }
+:root[data-theme="dark"] .ui-stage-num, :root:not([data-theme="light"]) .ui-stage-num{ color:var(--accent-2); }
+.ui-inline-field{ display:inline-flex; align-items:center; gap:7px; }
+.ui-inline-field .ui-label{ white-space:nowrap; }
+.ui-input-sm{ height:34px; width:110px; font-size:12.5px; }
+.ui-check{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-2); font-weight:500; cursor:pointer; }
+
+/* ---- report item ---- */
+.ui-item{ border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow); padding:16px 18px; margin-bottom:14px; }
+.ui-item-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.ui-item-title{ font-family:var(--font-display),sans-serif; font-weight:700; font-size:14.5px; color:var(--text); }
+.ui-item-meta{ font-size:12px; color:var(--muted); }
+.ui-item-actions{ margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.ui-details{ margin-top:12px; }
+.ui-details > summary{ cursor:pointer; font-size:12.5px; font-weight:600; color:var(--accent); list-style:none; padding:6px 0; user-select:none; }
+:root[data-theme="dark"] .ui-details > summary, :root:not([data-theme="light"]) .ui-details > summary{ color:var(--accent-2); }
+.ui-details > summary::-webkit-details-marker{ display:none; }
+.ui-details[open] > summary{ margin-bottom:10px; }
+.ui-airow{ margin-top:12px; display:flex; flex-direction:column; gap:10px; }
+.ui-textarea{ min-height:74px; padding:10px 12px; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); color:var(--text); font-family:inherit; font-size:13px; resize:vertical; line-height:1.5; }
+.ui-textarea:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+
+/* ---- report presentation ---- */
+.ui-exec{ background:var(--accent-weak); border:1px solid color-mix(in srgb,var(--accent) 22%,transparent); border-radius:var(--radius-sm); padding:15px 17px; margin-bottom:16px; }
+.ui-exec .k{ font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); margin-bottom:6px; }
+:root[data-theme="dark"] .ui-exec .k, :root:not([data-theme="light"]) .ui-exec .k{ color:var(--accent-2); }
+.ui-exec p{ margin:0; color:var(--text-2); font-size:13.5px; line-height:1.6; }
+.ui-h4{ font-family:var(--font-display),sans-serif; font-size:12px; font-weight:700; color:var(--text); margin:16px 0 8px; text-transform:uppercase; letter-spacing:.05em; }
+.ui-brief{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+@media (max-width:640px){ .ui-brief{ grid-template-columns:1fr; } }
+.ui-brief .box{ border:1px solid var(--border); border-radius:var(--radius-sm); padding:13px 15px; background:var(--surface-2); }
+.ui-brief .box.wide{ grid-column:1/-1; }
+.ui-brief .box h5{ font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 6px; font-weight:700; }
+.ui-brief .box p{ margin:0; font-size:13px; color:var(--text-2); line-height:1.55; }
+.ui-list2{ list-style:none; padding:0; margin:0 0 8px; display:flex; flex-direction:column; gap:7px; }
+.ui-list2 li{ display:flex; gap:9px; font-size:13px; color:var(--text-2); line-height:1.5; }
+.ui-list2 li::before{ content:""; margin-top:7px; width:6px; height:6px; border-radius:50%; background:var(--accent); flex:0 0 auto; }
+.ui-list2 li strong{ color:var(--text); }
+.ui-srcs{ display:flex; flex-direction:column; gap:8px; }
+.ui-src{ display:flex; align-items:center; gap:11px; padding:9px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); text-decoration:none; transition:.12s; background:var(--surface); }
+.ui-src:hover{ border-color:var(--accent); background:var(--surface-2); }
+.ui-src .fav{ width:22px; height:22px; border-radius:6px; background:var(--surface-3); display:grid; place-items:center; font-size:11px; color:var(--muted); flex:0 0 auto; text-transform:uppercase; font-weight:700; }
+.ui-src .t{ font-size:13px; font-weight:500; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ui-src .u{ font-size:11.5px; color:var(--muted); margin-left:auto; white-space:nowrap; }
+.ui-sig{ font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1px 7px; border-radius:5px; flex:0 0 auto; }
+.ui-sig.high{ background:var(--ok-soft); color:var(--ok); }
+.ui-sig.medium{ background:var(--warn-soft); color:var(--warn); }
+.ui-sig.low{ background:var(--surface-2); color:var(--muted); }
+
+/* ---- calendar distribution + card board ---- */
+.ui-caldist{ display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 4px; align-items:center; }
+.ui-distbar{ flex:1; min-width:200px; height:10px; border-radius:20px; overflow:hidden; display:flex; background:var(--surface-2); }
+.ui-distbar span{ height:100%; }
+.ui-aiangle{ font-size:10.5px; font-weight:600; color:var(--sol-ai); background:var(--info-soft); padding:2px 8px; border-radius:20px; }
+.ui-calweek{ margin-bottom:16px; }
+.ui-calweek .wk{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 10px; display:flex; align-items:center; gap:9px; }
+.ui-calweek .wk::after{ content:""; flex:1; height:1px; background:var(--border); }
+.ui-calgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:14px; }
+.ui-post{ border:1px solid var(--border); border-radius:var(--radius-sm); padding:13px 14px; background:var(--surface); box-shadow:var(--shadow); transition:.14s; border-top:3px solid var(--sc,var(--sol-general)); }
+.ui-post:hover{ box-shadow:var(--shadow-lg); transform:translateY(-2px); }
+.ui-post[data-sol="merchandising"]{ --sc:var(--sol-merch); }
+.ui-post[data-sol="field_audit"]{ --sc:var(--sol-audit); }
+.ui-post[data-sol="field_sales"]{ --sc:var(--sol-sales); }
+.ui-post[data-sol="home_service"]{ --sc:var(--sol-home); }
+.ui-post[data-sol="ai"]{ --sc:var(--sol-ai); }
+.ui-post[data-sol="general"]{ --sc:var(--sol-general); }
+.ui-post .meta{ display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--muted); margin-bottom:9px; flex-wrap:wrap; }
+.ui-post .day{ font-weight:700; color:var(--text); font-family:var(--font-mono); }
+.ui-post .plat{ margin-left:auto; font-weight:600; font-size:10px; letter-spacing:.03em; text-transform:uppercase; color:var(--text-2); background:var(--surface-2); padding:2px 7px; border-radius:5px; }
+.ui-post h4{ font-size:14.5px; font-weight:700; line-height:1.3; margin:0 0 7px; letter-spacing:-.01em; color:var(--text); font-family:var(--font-display),sans-serif; }
+.ui-post .hook{ font-size:12px; color:var(--muted); line-height:1.5; }
+.ui-post dl{ margin:9px 0 0; font-size:11.5px; }
+.ui-post dt{ font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; font-size:9.5px; margin-top:7px; }
+.ui-post dd{ margin:1px 0 0; color:var(--text-2); line-height:1.45; }

@@ -7,3 +7,7 @@ export { Stat, Stats } from "./Stat";
 export { Field, Input } from "./Field";
 export { PageHeader } from "./PageHeader";
 export { EmptyState } from "./EmptyState";
+export { Tabs } from "./Tabs";
+export type { TabItem } from "./Tabs";
+export { Stepper } from "./Stepper";
+export type { StepItem, StepState } from "./Stepper";

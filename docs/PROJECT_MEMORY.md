@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **Phase U / U2** (UI rebuild: reusable primitives + Brands page). Frontend-only; backend/API untouched.
+Last updated: 2026-08-31 — **Phase U / U3a** (UI rebuild: pipeline header + Stepper + Research/Calendar stages). Frontend-only; backend/API untouched.
 
 ---
 
@@ -104,7 +104,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation | IN PROGRESS (D1 backend done; D2 overlay / D3 Drive / D4 UI next) |
-| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1 shell + U2 primitives/Brands done)** |
+| **U UI Rebuild** | Studio design system + app shell + per-page rebuild | **IN PROGRESS (U1 shell + U2 primitives + U3a pipeline research/calendar done)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
 
@@ -484,6 +484,27 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   no backend/migration. Next: **U3** — rebuild the pipeline page (`/brands/[id]/pipeline`)
   on the primitives, adding Tabs + Stepper; likely split U3a (research + calendar) /
   U3b (copy + visual).
+
+- **2026-08-31 (U3a) — Pipeline rebuilt: stepper + research/calendar stages:**
+  reworked the presentation of `/brands/[id]/pipeline` onto the Studio primitives
+  **without touching any logic** (all state, effects, polling, and approval
+  handlers are byte-for-byte unchanged — the rebuild was a surgical splice of three
+  presentational spans). Added two primitives to `src/components/ui/`: **`Tabs`**
+  (controlled) and **`Stepper`** (done/active/todo states, optional click-to-scroll).
+  New CSS block "STUDIO PIPELINE (U3)" in `globals.css` (tabs, stepper, executive
+  callout, solution-brief boxes, source cards with favicon + signal pill, the
+  distribution bar, and the week-grouped card board). The page now opens with a
+  `PageHeader` + a **4-stage Stepper** (Research/Calendar/Copy/Visual) that reflects
+  the real gate state (approved report → calendar unlocks, etc.) and scroll-jumps to
+  each stage. `ReportView` rebuilt with `Tabs` + solution chips + source cards;
+  `CalendarView` rebuilt as the `.ui-post` card board (top-border colored by
+  solution) with a distribution bar. Stages 1 (Research) and 2 (Calendar) are now
+  `Card`s with `CardHead` action rows (Run/Refresh, Period input) and `.ui-item`
+  report/calendar rows using `Button`/`Badge`. **Stage 3 (Copy) intentionally left on
+  the old `.sf-*` markup** (re-skinned by U1 tokens) — it is rebuilt in **U3b** along
+  with the Visual stage. Verified `tsc --noEmit` clean. Frontend-only, no
+  backend/migration. Next: **U3b** — rebuild the Copy stage (per-post cards, EN/TR
+  toggle, hashtags, visual prompt) + add the Visual (Phase-4) stage placeholder.
 
 ## 8. Known Issues / Tech Debt
 
