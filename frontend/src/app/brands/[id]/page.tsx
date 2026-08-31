@@ -16,7 +16,7 @@ import type {
   ProviderTestResult,
   SolutionKey,
 } from "@/lib/types";
-import { PageHeader, Tabs, Badge, Loading } from "@/components/ui";
+import { PageHeader, Tabs, Badge, Loading, ColorField } from "@/components/ui";
 
 const TABS = ["identity", "voice", "solutions", "providers", "sources"] as const;
 type Tab = (typeof TABS)[number];
@@ -596,52 +596,52 @@ export default function BrandDetailPage() {
             </div>
           </div>
           <div className="sf-row">
-            <div className="sf-field">
-              <label className="sf-label">Primary color</label>
-              <input className="sf-input" value={idForm.primary_color ?? ""}
-                onChange={(e) => setIdForm({ ...idForm, primary_color: e.target.value })}
-                placeholder="#0E7C7B" />
-            </div>
-            <div className="sf-field">
-              <label className="sf-label">Secondary color</label>
-              <input className="sf-input" value={idForm.secondary_color ?? ""}
-                onChange={(e) => setIdForm({ ...idForm, secondary_color: e.target.value })}
-                placeholder="#1F2933" />
-            </div>
-            <div className="sf-field">
-              <label className="sf-label">Accent color</label>
-              <input className="sf-input" value={idForm.accent_color ?? ""}
-                onChange={(e) => setIdForm({ ...idForm, accent_color: e.target.value })}
-                placeholder="#12A3A0" />
-            </div>
+            <ColorField
+              label="Primary color"
+              value={idForm.primary_color ?? ""}
+              onChange={(v) => setIdForm({ ...idForm, primary_color: v })}
+              placeholder="#0E7C7B"
+            />
+            <ColorField
+              label="Secondary color"
+              value={idForm.secondary_color ?? ""}
+              onChange={(v) => setIdForm({ ...idForm, secondary_color: v })}
+              placeholder="#1F2933"
+            />
+            <ColorField
+              label="Accent color"
+              value={idForm.accent_color ?? ""}
+              onChange={(v) => setIdForm({ ...idForm, accent_color: v })}
+              placeholder="#12A3A0"
+            />
           </div>
           <div className="sf-row">
-            <div className="sf-field">
-              <label className="sf-label">Ground color</label>
-              <input className="sf-input" value={idForm.ground_color ?? ""}
-                onChange={(e) => setIdForm({ ...idForm, ground_color: e.target.value })}
-                placeholder="#FFFFFF" />
-            </div>
-            <div className="sf-field">
-              <label className="sf-label">Block color</label>
-              <input className="sf-input" value={idForm.block_color ?? ""}
-                onChange={(e) => setIdForm({ ...idForm, block_color: e.target.value })}
-                placeholder="#0B1E3B" />
-            </div>
+            <ColorField
+              label="Ground color"
+              value={idForm.ground_color ?? ""}
+              onChange={(v) => setIdForm({ ...idForm, ground_color: v })}
+              placeholder="#FFFFFF"
+            />
+            <ColorField
+              label="Block color"
+              value={idForm.block_color ?? ""}
+              onChange={(v) => setIdForm({ ...idForm, block_color: v })}
+              placeholder="#0B1E3B"
+            />
           </div>
           <div className="sf-row">
-            <div className="sf-field">
-              <label className="sf-label">Pill background</label>
-              <input className="sf-input" value={idForm.pill_bg ?? ""}
-                onChange={(e) => setIdForm({ ...idForm, pill_bg: e.target.value })}
-                placeholder="#E4002B" />
-            </div>
-            <div className="sf-field">
-              <label className="sf-label">Pill text</label>
-              <input className="sf-input" value={idForm.pill_text ?? ""}
-                onChange={(e) => setIdForm({ ...idForm, pill_text: e.target.value })}
-                placeholder="#FFFFFF" />
-            </div>
+            <ColorField
+              label="Pill background"
+              value={idForm.pill_bg ?? ""}
+              onChange={(v) => setIdForm({ ...idForm, pill_bg: v })}
+              placeholder="#E4002B"
+            />
+            <ColorField
+              label="Pill text"
+              value={idForm.pill_text ?? ""}
+              onChange={(v) => setIdForm({ ...idForm, pill_text: v })}
+              placeholder="#FFFFFF"
+            />
           </div>
           <div className="sf-field">
             <label className="sf-label">Logo URL</label>

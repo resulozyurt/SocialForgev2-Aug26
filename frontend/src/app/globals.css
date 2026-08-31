@@ -1381,3 +1381,17 @@ textarea:focus-visible, [tabindex]:focus-visible, .ui-tab:focus-visible,
 
 .ui-stepnav{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:22px; padding-top:16px; border-top:1px solid var(--border); }
 .ui-stepnav-label{ font-family:var(--font-display),sans-serif; font-weight:700; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+
+
+/* ==========================================================================
+   STUDIO REVISE (RV4) — color pickers + roomier brand-detail sections.
+   ========================================================================== */
+.sf-section{ display:flex; flex-direction:column; gap:16px; }
+.sf-form-actions{ margin-top:4px; }
+.sf-swatches{ display:flex; flex-wrap:wrap; gap:14px; }
+
+.ui-colorfield{ display:flex; gap:8px; align-items:center; }
+.ui-colorswatch{ width:44px; height:38px; padding:0; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); cursor:pointer; flex:0 0 auto; }
+.ui-colorswatch::-webkit-color-swatch-wrapper{ padding:3px; }
+.ui-colorswatch::-webkit-color-swatch{ border:none; border-radius:6px; }
+.ui-colorswatch::-moz-color-swatch{ border:none; border-radius:6px; }

@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **RV3** (smart brand switcher + brand-context sidebar + Dashboard). Frontend-only.
+Last updated: 2026-08-31 — **RV4** (identity color pickers + roomier layout). Frontend-only.
 
 ---
 
@@ -646,6 +646,20 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   backend/migration. Next: **RV4** — #7 identity tab: real color pickers + fix the
   cramped layout / Save-button overlap. Then **RV5** — #8 solutions/competitors nested
   tabs.
+
+- **2026-08-31 (RV4) — Identity color pickers + layout fix (owner review #7):** the
+  brand Identity tab's seven color fields (primary / secondary / accent / ground /
+  block / pill bg / pill text) were plain hex text inputs, so colors felt
+  unchangeable and the form was cramped with the Save button crowding the swatches.
+  Added a **`ColorField`** primitive (native `<input type="color">` swatch + a hex
+  text input, both bound to the same value; the picker falls back to #000000 when the
+  stored value is not a #rgb/#rrggbb hex) and swapped all seven fields to it — colors
+  are now editable by picker or by typing. Layout: `.sf-section` is now a flex column
+  with a 16px gap and the swatches row / Save actions get their own spacing, so
+  nothing overlaps. Saving is unchanged (saveIdentity already persisted these colors).
+  `tsc --noEmit` clean. Frontend-only, no backend/migration. Next: **RV5** (last in
+  the review queue) — #8 solutions tab restructure: split Solutions vs Competitors
+  with nested tabs so entering competitors no longer scrambles the solution data.
 
 ## 8. Known Issues / Tech Debt
 
