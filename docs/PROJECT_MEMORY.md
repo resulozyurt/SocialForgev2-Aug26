@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **V4a** (visual redesign: content_packages.solution column, migration 0011).
+Last updated: 2026-08-31 — **V4b** (visual redesign: reference-conditioned gpt-image-1 edits engine, N candidates).
 
 ---
 
@@ -151,7 +151,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation (old design) | SUPERSEDED by V-series (D1 raw scene stays as placeholder; D2/D3 retired) |
-| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1-V3 + V4a done; V4b engine next)** |
+| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1-V4b done; V5 candidate gallery UI next)** |
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
@@ -787,14 +787,15 @@ pillars).
 **Where we are (2026-08-31).** The full app is live end to end: research -> calendar
 -> copy -> (raw) visual, human approval at each gate. Studio UI rebuild (U1-U5) and
 the owner's review round (RV1-RV5, #1-#8) are complete. The **visual-generation
-redesign (V-series) has started**: **V1-V3 + V4a done** — data model (migrations
-**0010** reference library, **0011** `content_packages.solution`), the reference-library
-API, the complete per-solution reference UI (upload / delete / reorder + editable
-visual note) over a **binary-safe `/api` proxy**, and copy now tags each package with
-its solution. Verified via py_compile, stubbed `configure_mappers()` checks, a Pillow
-downscale unit check, and `tsc --noEmit` (clean). Alembic head is **0011** (auto-applied
-on deploy). **Next: V4b** — the reference-conditioned `gpt-image-1` edits engine (live
-key; owner runs it).
+redesign (V-series)**: **V1-V4b done** — data model (migrations **0010** reference
+library, **0011** `content_packages.solution`), reference-library API + full per-solution
+reference UI over a **binary-safe `/api` proxy**, copy tags each package with its
+solution, and the **reference-conditioned `gpt-image-1` edits engine** producing N
+candidates (`integrations/image_gen.generate_candidates` + rewritten
+`phases/phase4_visual.py`). Verified via full-backend py_compile, stubbed
+`configure_mappers()` checks, a Pillow downscale unit check, and `tsc --noEmit`. **V4b
+is not yet live-verified — the owner must run one real generation.** Alembic head is
+**0011**. **Next: V5** — the Stage-4 candidate-gallery UI.
 
 **Immediate next work: V-series visual redesign (approved 2026-08-31).** Roadmap,
 each an independently deployable, owner-reviewed commit:
@@ -820,12 +821,18 @@ each an independently deployable, owner-reviewed commit:
   reuses `solutionenum`, indexed) so a post knows its solution; copy phase
   (`phase3_copy._build_package`) now persists `entry['solution']` via `_to_solution`.
   Legacy packages have NULL solution (V4b falls back). No key needed.
-- **V4b (NEXT)** — rewrite `phases/phase4_visual.py` + extend `integrations/image_gen.py`
-  with a `gpt-image-1` **edits** (multi-reference) path: for an approved package, load
-  its solution's references + `visual_notes` + brand identity + copy, produce **N
-  candidate drafts (default 2)**; fall back to text-only generation when a solution has
-  no references. Owner runs the live call (needs the image key). Candidate storage +
-  the Stage-4 gallery UI is V5.
+- **V4b DONE** — `integrations/image_gen.py` gained `generate_candidates` with a
+  `gpt-image-1` **edits** multi-reference path (`image[]` multipart) + a text-only
+  fallback, both returning N images. `phases/phase4_visual.py` rewritten: loads the
+  package's (brand, solution) references + `visual_notes` + brand identity + copy
+  headline, builds a reference-conditioned prompt, and stores **N candidates (default
+  2)** in `asset_urls.candidates` (plus `image`=first for the current UI, `used_references`,
+  `reference_count`, `scene_prompt`). Candidate count/quality read optional settings
+  `image_candidates`/`image_quality`. Owner runs the LIVE call (image key). **NOT yet
+  live-verified.**
+- **V5 (NEXT)** — Stage-4 Studio UI: candidate gallery (pick / regenerate / approve /
+  download); expose `candidates` + a select endpoint on the visuals API; on approve,
+  set `asset_urls.image` to the chosen candidate.
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).
