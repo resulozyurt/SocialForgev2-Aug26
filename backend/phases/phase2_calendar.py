@@ -142,26 +142,61 @@ def _normalize_solution(value) -> str:
     return v if v in VALID_SOLUTIONS else "general"
 
 
+def _voice_profile(brand) -> str:
+    """Structured brand voice for headline generation: tone, narrative structure,
+    gold-standard example headlines (the bar to match), and a hard avoid list."""
+    vp = getattr(brand, "voice_profile", None)
+    if not isinstance(vp, dict):
+        return "(no structured voice profile set — infer a sharp, on-brand voice)"
+    parts: list[str] = []
+    tk = vp.get("tone_keywords")
+    if isinstance(tk, list) and tk:
+        parts.append("Tone: " + ", ".join(str(x) for x in tk))
+    ns = vp.get("narrative_structure")
+    if ns:
+        parts.append(f"Narrative structure to follow: {ns}")
+    eh = vp.get("example_headlines")
+    if isinstance(eh, list) and eh:
+        joined = " | ".join(f'"{x}"' for x in eh)
+        parts.append(
+            "GOLD-STANDARD example headlines — every headline you write must match this "
+            f"caliber, rhythm and voice (do NOT reuse the words): {joined}"
+        )
+    av = vp.get("avoid")
+    if isinstance(av, list) and av:
+        parts.append("NEVER do this (brand avoid list): " + "; ".join(str(x) for x in av))
+    return "\n".join(parts) if parts else "(voice profile empty — infer a sharp, on-brand voice)"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Prompts
 # ─────────────────────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """You are a senior social media strategist building a monthly
-content calendar for a B2B SaaS brand. You translate approved strategy (product
-solution areas, content pillars, and trend signals) into a concrete,
-platform-native posting plan.
+content calendar for a B2B field-operations / retail-execution SaaS brand. You
+translate approved strategy (product solution areas, content pillars, and trend
+signals) into a concrete, platform-native posting plan.
 
 You think in terms of the brand's SOLUTION areas first (what the product does),
 then layer content pillars and trends on top. You treat AI as a cross-cutting
 capability woven through those solutions, never as a separate content silo.
 
-You always respond in valid JSON only — no preamble, no markdown, no extra text.
-Every planned post is specific, scroll-stopping, and tied to a solution."""
+The single most important artifact per post is the "headline" — the exact words that
+will sit on the visual. Write each one the way a sharp marketer writes for a busy
+practitioner: concrete, customer-facing, built on a real pain / tension / believable
+payoff, and instantly scroll-stopping. Ban generic marketing sludge ('empower',
+'seamless', 'game-changer', 'revolutionize', 'unlock', 'elevate', 'in today's
+fast-paced world', hollow rhetorical questions). Match the brand's voice profile and
+the caliber of its example headlines exactly.
+
+You always respond in valid JSON only — no preamble, no markdown, no extra text."""
 
 CALENDAR_PROMPT = """Build a content calendar for the planning period below.
 
 BRAND: {brand_name}
 INDUSTRY: {industry}
+BRAND VOICE PROFILE (obey this for every headline):
+{voice_profile}
 PLANNING PERIOD: {planning_period}   (use real calendar dates inside this month)
 TOTAL POSTS TO PLAN: {post_count}
 TARGET PLATFORMS: {platforms}
@@ -198,8 +233,12 @@ RULES:
 - Spread dates evenly across the planning month, preferring weekdays. Use ISO
   format "YYYY-MM-DD". Avoid scheduling more than ~2 posts on the same day.
 - "headline" is the EXACT short line that will appear ON THE VISUAL — the on-image
-  hook the reviewer approves. Punchy, brand-voiced, ideally under ~8 words (e.g.
-  "Photos Don't Fix Shelves. Actions Do."). It is the words, not a description.
+  hook the reviewer approves (the words, not a description). It MUST be concrete and
+  customer-facing: name a real pain, tension, or believable payoff for THIS solution's
+  buyer. Punchy, ideally under ~8 words. Match the caliber and rhythm of the brand's
+  GOLD-STANDARD example headlines and obey the avoid list. NO generic filler, NO vague
+  claims, NO hollow questions. Each headline in the month must be distinct — do not
+  reuse the same template or opener.
 - "hook_concept" is a single punchy line describing the scroll-stopping idea (the
   angle behind the headline) — not a full caption.
 - "objective" is one of: awareness, engagement, conversion, retention, community.
@@ -371,6 +410,7 @@ class Phase2Calendar:
         prompt = CALENDAR_PROMPT.format(
             brand_name=brand.display_name,
             industry=brand.industry or "B2B SaaS",
+            voice_profile=_voice_profile(brand),
             planning_period=report.planning_period,
             post_count=post_count,
             platforms=", ".join(platforms),

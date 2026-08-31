@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **A2** (content revision: copy quality rebuilt on the brand voice profile).
+Last updated: 2026-08-31 — **A3** (content revision: calendar headline quality on the brand voice profile). Track A complete.
 
 ---
 
@@ -867,12 +867,21 @@ should persist and be selectable. Roadmap, two tracks:
     rules (hooks <=10 words, concrete openers, one-idea captions). The voice profile
     lives on each brand's **Voice** tab (all four fields; seeded + owner-filled).
     Verified: py_compile + placeholder/format-parity. Owner runs a live copy run.
-  - **A3 (NEXT)** — rewrite the calendar headline prompt for quality (concrete,
-    brand-voice example headlines, ban generic phrasing).
-- **Track B — post-centric, month-scoped flow (architecture, larger):** B1 post
-  detail page (click a calendar post -> one page with all fields + inline
-  generate/select), B2 month scoping/navigation, B3 image history (persist every
-  generated image, all selectable). Recommended order: A1->A2->A3 then B1->B2->B3.
+  - **A3 DONE** — calendar headline quality rebuilt. phase2 previously fed NO brand
+    voice at all; added a `_voice_profile(brand)` helper, injected the voice profile
+    into CALENDAR_PROMPT, strengthened SYSTEM_PROMPT + the `headline` rule (concrete,
+    customer-facing, match example-headline caliber, obey avoid list, ban generic
+    filler, headlines distinct across the month). Verified: py_compile + format-parity.
+  - **TRACK A COMPLETE.** Owner runs a fresh research->calendar->copy pass to feel the
+    combined quality + linkage lift.
+- **Track B — post-centric, month-scoped flow (architecture, larger). NEXT.** The
+  copy screen is the owner's current pain: no bulk clean-up, and no way to see which
+  copy belongs to which calendar/month/entry. Track B fixes exactly this. Steps: B1
+  post detail page (click a calendar post -> one page with all fields + inline
+  generate/select), B2 month scoping/navigation + clearer copy list (group by
+  calendar/period, bulk delete, show source entry), B3 image history (persist every
+  generated image, all selectable). A small quick-win (bulk delete + group-by-period
+  on the copy list) can be pulled forward from B2 if the owner wants relief first.
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).
