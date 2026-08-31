@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **B0a** (copy provenance: content_packages.planning_period + calendar_id, bulk-delete API; migration 0012).
+Last updated: 2026-08-31 — **B0b** (copy list: grouped by month, provenance shown, multi-select + bulk delete). B0 complete.
 
 ---
 
@@ -883,8 +883,13 @@ should persist and be selectable. Roadmap, two tracks:
     `POST /copy/{brand_id}/bulk-delete` (selector: package_ids | planning_period |
     calendar_id). Legacy packages have NULL period/calendar. Verified: full-backend
     py_compile + a configure_mappers() check.
-  - **B0b (NEXT)** — copy list UI: group by planning_period (+ calendar), show each
-    package's source (solution/headline), multi-select + bulk delete, delete-all-in-month.
+  - **B0b DONE** — copy list now groups packages by `planning_period` (newest first;
+    legacy/NULL grouped as "No calendar (legacy)"), each card shows a per-package
+    checkbox + its solution, a bulk-action bar (Delete selected / Clear), and a
+    per-group "Delete month" with a two-click confirm. New api client `bulkDeletePackages`;
+    ContentPackage type carries solution/planning_period/calendar_id. Verified: tsc clean.
+  - **B0 COMPLETE.** The copy screen is now usable: provenance is visible and old runs
+    are bulk-deletable.
   - **B1** — post detail page (click a calendar post -> one page with all fields +
     inline generate/select).
   - **B2** — month scoping/navigation across the pipeline.

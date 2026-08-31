@@ -429,11 +429,28 @@ export default function PipelinePage() {
   const [generateTr, setGenerateTr] = useState(true);
   const [view, setView] = useState<StageView>("research");
   const [viewLang, setViewLang] = useState<"en" | "tr">("en");
+  const [selectedPkgIds, setSelectedPkgIds] = useState<Set<string>>(new Set());
+  const [confirmPeriod, setConfirmPeriod] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [visuals, setVisuals] = useState<Record<string, VisualResponse>>({});
   const [visualBusy, setVisualBusy] = useState<Record<string, boolean>>({});
   const [visualMsg, setVisualMsg] = useState<Record<string, string>>({});
   const approvedPackages = packages.filter((p) => p.status === "approved");
   const approvedPkgIds = approvedPackages.map((p) => p.id).join(",");
+  const copyGroups = (() => {
+    const map = new Map<string, typeof packages>();
+    for (const p of packages) {
+      const key = p.planning_period || "__legacy__";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(p);
+    }
+    const keys = Array.from(map.keys()).sort((a, b) => {
+      if (a === "__legacy__") return 1;
+      if (b === "__legacy__") return -1;
+      return b.localeCompare(a);
+    });
+    return keys.map((k) => ({ period: k === "__legacy__" ? null : k, items: map.get(k)! }));
+  })();
 
   const [logs, setLogs] = useState<Record<Stage, LogLine[]>>({
     research: [],
@@ -789,6 +806,61 @@ export default function PipelinePage() {
         addLog("copy", `Delete package: error — ${msg(e)}`, "err");
         setError(msg(e));
       }
+    }
+  }
+  function toggleSelect(id: string) {
+    setSelectedPkgIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectMany(ids: string[], on: boolean) {
+    setSelectedPkgIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }
+  function clearSelection() {
+    setSelectedPkgIds(new Set());
+  }
+  async function bulkDeleteSelected() {
+    const ids = Array.from(selectedPkgIds);
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const res = await api.bulkDeletePackages(brandId, { package_ids: ids });
+      addLog("copy", `${res.message}`, "info");
+      clearSelection();
+      await refreshPackages();
+    } catch (e) {
+      addLog("copy", `Bulk delete: error — ${msg(e)}`, "err");
+      setError(msg(e));
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+  async function deletePeriod(period: string | null) {
+    setBulkBusy(true);
+    try {
+      const res = await api.bulkDeletePackages(
+        brandId,
+        period ? { planning_period: period } : { package_ids: packages.filter((p) => !p.planning_period).map((p) => p.id) },
+      );
+      addLog("copy", `${res.message}`, "info");
+      setConfirmPeriod(null);
+      clearSelection();
+      await refreshPackages();
+    } catch (e) {
+      addLog("copy", `Delete month: error — ${msg(e)}`, "err");
+      setError(msg(e));
+    } finally {
+      setBulkBusy(false);
     }
   }
 
@@ -1337,11 +1409,66 @@ export default function PipelinePage() {
 
           <StageLog lines={logs.copy} live={running.copy} onClear={() => clearLog("copy")} />
 
+          {selectedPkgIds.size > 0 && (
+            <div
+              className="ui-note"
+              style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}
+            >
+              <b>{selectedPkgIds.size} selected</b>
+              <Button size="sm" variant="danger" onClick={bulkDeleteSelected} disabled={bulkBusy}>
+                {bulkBusy ? "Deleting…" : "Delete selected"}
+              </Button>
+              <Button size="sm" variant="subtle" onClick={clearSelection} disabled={bulkBusy}>
+                Clear
+              </Button>
+            </div>
+          )}
+
           {packages.length === 0 ? (
             <EmptyState title="No content packages yet">Approve a calendar, then run copy.</EmptyState>
           ) : (
-            <div className="ui-copygrid">
-              {packages.map((p) => {
+            <div>
+              {copyGroups.map((g) => {
+                const groupIds = g.items.map((x) => x.id);
+                const allSel = groupIds.length > 0 && groupIds.every((id) => selectedPkgIds.has(id));
+                const label = g.period ?? "No calendar (legacy)";
+                const gkey = g.period ?? "__legacy__";
+                return (
+                <div key={gkey} style={{ marginBottom: 18 }}>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0 10px", flexWrap: "wrap" }}
+                  >
+                    <label className="ui-check" style={{ fontWeight: 600 }}>
+                      <input
+                        type="checkbox"
+                        checked={allSel}
+                        onChange={(e) => toggleSelectMany(groupIds, e.target.checked)}
+                      />
+                      {label}
+                    </label>
+                    <span className="ui-item-meta">{g.items.length} post(s)</span>
+                    {confirmPeriod === gkey ? (
+                      <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                        <Button size="sm" variant="danger" onClick={() => deletePeriod(g.period)} disabled={bulkBusy}>
+                          {bulkBusy ? "Deleting…" : `Confirm delete ${g.items.length}`}
+                        </Button>
+                        <Button size="sm" variant="subtle" onClick={() => setConfirmPeriod(null)} disabled={bulkBusy}>
+                          Cancel
+                        </Button>
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        style={{ marginLeft: "auto" }}
+                        onClick={() => setConfirmPeriod(gkey)}
+                      >
+                        Delete month
+                      </Button>
+                    )}
+                  </div>
+                  <div className="ui-copygrid">
+                    {g.items.map((p) => {
                 const src = viewLang === "tr" ? O(p.copy_package_tr) : O(p.copy_package_en);
                 const en = O(p.copy_package_en);
                 const vd = O(p.visual_direction);
@@ -1357,8 +1484,16 @@ export default function PipelinePage() {
                 return (
                   <div className="ui-copycard" key={p.id}>
                     <div className="ch">
+                      <label className="ui-check" style={{ marginRight: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedPkgIds.has(p.id)}
+                          onChange={() => toggleSelect(p.id)}
+                        />
+                      </label>
                       <span className="ui-item-meta" style={{ fontWeight: 600 }}>
                         {p.platform} · {p.content_type}
+                        {p.solution ? ` · ${p.solution}` : ""}
                       </span>
                       <span className="pid">{p.post_id}</span>
                     </div>
@@ -1442,6 +1577,10 @@ export default function PipelinePage() {
                       </div>
                     )}
                   </div>
+                );
+              })}
+                  </div>
+                </div>
                 );
               })}
             </div>

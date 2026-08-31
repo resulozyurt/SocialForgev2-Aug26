@@ -157,6 +157,9 @@ export interface ContentPackage {
   content_type: string;
   status: string;
   is_rejected?: boolean;
+  solution?: string | null;
+  planning_period?: string | null;
+  calendar_id?: string | null;
   scheduled_at: string | null;
   objective: string | null;
   target_audience: string | null;

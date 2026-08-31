@@ -167,6 +167,14 @@ export const api = {
     request<unknown>(`/copy/${packageId}/reject`, { method: "PATCH" }),
   deletePackage: (packageId: string) =>
     request<void>(`/copy/${packageId}`, { method: "DELETE" }),
+  bulkDeletePackages: (
+    brandId: string,
+    payload: { package_ids?: string[]; planning_period?: string; calendar_id?: string },
+  ) =>
+    request<{ message: string; deleted: number }>(`/copy/${brandId}/bulk-delete`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   aiEditPackage: (packageId: string, instruction: string) =>
     request<ContentPackage>(`/copy/${packageId}/ai-edit`, {
       method: "POST",
