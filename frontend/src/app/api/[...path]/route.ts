@@ -21,8 +21,12 @@ async function forward(req: NextRequest, path: string[]) {
   if (contentType) headers["content-type"] = contentType;
 
   const method = req.method;
+  // Forward the raw body as bytes (not text): multipart uploads and other binary
+  // payloads are corrupted by a UTF-8 text round-trip. arrayBuffer preserves them.
   const body =
-    method === "GET" || method === "HEAD" ? undefined : await req.text();
+    method === "GET" || method === "HEAD"
+      ? undefined
+      : Buffer.from(await req.arrayBuffer());
 
   const res = await fetch(target, { method, headers, body, cache: "no-store" });
 
@@ -35,9 +39,12 @@ async function forward(req: NextRequest, path: string[]) {
     return new NextResponse(null, { status: res.status });
   }
 
-  const text = await res.text();
+  // Read the response as bytes too, so binary payloads (e.g. reference-image
+  // thumbnails from /references/{id}/raw) pass through intact. JSON is bytes as
+  // well, so this stays correct for every route.
+  const buf = Buffer.from(await res.arrayBuffer());
 
-  return new NextResponse(text, {
+  return new NextResponse(buf, {
     status: res.status,
     headers: {
       "content-type": res.headers.get("content-type") ?? "application/json",

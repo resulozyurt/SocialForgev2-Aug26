@@ -196,3 +196,23 @@ export interface VisualResponse {
   provider: string | null;
   generated_at: string | null;
 }
+
+
+// ── Visual redesign (V-series): per-(brand, solution) reference library ──────
+export interface ReferenceImage {
+  id: string;
+  brand_id: string;
+  solution: SolutionKey;
+  filename: string | null;
+  note: string | null;
+  content_type: string;
+  sort_order: number;
+  created_at: string;
+  raw_url: string;
+}
+
+export interface VisualNotes {
+  brand_id: string;
+  solution: SolutionKey;
+  visual_notes: string | null;
+}

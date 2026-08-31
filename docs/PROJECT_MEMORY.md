@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **V2** (visual redesign: reference-library API + visual-notes endpoints).
+Last updated: 2026-08-31 — **V3a** (visual redesign: per-solution page + reference list UI; binary-safe proxy).
 
 ---
 
@@ -151,7 +151,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
 | D Visual | Phase 4 branded image generation (old design) | SUPERSEDED by V-series (D1 raw scene stays as placeholder; D2/D3 retired) |
-| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1 model+0010, V2 API done)** |
+| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1 model+0010, V2 API, V3a UI done)** |
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
@@ -787,12 +787,12 @@ pillars).
 **Where we are (2026-08-31).** The full app is live end to end: research -> calendar
 -> copy -> (raw) visual, human approval at each gate. Studio UI rebuild (U1-U5) and
 the owner's review round (RV1-RV5, #1-#8) are complete. The **visual-generation
-redesign (V-series) has started**: **V1 + V2 done** — `solution_reference_images`
-table + `brand_solutions.visual_notes` + model (migration **0010**), and the
-reference-library API (`api/routes/references.py`). Verified via py_compile, a
-stubbed `configure_mappers()` check, and a Pillow downscale unit check. Alembic head
-is **0010** (auto-applied on deploy; the owner has NOT run it against the live DB
-yet — it applies on the next deploy).
+redesign (V-series) has started**: **V1 + V2 + V3a done** — data model (migration
+**0010**), the reference-library API (`api/routes/references.py`), and the per-solution
+page UI (`brands/[id]/solutions/[solution]`) that lists references + shows the visual
+note, plus a **binary-safe `/api` proxy**. Verified via py_compile, a stubbed
+`configure_mappers()` check, a Pillow downscale unit check, and `tsc --noEmit` (clean).
+Alembic head is **0010** (auto-applied on deploy).
 
 **Immediate next work: V-series visual redesign (approved 2026-08-31).** Roadmap,
 each an independently deployable, owner-reviewed commit:
@@ -802,9 +802,16 @@ each an independently deployable, owner-reviewed commit:
   PATCH note/order, PUT reorder, delete, `GET /references/{id}/raw` (serves bytes),
   and GET/PUT `.../visual-notes` (upserts a non-focus brand_solutions row if
   missing). All under `/api/v1`, admin-guarded.
-- **V3a (NEXT)** — per-solution page UI shell + reference list (thumbnails via the
-  raw route).
-- **V3b** — upload/delete/reorder + edit the solution's visual note.
+- **V3a DONE** — new route `brands/[id]/solutions/[solution]/page.tsx`: per-solution
+  page shell + reference grid (thumbnails via `/api/references/{id}/raw`) + read-only
+  visual note + empty states; a `Reference images ->` link on each included solution
+  row in the brand page. Added `ReferenceImage`/`VisualNotes` types and the api-client
+  methods (list/upload/patch/reorder/delete refs + get/set visual notes; `referenceRawUrl`
+  is proxy-relative). **Also made the `/api` proxy binary-safe** (forwards request +
+  response bodies as bytes via arrayBuffer, not text) — required so image bytes and
+  future multipart uploads pass through the same-origin proxy intact.
+- **V3b (NEXT)** — wire upload (multipart), delete, reorder, and the editable visual
+  note into the per-solution page.
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).

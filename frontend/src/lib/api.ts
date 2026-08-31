@@ -14,8 +14,10 @@ import type {
   ProviderConfig,
   ProviderConfigCreate,
   ProviderTestResult,
+  ReferenceImage,
   ResearchRunRequest,
   TrendReport,
+  VisualNotes,
   VisualResponse,
   VisualStatus,
 } from "./types";
@@ -182,4 +184,51 @@ export const api = {
     request<unknown>(`/visuals/${packageId}/approve`, { method: "PATCH" }),
   rejectVisual: (packageId: string) =>
     request<unknown>(`/visuals/${packageId}/reject`, { method: "PATCH" }),
+
+  // Solution reference library (visual redesign V2/V3). The raw thumbnail URL is
+  // proxy-relative (same-origin `/api` -> backend `/api/v1`), NOT the backend's
+  // absolute `raw_url` field, which would double the `/v1` segment.
+  referenceRawUrl: (refId: string) => `${API_BASE}/references/${refId}/raw`,
+  listReferences: (id: string, solution: string) =>
+    request<ReferenceImage[]>(`/brands/${id}/solutions/${solution}/references`),
+  uploadReferences: async (id: string, solution: string, files: File[]) => {
+    const form = new FormData();
+    for (const f of files) form.append("files", f);
+    // No JSON Content-Type here: the browser sets the multipart boundary itself.
+    const res = await fetch(`${API_BASE}/brands/${id}/solutions/${solution}/references`, {
+      method: "POST",
+      body: form,
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const b = await res.json();
+        if (b?.detail) detail = typeof b.detail === "string" ? b.detail : JSON.stringify(b.detail);
+      } catch {
+        // no JSON body
+      }
+      throw new Error(`${res.status} — ${detail}`);
+    }
+    return (await res.json()) as ReferenceImage[];
+  },
+  patchReference: (refId: string, payload: { note?: string | null; sort_order?: number }) =>
+    request<ReferenceImage>(`/references/${refId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  reorderReferences: (id: string, solution: string, orderedIds: string[]) =>
+    request<ReferenceImage[]>(`/brands/${id}/solutions/${solution}/references/order`, {
+      method: "PUT",
+      body: JSON.stringify({ ordered_ids: orderedIds }),
+    }),
+  deleteReference: (refId: string) =>
+    request<void>(`/references/${refId}`, { method: "DELETE" }),
+  getVisualNotes: (id: string, solution: string) =>
+    request<VisualNotes>(`/brands/${id}/solutions/${solution}/visual-notes`),
+  setVisualNotes: (id: string, solution: string, visual_notes: string | null) =>
+    request<VisualNotes>(`/brands/${id}/solutions/${solution}/visual-notes`, {
+      method: "PUT",
+      body: JSON.stringify({ visual_notes }),
+    }),
 };

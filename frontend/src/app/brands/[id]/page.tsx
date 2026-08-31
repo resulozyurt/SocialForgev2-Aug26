@@ -806,6 +806,14 @@ export default function BrandDetailPage() {
                           placeholder="How this solution is positioned for this brand"
                         />
                       </div>
+                      <div className="sf-field sf-field-sm" style={{ alignSelf: "flex-end" }}>
+                        <Link
+                          href={`/brands/${brandId}/solutions/${k}`}
+                          className="ui-btn ui-btn-subtle ui-btn-sm"
+                        >
+                          Reference images →
+                        </Link>
+                      </div>
                     </div>
                   )}
                 </div>
