@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **Phase U-revise / RV1** (roomier calendar + fully tabbed pipeline). Owner review round after U-complete.
+Last updated: 2026-08-31 — **RV2a** (Delete + Reject on calendar & copy). Needs migration 0009 on deploy.
 
 ---
 
@@ -595,6 +595,23 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   #4/#5/#6 sidebar+brand-switch nav (RV3), #7 identity colors+layout (RV4),
   #8 solutions/competitors nested tabs (RV5). Owner chose: remove Calendar/Assets
   sidebar items; full parity (delete+reject+ai-edit) for RV2.
+
+- **2026-08-31 (RV2a) — Delete + Reject on calendar & copy (owner review #2, part
+  1):** mirrored the report management flow onto the calendar and copy stages.
+  Backend: added `is_rejected` + `rejected_at` to **ContentCalendar** (ORM) —
+  ContentPackage already had them — plus **migration `0009_calendar_package_rejected`**
+  (guarded/idempotent, adds the two columns to `content_calendars` and, as a no-op
+  safety, `content_packages`). New endpoints: `PATCH /calendar/{id}/reject`,
+  `DELETE /calendar/{id}` (204, idempotent), `PATCH /copy/{id}/reject` (reverts an
+  approved package to DRAFT), `DELETE /copy/{id}` (204, idempotent). Approve now also
+  clears rejection; `CalendarResponse`/`ContentPackageResponse` gained `is_rejected`.
+  Frontend: `api.ts` rejectCalendar/deleteCalendar/rejectPackage/deletePackage;
+  `is_rejected` on the calendar + package types; pipeline calendar items and copy
+  cards gained **Reject / Delete** buttons + a Rejected badge, all using the shared
+  `isMissingError` refresh-on-404 pattern. `py_compile` + `tsc --noEmit` clean.
+  **To apply live: deploy runs `alembic upgrade head` (0009) automatically.** Next:
+  **RV2b** — AI-edit on calendar & copy (per-stage ai-edit endpoints + UI), to finish
+  full research parity.
 
 ## 8. Known Issues / Tech Debt
 

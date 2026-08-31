@@ -138,6 +138,10 @@ export const api = {
   listCalendars: (id: string) => request<ContentCalendar[]>(`/calendar/${id}`),
   approveCalendar: (calendarId: string) =>
     request<unknown>(`/calendar/${calendarId}/approve`, { method: "PATCH" }),
+  rejectCalendar: (calendarId: string) =>
+    request<unknown>(`/calendar/${calendarId}/reject`, { method: "PATCH" }),
+  deleteCalendar: (calendarId: string) =>
+    request<void>(`/calendar/${calendarId}`, { method: "DELETE" }),
   calendarStatus: (id: string) =>
     request<JobStatus>(`/calendar/${id}/status`),
   researchStatus: (id: string) => request<JobStatus>(`/research/${id}/status`),
@@ -152,6 +156,10 @@ export const api = {
   copyStatus: (id: string) => request<JobStatus>(`/copy/${id}/status`),
   approvePackage: (packageId: string) =>
     request<unknown>(`/copy/${packageId}/approve`, { method: "PATCH" }),
+  rejectPackage: (packageId: string) =>
+    request<unknown>(`/copy/${packageId}/reject`, { method: "PATCH" }),
+  deletePackage: (packageId: string) =>
+    request<void>(`/copy/${packageId}`, { method: "DELETE" }),
 
   // Phase 4 — visual
   generateVisual: (packageId: string) =>

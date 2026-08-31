@@ -137,6 +137,7 @@ export interface ContentCalendar {
   planning_period: string;
   post_count: number;
   is_approved: boolean;
+  is_rejected?: boolean;
   platforms: string[] | null;
   entries: Array<Record<string, unknown>> | null;
   summary: string | null;
@@ -155,6 +156,7 @@ export interface ContentPackage {
   platform: string;
   content_type: string;
   status: string;
+  is_rejected?: boolean;
   scheduled_at: string | null;
   objective: string | null;
   target_audience: string | null;

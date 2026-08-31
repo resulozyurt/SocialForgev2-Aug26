@@ -725,6 +725,67 @@ export default function PipelinePage() {
     }
   }
 
+  async function rejectCalendar(id: string) {
+    try {
+      await api.rejectCalendar(id);
+      addLog("calendar", "Calendar rejected.", "info");
+      await refreshCalendars();
+    } catch (e) {
+      if (isMissingError(e)) {
+        addLog("calendar", "That calendar no longer exists — the list has been refreshed.", "info");
+        await refreshCalendars();
+      } else {
+        addLog("calendar", `Reject calendar: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
+    }
+  }
+  async function deleteCalendar(id: string) {
+    try {
+      await api.deleteCalendar(id);
+      addLog("calendar", "Calendar deleted.", "info");
+      await refreshCalendars();
+    } catch (e) {
+      if (isMissingError(e)) {
+        addLog("calendar", "That calendar was already removed — the list has been refreshed.", "info");
+        await refreshCalendars();
+      } else {
+        addLog("calendar", `Delete calendar: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
+    }
+  }
+  async function rejectPackage(id: string) {
+    try {
+      await api.rejectPackage(id);
+      addLog("copy", "Content package rejected.", "info");
+      await refreshPackages();
+    } catch (e) {
+      if (isMissingError(e)) {
+        addLog("copy", "That package no longer exists — the list has been refreshed.", "info");
+        await refreshPackages();
+      } else {
+        addLog("copy", `Reject package: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
+    }
+  }
+  async function deletePackage(id: string) {
+    try {
+      await api.deletePackage(id);
+      addLog("copy", "Content package deleted.", "info");
+      await refreshPackages();
+    } catch (e) {
+      if (isMissingError(e)) {
+        addLog("copy", "That package was already removed — the list has been refreshed.", "info");
+        await refreshPackages();
+      } else {
+        addLog("copy", `Delete package: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
+    }
+  }
+
   async function generateVisual(pkgId: string) {
     setVisualBusy((b) => ({ ...b, [pkgId]: true }));
     setVisualMsg((m) => ({ ...m, [pkgId]: "Generating the branded visual…" }));
@@ -1011,14 +1072,22 @@ export default function PipelinePage() {
                     </div>
                   </div>
                   <div className="ui-item-actions">
-                    <Badge tone={c.is_approved ? "ok" : "neutral"}>
-                      {c.is_approved ? "Approved" : "Draft"}
+                    <Badge tone={c.is_approved ? "ok" : c.is_rejected ? "warn" : "neutral"}>
+                      {c.is_approved ? "Approved" : c.is_rejected ? "Rejected" : "Draft"}
                     </Badge>
                     {!c.is_approved && (
                       <Button size="sm" onClick={() => approveCalendar(c.id)}>
                         Approve
                       </Button>
                     )}
+                    {!c.is_rejected && (
+                      <Button size="sm" variant="subtle" onClick={() => rejectCalendar(c.id)}>
+                        Reject
+                      </Button>
+                    )}
+                    <Button size="sm" variant="danger" onClick={() => deleteCalendar(c.id)}>
+                      Delete
+                    </Button>
                   </div>
                 </div>
                 {c.summary && (
@@ -1191,16 +1260,24 @@ export default function PipelinePage() {
                       ) : null}
                     </div>
                     <div className="cf">
-                      <Badge tone={p.status === "approved" ? "ok" : "neutral"}>{p.status}</Badge>
-                      {p.status !== "approved" && (
-                        <Button
-                          size="sm"
-                          onClick={() => approvePackage(p.id)}
-                          style={{ marginLeft: "auto" }}
-                        >
-                          Approve
+                      <Badge tone={p.status === "approved" ? "ok" : p.is_rejected ? "warn" : "neutral"}>
+                        {p.is_rejected ? "rejected" : p.status}
+                      </Badge>
+                      <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {p.status !== "approved" && (
+                          <Button size="sm" onClick={() => approvePackage(p.id)}>
+                            Approve
+                          </Button>
+                        )}
+                        {!p.is_rejected && (
+                          <Button size="sm" variant="subtle" onClick={() => rejectPackage(p.id)}>
+                            Reject
+                          </Button>
+                        )}
+                        <Button size="sm" variant="danger" onClick={() => deletePackage(p.id)}>
+                          Delete
                         </Button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 );

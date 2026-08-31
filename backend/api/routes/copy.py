@@ -6,7 +6,7 @@ Phase 3 — Content generation (copywriting) endpoints.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -44,6 +44,7 @@ class ContentPackageResponse(BaseModel):
     platform: PlatformEnum
     content_type: ContentTypeEnum
     status: ContentStatusEnum
+    is_rejected: bool = False
     scheduled_at: Optional[datetime] = None
     objective: Optional[str] = None
     target_audience: Optional[str] = None
@@ -155,4 +156,40 @@ async def approve_package(package_id: uuid.UUID, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=404, detail="Content package not found.")
 
     package.status = ContentStatusEnum.APPROVED
+    package.is_rejected = False
     return {"message": "Content package approved.", "package_id": str(package_id)}
+
+
+@router.patch("/copy/{package_id}/reject")
+async def reject_package(package_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """Human reject — keeps the package for audit but marks it dismissed and
+    reverts it out of the approved state."""
+    result = await db.execute(
+        select(ContentPackage).where(ContentPackage.id == package_id)
+    )
+    package = result.scalar_one_or_none()
+    if not package:
+        raise HTTPException(status_code=404, detail="Content package not found.")
+    package.is_rejected = True
+    package.rejected_at = datetime.now(timezone.utc)
+    if package.status == ContentStatusEnum.APPROVED:
+        package.status = ContentStatusEnum.DRAFT
+    return {"message": "Content package rejected.", "package_id": str(package_id)}
+
+
+@router.delete("/copy/{package_id}", status_code=204)
+async def delete_package(package_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """Permanently delete a content package. Idempotent: deleting an
+    already-removed package is treated as success so a stale UI never sees a 404."""
+    result = await db.execute(
+        select(ContentPackage).where(ContentPackage.id == package_id)
+    )
+    package = result.scalar_one_or_none()
+    if package is None:
+        return
+    try:
+        await db.delete(package)
+        await db.flush()
+    except Exception as exc:  # noqa: BLE001 — surface the real reason to the client
+        await db.rollback()
+        raise HTTPException(status_code=409, detail=f"Could not delete package: {exc}") from exc

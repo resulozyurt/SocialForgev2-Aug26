@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -50,6 +51,7 @@ class CalendarResponse(BaseModel):
     planning_period: str
     post_count: int
     is_approved: bool
+    is_rejected: bool = False
     platforms: Optional[list] = None
     entries: Optional[list] = None
     summary: Optional[str] = None
@@ -151,4 +153,39 @@ async def approve_calendar(calendar_id: uuid.UUID, db: AsyncSession = Depends(ge
         raise HTTPException(status_code=404, detail="Calendar not found.")
 
     calendar.is_approved = True
+    calendar.is_rejected = False
+    calendar.approved_at = datetime.now(timezone.utc)
     return {"message": "Calendar approved.", "calendar_id": str(calendar_id)}
+
+
+@router.patch("/calendar/{calendar_id}/reject")
+async def reject_calendar(calendar_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """Human reject — keeps the calendar for audit but marks it dismissed."""
+    result = await db.execute(
+        select(ContentCalendar).where(ContentCalendar.id == calendar_id)
+    )
+    calendar = result.scalar_one_or_none()
+    if not calendar:
+        raise HTTPException(status_code=404, detail="Calendar not found.")
+    calendar.is_rejected = True
+    calendar.is_approved = False
+    calendar.rejected_at = datetime.now(timezone.utc)
+    return {"message": "Calendar rejected.", "calendar_id": str(calendar_id)}
+
+
+@router.delete("/calendar/{calendar_id}", status_code=204)
+async def delete_calendar(calendar_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """Permanently delete a content calendar. Idempotent: deleting an
+    already-removed calendar is treated as success so a stale UI never sees a 404."""
+    result = await db.execute(
+        select(ContentCalendar).where(ContentCalendar.id == calendar_id)
+    )
+    calendar = result.scalar_one_or_none()
+    if calendar is None:
+        return
+    try:
+        await db.delete(calendar)
+        await db.flush()
+    except Exception as exc:  # noqa: BLE001 — surface the real reason to the client
+        await db.rollback()
+        raise HTTPException(status_code=409, detail=f"Could not delete calendar: {exc}") from exc
