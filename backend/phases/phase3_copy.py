@@ -111,6 +111,33 @@ def _brand_palette(brand: Brand) -> str:
     return ", ".join(hexes) if hexes else "no brand palette set - use a clean, on-brand default"
 
 
+def _voice_profile(brand: Brand) -> str:
+    """Turn the brand's structured voice_profile into concrete writing guidance:
+    tone, narrative structure, gold-standard example headlines, and a hard avoid
+    list. This is what makes copy sound like the brand instead of generic AI."""
+    vp = getattr(brand, "voice_profile", None)
+    if not isinstance(vp, dict):
+        return "(no structured voice profile set — infer a sharp, on-brand voice)"
+    parts: list[str] = []
+    tk = vp.get("tone_keywords")
+    if isinstance(tk, list) and tk:
+        parts.append("Tone: " + ", ".join(str(x) for x in tk))
+    ns = vp.get("narrative_structure")
+    if ns:
+        parts.append(f"Narrative structure to follow: {ns}")
+    eh = vp.get("example_headlines")
+    if isinstance(eh, list) and eh:
+        joined = " | ".join(f'"{x}"' for x in eh)
+        parts.append(
+            "GOLD-STANDARD example headlines — match this exact caliber, rhythm and "
+            f"voice (do NOT reuse the words): {joined}"
+        )
+    av = vp.get("avoid")
+    if isinstance(av, list) and av:
+        parts.append("NEVER do this (brand avoid list): " + "; ".join(str(x) for x in av))
+    return "\n".join(parts) if parts else "(voice profile empty — infer a sharp, on-brand voice)"
+
+
 def _visual_language(brand: Brand) -> str:
     """Summarize the brand's visual motifs/style for the image concept."""
     vi = getattr(brand, "visual_identity", None)
@@ -140,24 +167,43 @@ class CopyResult:
 # Prompts
 # ─────────────────────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """You are a senior social media copywriter for US brands with 10+ 
-years of experience. You write in native American English — no translated phrasing, 
-no stiff formality, no generic AI voice, no "excited to announce" energy. You write 
-platform-native: Instagram, LinkedIn, and X each have their own DNA and you apply it 
-automatically. You also produce a faithful, natural-sounding Turkish (TR) adaptation 
-of the same post for the brand's localization needs.
+SYSTEM_PROMPT = """You are a senior B2B social copywriter who has run content for
+field-operations and retail-execution SaaS brands. You write the way a sharp marketer
+writes for a busy practitioner — a merchandiser, an auditor, a field manager — someone
+who will scroll past anything vague. Every line is concrete and earns attention.
 
-You always respond in valid, strictly parseable JSON only — no preamble, no markdown, 
-no extra text. CRITICAL: inside any JSON string value, do NOT use raw double quotes. 
-If you need to quote a word or phrase inside the text, use single quotes ('like this'). 
-Use straight apostrophes for contractions. Never let a double quote appear inside a 
-string except as the delimiter of that string."""
+Non-negotiables:
+- Write for the CUSTOMER, not about the product. Lead with their pain, their moment of
+  friction, or a specific, believable payoff. A reader should stop and think 'that's my
+  problem' within the first few words.
+- Be concrete: name the real situation, use specifics and numbers where they fit. No
+  abstractions, no filler.
+- Ban generic AI/marketing sludge: 'empower', 'seamless', 'in today's fast-paced world',
+  'excited to announce', 'game-changer', 'revolutionize', 'unlock', 'elevate', 'leverage
+  synergies', 'take it to the next level', hollow rhetorical questions.
+- Platform-native by reflex: Instagram is punchy and scannable; LinkedIn is longer and
+  value-dense with line breaks; X is tight and high-tension.
+- Match the brand's voice profile exactly — its tone, narrative structure, the caliber
+  of its example headlines, and its avoid list.
+- Native fluency: English copy reads like a native US marketer wrote it; Turkish copy
+  reads like a native Turkish marketer wrote it — never like a translation.
+
+You also produce the second-language adaptation as a natural rewrite, not a literal
+translation.
+
+You always respond in valid, strictly parseable JSON only — no preamble, no markdown,
+no extra text. CRITICAL: inside any JSON string value, do NOT use raw double quotes. If
+you need to quote a word or phrase inside the text, use single quotes ('like this'). Use
+straight apostrophes for contractions. Never let a double quote appear inside a string
+except as the delimiter of that string."""
 
 COPY_PROMPT = """Write a complete content package for ONE social media post.
 
 BRAND: {brand_name}
 INDUSTRY: {industry}
-BRAND VOICE: {voice}
+BRAND VOICE (free-text guide): {voice}
+BRAND VOICE PROFILE (structured — obey this):
+{voice_profile}
 PRIMARY LANGUAGE: {primary_language}
 BRAND COLOR PALETTE (reuse these exact hex values; do NOT invent off-brand colors): {brand_palette}
 VISUAL LANGUAGE (brand motifs/style to reflect in the image concept): {visual_language}
@@ -199,6 +245,10 @@ Respond with a JSON object in exactly this structure:
 RULES:
 - LOCKED DIRECTION: the APPROVED ON-VISUAL HEADLINE is fixed creative already signed off by a human. Put it in "visual_direction.text_overlay.primary" keeping its exact meaning and wording (only light punctuation/casing polish). Do NOT invent a different visual idea.
 - The ENTIRE package — hooks, caption, CTA, hashtags, and visual — must deliver on THAT headline's promise for THIS solution area. Never drift to an unrelated topic.
+- QUALITY BAR: write like a real marketer for a real practitioner. Every hook and the caption opener must be concrete and scroll-stopping — a specific pain, a friction moment, or a believable payoff (numbers welcome). Match the caliber and rhythm of the brand's GOLD-STANDARD example headlines.
+- Obey the brand voice profile's tone, narrative structure, and AVOID list. Use NONE of the banned generic/marketing phrases from the system prompt.
+- "hooks" are 3 genuinely different angles, each <= 10 words, each usable as a stand-alone opener. No throat-clearing.
+- The caption opens on the hook (no preamble), delivers ONE idea, and ends with ONE specific CTA. Cut anything a busy reader would skip.
 - Only fill "carousel_slides" if CONTENT TYPE is carousel; otherwise use an empty array [].
 - Only fill "thread" if PLATFORM is x or twitter; otherwise use an empty array [].
 - Match caption length to the platform (Instagram: punchy, scannable; LinkedIn: longer, value-dense, line breaks).
@@ -364,6 +414,7 @@ class Phase3Copy:
             brand_name=brand.display_name,
             industry=brand.industry or "B2B SaaS",
             voice=brand.voice_guide_text or "Confident, practical, peer-to-peer. No corporate fluff.",
+            voice_profile=_voice_profile(brand),
             primary_language=_brand_language_directive(brand),
             brand_palette=_brand_palette(brand),
             visual_language=_visual_language(brand),

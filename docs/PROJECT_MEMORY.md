@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **A1** (content revision: copy now consumes the full calendar entry + builds on the approved headline).
+Last updated: 2026-08-31 — **A2** (content revision: copy quality rebuilt on the brand voice profile).
 
 ---
 
@@ -860,10 +860,15 @@ should persist and be selectable. Roadmap, two tracks:
     becomes `text_overlay.primary`, meaning/wording preserved) and keep the whole
     package on that promise for that solution. Verified: py_compile + a
     placeholder/format-parity check. Owner runs a live copy run to confirm quality.
-  - **A2 (NEXT)** — rewrite the copy prompt for quality (customer-facing, scroll-
-    stopping, platform-native; feed `voice_profile.example_headlines`/`avoid`).
-  - **A3** — rewrite the calendar headline prompt for quality (concrete, brand-voice
-    examples, ban generic phrasing).
+  - **A2 DONE** — copy quality rebuilt: new `_voice_profile(brand)` helper feeds the
+    structured voice profile (tone_keywords / narrative_structure / example_headlines
+    as gold-standard / avoid list) into the prompt; SYSTEM_PROMPT rewritten to write
+    customer-first and concrete and to ban generic marketing sludge; added quality
+    rules (hooks <=10 words, concrete openers, one-idea captions). The voice profile
+    lives on each brand's **Voice** tab (all four fields; seeded + owner-filled).
+    Verified: py_compile + placeholder/format-parity. Owner runs a live copy run.
+  - **A3 (NEXT)** — rewrite the calendar headline prompt for quality (concrete,
+    brand-voice example headlines, ban generic phrasing).
 - **Track B — post-centric, month-scoped flow (architecture, larger):** B1 post
   detail page (click a calendar post -> one page with all fields + inline
   generate/select), B2 month scoping/navigation, B3 image history (persist every
