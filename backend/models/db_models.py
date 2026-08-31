@@ -12,7 +12,7 @@ from typing import Optional
 
 from sqlalchemy import (
     Boolean, DateTime, Enum, Float, ForeignKey,
-    Integer, String, Text, UniqueConstraint, func,
+    Integer, LargeBinary, String, Text, UniqueConstraint, func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -131,6 +131,7 @@ class Brand(Base):
     competitors: Mapped[list["Competitor"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     content_pillars: Mapped[list["ContentPillar"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     solutions: Mapped[list["BrandSolution"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
+    reference_images: Mapped[list["SolutionReferenceImage"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     ai_configs: Mapped[list["AIProviderConfig"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     content_packages: Mapped[list["ContentPackage"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     content_calendars: Mapped[list["ContentCalendar"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
@@ -184,12 +185,41 @@ class BrandSolution(Base):
     # E2: content-weight intensity (1-5). Drives the per-solution calendar split.
     importance: Mapped[int] = mapped_column(Integer, default=3, server_default="3")
     concept_notes: Mapped[Optional[str]] = mapped_column(Text)
+    # V1: per-(brand,solution) visual style note fed into the image prompt at
+    # generation time (kept separate from concept_notes, which is content-side).
+    visual_notes: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     brand: Mapped["Brand"] = relationship(back_populates="solutions")
+
+
+class SolutionReferenceImage(Base):
+    """
+    V1: reference example images uploaded per (brand, solution). At visual
+    generation time these are passed to the image model (gpt-image-1 edits) so a
+    new post inherits the brand's proven style for that solution. Bytes are
+    downscaled on upload (Pillow) and stored in Postgres to avoid new infra.
+    Keyed by brand_id + solution (mirrors the Competitor pattern), independent of
+    brand_solutions activation.
+    """
+    __tablename__ = "solution_reference_images"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), index=True)
+    solution: Mapped[SolutionEnum] = mapped_column(Enum(SolutionEnum), nullable=False, index=True)
+    image_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    content_type: Mapped[str] = mapped_column(String(64), nullable=False, default="image/png", server_default="image/png")
+    filename: Mapped[Optional[str]] = mapped_column(String(255))
+    note: Mapped[Optional[str]] = mapped_column(Text)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    brand: Mapped["Brand"] = relationship(back_populates="reference_images")
 
 
 class AIProviderConfig(Base):

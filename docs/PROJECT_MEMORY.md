@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **RV5** (solutions/competitors nested tabs). Owner review #1–#8 ALL DONE.
+Last updated: 2026-08-31 — **V1** (visual redesign: reference-image data model + migration 0010).
 
 ---
 
@@ -38,16 +38,18 @@ explicitly.
 **Locked decisions.**
 1. API keys come from the **in-app Settings page** (`app_settings`, Fernet-encrypted),
    never from code or env.
-2. Image provider was OpenAI `gpt-image-1`, **but the whole visual-generation step is
-   being redesigned by the owner** — do **NOT** build the old D2 (Pillow overlay) or D3
-   (Drive); wait for the owner's new architecture spec.
+2. Image provider is OpenAI `gpt-image-1`. The whole visual-generation step is being
+   **redesigned (V-series, approved 2026-08-31)**: per-(brand,solution) reference-image
+   library -> `gpt-image-1` **edits** (multi-reference) -> N candidate drafts -> human
+   picks. The old **D2 (Pillow overlay) and D3 (Drive) are retired — do NOT build them**.
+   Reference bytes are downscaled on upload (Pillow) and stored in Postgres (no new infra).
 3. Auth: admin panel HTTP Basic; frontend `/api` proxy is same-origin; Railway backend
    `replicas=1` (in-memory job/status state depends on this).
 4. **Human-in-the-loop is non-negotiable**: the system drafts; a human approves at the
    checkpoints (research / calendar / copy / visual). No fully autonomous publishing.
 
 **Infra.** Live on Railway: `SocialForge-Backend` (root `backend`), `SocialForge-Front`
-(root `frontend`), managed `Postgres`. Alembic **migration head = 0009**; deploy runs
+(root `frontend`), managed `Postgres`. Alembic **migration head = 0010**; deploy runs
 `alembic upgrade head` automatically. Repo is private.
 
 ---
@@ -148,7 +150,8 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | A Foundation | deps fix, Alembic, auth, Railway prep, DB URL norm | DONE |
 | **B Brand+Solution** | rich brand profiles, solution taxonomy, seed FieldPie/Evatro | **DONE (this commit)** |
 | C Review UI + free research | 3 approval screens, RSS/Trends, Google Drive | DONE (C1+C2+C3; Drive->D) |
-| D Visual | Phase 4 branded image generation | IN PROGRESS (D1 backend + D4 UI done via U3b; D2 overlay / D3 Drive next) |
+| D Visual | Phase 4 branded image generation (old design) | SUPERSEDED by V-series (D1 raw scene stays as placeholder; D2/D3 retired) |
+| **V Visual redesign** | reference-image library -> multi-ref gpt-image-1 edits -> candidates | **IN PROGRESS (V1 done: data model + migration 0010)** |
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
@@ -157,6 +160,18 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 
 ## 7. Decisions Log (ADR-style)
 
+- **2026-08-31 — Visual generation redesign (V-series, approved):** replace the
+  old text-only single-image D1 flow with a **reference-conditioned** one. Each
+  (brand, solution) has an uploaded **reference library** (owner's ~8–10 proven
+  posts); at generation time these + copy + brand identity + a per-solution
+  `visual_notes` are sent to OpenAI **`gpt-image-1` edits** (multi-reference) to
+  produce **N candidate drafts (default 2)**; the human picks and finishes in
+  Canva. Model note: the owner's ChatGPT `gpt-5.x-high` is the orchestrating chat
+  model — the actual image tool there is GPT Image (`gpt-image-1`), whose API
+  equivalent is the edits endpoint. Provider layer stays pluggable (Gemini image
+  can be added later). **Storage:** reference bytes downscaled on upload (Pillow)
+  and kept in Postgres — Drive stays retired, no new infra. Reference sets are
+  keyed per **brand AND per solution** (never shared across brands).
 - **2026-08-26 — Research source:** RSS + Google Trends is the primary, free
   path (built in Phase C). Apify (paid IG/LinkedIn scraping) stays optional,
   behind a flag. Rationale: honor "no extra paid services" and the brief's
@@ -769,18 +784,31 @@ pillars).
 
 ## 10. How to Resume
 
-**Where we are (2026-08-31).** The full app is live and working end to end:
-research -> calendar -> copy -> (raw) visual, with human approval at each gate.
-The **Studio UI rebuild (Phase U, U1-U5) is complete** and the owner's post-rebuild
-**review round (RV1-RV5, items #1-#8) is complete** — see the decision log for each.
-Alembic head is **0009** (auto-applied on deploy).
+**Where we are (2026-08-31).** The full app is live end to end: research -> calendar
+-> copy -> (raw) visual, human approval at each gate. Studio UI rebuild (U1-U5) and
+the owner's review round (RV1-RV5, #1-#8) are complete. The **visual-generation
+redesign (V-series) has started**: **V1 is done** — new `solution_reference_images`
+table + `brand_solutions.visual_notes` + `SolutionReferenceImage` model, migration
+**0010** (guarded, reuses `solutionenum`). Verified via py_compile + a stubbed
+`configure_mappers()` check. Alembic head is **0010** (auto-applied on deploy; the
+owner has NOT run it against the live DB yet).
 
-**Immediate next work: visual generation — NEW architecture (owner-driven).** The
-owner has a different design for the whole visual-generation step and will describe
-it. **Do NOT build the old D2 (Pillow pill/logo/headline overlay) or D3 (Google
-Drive).** The current Stage-4 Visual UI works against D1 (OpenAI raw scene) as a
-placeholder. When the owner gives the spec: first do a gap analysis + a sub-stepped
-plan (no code yet), get approval, then build.
+**Immediate next work: V-series visual redesign (approved 2026-08-31).** Roadmap,
+each an independently deployable, owner-reviewed commit:
+- **V1 DONE** — reference-image data model + migration 0010 + `visual_notes`.
+- **V2 (NEXT)** — reference-library API: upload (multipart, Pillow downscale on
+  upload), list, delete, reorder per (brand, solution); a route that serves the
+  stored image bytes; plus GET/PUT for `visual_notes`.
+- **V3a/V3b** — per-solution page UI: list references, then upload/delete/reorder +
+  edit the solution's visual note.
+- **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
+  build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
+  (default 2). Owner runs the live call (needs the image key).
+- **V5** — Studio Stage-4 UI: candidate gallery (pick / regenerate / approve /
+  download).
+- **V6** — polish: provider + candidate-count in Settings, error surfacing, memory
+  finalize.
+Old D2 (Pillow overlay) and D3 (Drive) stay **retired** — do NOT build them.
 
 **Other open items (not started):**
 - Copy-run hardening: the copy poll window (~6 min) can end before a 30-post batch
