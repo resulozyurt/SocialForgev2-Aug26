@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **RV2a** (Delete + Reject on calendar & copy). Needs migration 0009 on deploy.
+Last updated: 2026-08-31 — **RV2b** (AI-edit on calendar & copy). #2 complete (full research parity). No migration.
 
 ---
 
@@ -612,6 +612,22 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   **To apply live: deploy runs `alembic upgrade head` (0009) automatically.** Next:
   **RV2b** — AI-edit on calendar & copy (per-stage ai-edit endpoints + UI), to finish
   full research parity.
+
+- **2026-08-31 (RV2b) — AI-edit on calendar & copy; owner review #2 COMPLETE:**
+  added `POST /calendar/{id}/ai-edit` and `POST /copy/{id}/ai-edit` (both {instruction}),
+  mirroring the report ai-edit. Each sends the current record JSON + the human
+  instruction to that brand's stage AIProviderConfig (PhaseEnum.CALENDAR /
+  PhaseEnum.COPY), rewrites it in place, and resets it to an unapproved draft
+  (calendar → is_approved/is_rejected false; package → status DRAFT, is_rejected
+  false). Calendar ai-edit best-effort-normalizes entries via
+  `Phase2Calendar._normalize_entries`; JSON parsed with `core.json_utils.parse_ai_json`.
+  Frontend: `api.ts` aiEditCalendar/aiEditPackage; pipeline calendar items and copy
+  cards gained an **Edit with AI** button + inline instruction box (Apply/Cancel),
+  matching the report flow, with per-item busy state and isMissingError handling.
+  `py_compile` + `tsc --noEmit` clean. **No migration.** Owner review #2 (delete +
+  reject + ai-edit on all stages) is fully done. Next: **RV3** — #4/#5/#6 sidebar +
+  smart brand switcher (navigate to the same screen for the other brand) + brand-context
+  menu + Dashboard link + remove empty Calendar/Assets items.
 
 ## 8. Known Issues / Tech Debt
 

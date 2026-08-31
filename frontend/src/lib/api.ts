@@ -142,6 +142,11 @@ export const api = {
     request<unknown>(`/calendar/${calendarId}/reject`, { method: "PATCH" }),
   deleteCalendar: (calendarId: string) =>
     request<void>(`/calendar/${calendarId}`, { method: "DELETE" }),
+  aiEditCalendar: (calendarId: string, instruction: string) =>
+    request<ContentCalendar>(`/calendar/${calendarId}/ai-edit`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
+    }),
   calendarStatus: (id: string) =>
     request<JobStatus>(`/calendar/${id}/status`),
   researchStatus: (id: string) => request<JobStatus>(`/research/${id}/status`),
@@ -160,6 +165,11 @@ export const api = {
     request<unknown>(`/copy/${packageId}/reject`, { method: "PATCH" }),
   deletePackage: (packageId: string) =>
     request<void>(`/copy/${packageId}`, { method: "DELETE" }),
+  aiEditPackage: (packageId: string, instruction: string) =>
+    request<ContentPackage>(`/copy/${packageId}/ai-edit`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
+    }),
 
   // Phase 4 — visual
   generateVisual: (packageId: string) =>

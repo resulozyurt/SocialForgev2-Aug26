@@ -409,6 +409,12 @@ export default function PipelinePage() {
   const [reportBusy, setReportBusy] = useState<string | null>(null);
   const [editReportId, setEditReportId] = useState<string | null>(null);
   const [editInstruction, setEditInstruction] = useState("");
+  const [editCalId, setEditCalId] = useState<string | null>(null);
+  const [editCalInstr, setEditCalInstr] = useState("");
+  const [calBusy, setCalBusy] = useState<string | null>(null);
+  const [editPkgId, setEditPkgId] = useState<string | null>(null);
+  const [editPkgInstr, setEditPkgInstr] = useState("");
+  const [pkgBusy, setPkgBusy] = useState<string | null>(null);
   const [calendars, setCalendars] = useState<ContentCalendar[]>([]);
   const [packages, setPackages] = useState<ContentPackage[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -786,6 +792,53 @@ export default function PipelinePage() {
     }
   }
 
+  async function submitCalAiEdit(id: string) {
+    if (!editCalInstr.trim()) return;
+    setCalBusy(id);
+    addLog("calendar", "Calendar: AI is applying your edit…");
+    try {
+      await api.aiEditCalendar(id, editCalInstr.trim());
+      addLog("calendar", "Calendar: AI edit applied — review the updated draft.", "ok");
+      setEditCalId(null);
+      setEditCalInstr("");
+      await refreshCalendars();
+    } catch (e) {
+      if (isMissingError(e)) {
+        addLog("calendar", "That calendar no longer exists — the list has been refreshed.", "info");
+        setEditCalId(null);
+        await refreshCalendars();
+      } else {
+        addLog("calendar", `AI edit: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
+    } finally {
+      setCalBusy(null);
+    }
+  }
+  async function submitPkgAiEdit(id: string) {
+    if (!editPkgInstr.trim()) return;
+    setPkgBusy(id);
+    addLog("copy", "Copy: AI is applying your edit…");
+    try {
+      await api.aiEditPackage(id, editPkgInstr.trim());
+      addLog("copy", "Copy: AI edit applied — review the updated draft.", "ok");
+      setEditPkgId(null);
+      setEditPkgInstr("");
+      await refreshPackages();
+    } catch (e) {
+      if (isMissingError(e)) {
+        addLog("copy", "That package no longer exists — the list has been refreshed.", "info");
+        setEditPkgId(null);
+        await refreshPackages();
+      } else {
+        addLog("copy", `AI edit: error — ${msg(e)}`, "err");
+        setError(msg(e));
+      }
+    } finally {
+      setPkgBusy(null);
+    }
+  }
+
   async function generateVisual(pkgId: string) {
     setVisualBusy((b) => ({ ...b, [pkgId]: true }));
     setVisualMsg((m) => ({ ...m, [pkgId]: "Generating the branded visual…" }));
@@ -1085,6 +1138,16 @@ export default function PipelinePage() {
                         Reject
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="subtle"
+                      onClick={() => {
+                        setEditCalId(editCalId === c.id ? null : c.id);
+                        setEditCalInstr("");
+                      }}
+                    >
+                      Edit with AI
+                    </Button>
                     <Button size="sm" variant="danger" onClick={() => deleteCalendar(c.id)}>
                       Delete
                     </Button>
@@ -1128,6 +1191,36 @@ export default function PipelinePage() {
                     </div>
                   );
                 })()}
+                {editCalId === c.id && (
+                  <div className="ui-airow">
+                    <textarea
+                      className="ui-textarea"
+                      value={editCalInstr}
+                      onChange={(e) => setEditCalInstr(e.target.value)}
+                      placeholder="Tell the AI what to change, e.g. 'Shift week 3 toward field audit and make the headlines punchier.'"
+                    />
+                    <div className="ui-form-actions">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => submitCalAiEdit(c.id)}
+                        disabled={calBusy === c.id || !editCalInstr.trim()}
+                      >
+                        {calBusy === c.id ? "Applying…" : "Apply AI edit"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => {
+                          setEditCalId(null);
+                          setEditCalInstr("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <details className="ui-details">
                   <summary>View {A(c.entries).length} entries</summary>
                   <CalendarView calendar={c} />
@@ -1274,11 +1367,51 @@ export default function PipelinePage() {
                             Reject
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="subtle"
+                          onClick={() => {
+                            setEditPkgId(editPkgId === p.id ? null : p.id);
+                            setEditPkgInstr("");
+                          }}
+                        >
+                          Edit AI
+                        </Button>
                         <Button size="sm" variant="danger" onClick={() => deletePackage(p.id)}>
                           Delete
                         </Button>
                       </div>
                     </div>
+                    {editPkgId === p.id && (
+                      <div className="ui-airow" style={{ padding: "0 14px 14px" }}>
+                        <textarea
+                          className="ui-textarea"
+                          value={editPkgInstr}
+                          onChange={(e) => setEditPkgInstr(e.target.value)}
+                          placeholder="Tell the AI what to change, e.g. 'Make the caption shorter and add a stronger CTA.'"
+                        />
+                        <div className="ui-form-actions">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => submitPkgAiEdit(p.id)}
+                            disabled={pkgBusy === p.id || !editPkgInstr.trim()}
+                          >
+                            {pkgBusy === p.id ? "Applying…" : "Apply AI edit"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="subtle"
+                            onClick={() => {
+                              setEditPkgId(null);
+                              setEditPkgInstr("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

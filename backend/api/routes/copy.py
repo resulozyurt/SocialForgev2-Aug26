@@ -5,6 +5,7 @@ Phase 3 — Content generation (copywriting) endpoints.
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -14,12 +15,16 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.ai_provider import build_provider_from_config
 from core.database import get_db
+from core.json_utils import parse_ai_json
 from models.db_models import (
+    AIProviderConfig,
     Brand,
     ContentPackage,
     ContentStatusEnum,
     ContentTypeEnum,
+    PhaseEnum,
     PlatformEnum,
 )
 
@@ -193,3 +198,106 @@ async def delete_package(package_id: uuid.UUID, db: AsyncSession = Depends(get_d
     except Exception as exc:  # noqa: BLE001 — surface the real reason to the client
         await db.rollback()
         raise HTTPException(status_code=409, detail=f"Could not delete package: {exc}") from exc
+
+
+class AiEditRequest(BaseModel):
+    instruction: str
+
+
+COPY_AI_EDIT_SYSTEM = (
+    "You are revising an existing social content package for a brand based on a human "
+    "editor's instruction. Apply the instruction precisely, keep everything else "
+    "intact, and preserve each field's structure. Respond with valid JSON only — no "
+    "preamble, no markdown. Inside JSON string values use single quotes, never raw "
+    "double quotes."
+)
+
+COPY_AI_EDIT_PROMPT = """BRAND: {brand}
+
+EDITOR INSTRUCTION:
+{instruction}
+
+CURRENT CONTENT PACKAGE (JSON):
+{package}
+
+Return the FULL revised package as a JSON object with exactly these keys:
+"copy_en" (object), "copy_tr" (object), "visual_direction" (object),
+"strategic_rationale" (string), "target_audience" (string). Keep copy_en and copy_tr
+in the same shape they have now (hooks, caption, cta, hashtags, alt_text,
+carousel_slides, thread). Keep visual_direction's fields (concept, mood,
+color_palette, composition, image_prompt, text_overlay). Keep it on-brand and
+specific; do not drop fields."""
+
+
+@router.post("/copy/{package_id}/ai-edit", response_model=ContentPackageResponse)
+async def ai_edit_package(
+    package_id: uuid.UUID,
+    payload: AiEditRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Revise a content package with the Copy AI using a human instruction. Result is a
+    fresh, unapproved draft."""
+    if not payload.instruction.strip():
+        raise HTTPException(status_code=422, detail="Instruction is required.")
+    res = await db.execute(select(ContentPackage).where(ContentPackage.id == package_id))
+    package = res.scalar_one_or_none()
+    if not package:
+        raise HTTPException(status_code=404, detail="Content package not found.")
+
+    brand_res = await db.execute(select(Brand).where(Brand.id == package.brand_id))
+    brand = brand_res.scalar_one_or_none()
+
+    cfg_res = await db.execute(
+        select(AIProviderConfig).where(
+            AIProviderConfig.brand_id == package.brand_id,
+            AIProviderConfig.phase == PhaseEnum.COPY,
+        )
+    )
+    ai_config = cfg_res.scalar_one_or_none()
+    if not ai_config:
+        raise HTTPException(
+            status_code=400,
+            detail="No Copy AI provider configured for this brand. Add one under AI Providers.",
+        )
+
+    current = {
+        "copy_en": package.copy_package_en or {},
+        "copy_tr": package.copy_package_tr or {},
+        "visual_direction": package.visual_direction or {},
+        "strategic_rationale": package.strategic_rationale or "",
+        "target_audience": package.target_audience or "",
+    }
+    prompt = COPY_AI_EDIT_PROMPT.format(
+        brand=brand.display_name if brand else "the brand",
+        instruction=payload.instruction.strip(),
+        package=json.dumps(current, ensure_ascii=False, indent=2),
+    )
+    provider = build_provider_from_config(
+        provider_name=ai_config.provider.value,
+        model=ai_config.model,
+        encrypted_api_key=ai_config.api_key_enc,
+    )
+    response = await provider.complete(
+        user_message=prompt,
+        system_prompt=COPY_AI_EDIT_SYSTEM,
+        temperature=ai_config.temperature,
+        max_tokens=max(ai_config.max_tokens or 4096, 4096),
+    )
+    data = parse_ai_json(response.content)
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=502, detail="AI returned invalid JSON for the edited package.")
+    if data.get("copy_en") is not None:
+        package.copy_package_en = data["copy_en"]
+    if data.get("copy_tr") is not None:
+        package.copy_package_tr = data["copy_tr"]
+    if data.get("visual_direction") is not None:
+        package.visual_direction = data["visual_direction"]
+    if isinstance(data.get("strategic_rationale"), str):
+        package.strategic_rationale = data["strategic_rationale"]
+    if isinstance(data.get("target_audience"), str):
+        package.target_audience = data["target_audience"]
+    package.status = ContentStatusEnum.DRAFT
+    package.is_rejected = False
+    await db.flush()
+    await db.refresh(package)
+    return package

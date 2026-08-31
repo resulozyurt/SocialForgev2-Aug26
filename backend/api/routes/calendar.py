@@ -5,6 +5,7 @@ Phase 2 — Content calendar endpoints.
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -15,8 +16,10 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.ai_provider import build_provider_from_config
 from core.database import get_db
-from models.db_models import Brand, ContentCalendar
+from core.json_utils import parse_ai_json
+from models.db_models import AIProviderConfig, Brand, ContentCalendar, PhaseEnum
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -189,3 +192,100 @@ async def delete_calendar(calendar_id: uuid.UUID, db: AsyncSession = Depends(get
     except Exception as exc:  # noqa: BLE001 — surface the real reason to the client
         await db.rollback()
         raise HTTPException(status_code=409, detail=f"Could not delete calendar: {exc}") from exc
+
+
+class AiEditRequest(BaseModel):
+    instruction: str
+
+
+CAL_AI_EDIT_SYSTEM = (
+    "You are revising an existing monthly content calendar for a brand based on a "
+    "human editor's instruction. Apply the instruction precisely, keep everything "
+    "else intact, and preserve each entry's fields and structure. Respond with valid "
+    "JSON only — no preamble, no markdown."
+)
+
+CAL_AI_EDIT_PROMPT = """BRAND: {brand}
+
+EDITOR INSTRUCTION:
+{instruction}
+
+CURRENT CALENDAR (JSON):
+{calendar}
+
+Return the FULL revised calendar as a JSON object with exactly these keys:
+"summary" (string) and "entries" (list). Each entry keeps the same fields it has now
+(date, solution, platform, content_type, pillar, hook_concept, headline, ai_angle,
+objective, rationale). Keep dates within the same planning period and keep the plan
+balanced across the brand's solutions. Do not drop fields."""
+
+
+@router.post("/calendar/{calendar_id}/ai-edit", response_model=CalendarResponse)
+async def ai_edit_calendar(
+    calendar_id: uuid.UUID,
+    payload: AiEditRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Revise a calendar with the Calendar AI using a human instruction. Result is a
+    fresh, unapproved draft."""
+    if not payload.instruction.strip():
+        raise HTTPException(status_code=422, detail="Instruction is required.")
+    res = await db.execute(select(ContentCalendar).where(ContentCalendar.id == calendar_id))
+    calendar = res.scalar_one_or_none()
+    if not calendar:
+        raise HTTPException(status_code=404, detail="Calendar not found.")
+
+    brand_res = await db.execute(select(Brand).where(Brand.id == calendar.brand_id))
+    brand = brand_res.scalar_one_or_none()
+
+    cfg_res = await db.execute(
+        select(AIProviderConfig).where(
+            AIProviderConfig.brand_id == calendar.brand_id,
+            AIProviderConfig.phase == PhaseEnum.CALENDAR,
+        )
+    )
+    ai_config = cfg_res.scalar_one_or_none()
+    if not ai_config:
+        raise HTTPException(
+            status_code=400,
+            detail="No Calendar AI provider configured for this brand. Add one under AI Providers.",
+        )
+
+    current = {"summary": calendar.summary or "", "entries": calendar.entries or []}
+    prompt = CAL_AI_EDIT_PROMPT.format(
+        brand=brand.display_name if brand else "the brand",
+        instruction=payload.instruction.strip(),
+        calendar=json.dumps(current, ensure_ascii=False, indent=2),
+    )
+    provider = build_provider_from_config(
+        provider_name=ai_config.provider.value,
+        model=ai_config.model,
+        encrypted_api_key=ai_config.api_key_enc,
+    )
+    n = len(current["entries"]) if isinstance(current["entries"], list) else 20
+    response = await provider.complete(
+        user_message=prompt,
+        system_prompt=CAL_AI_EDIT_SYSTEM,
+        temperature=ai_config.temperature,
+        max_tokens=min(max(ai_config.max_tokens or 4096, n * 200 + 1200), 8000),
+    )
+    data = parse_ai_json(response.content)
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=502, detail="AI returned invalid JSON for the edited calendar.")
+    entries = data.get("entries")
+    if isinstance(entries, list):
+        try:
+            from phases.phase2_calendar import Phase2Calendar
+            entries = Phase2Calendar._normalize_entries(entries)
+        except Exception:  # noqa: BLE001 — normalization is best-effort
+            pass
+        calendar.entries = entries
+        calendar.post_count = len(entries)
+    if isinstance(data.get("summary"), str):
+        calendar.summary = data["summary"]
+    calendar.raw_ai_output = response.content
+    calendar.is_approved = False
+    calendar.is_rejected = False
+    await db.flush()
+    await db.refresh(calendar)
+    return calendar
