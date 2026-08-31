@@ -64,6 +64,7 @@ class ContentPackageResponse(BaseModel):
     calendar_id: Optional[uuid.UUID] = None
     scheduled_at: Optional[datetime] = None
     objective: Optional[str] = None
+    trend_signal: Optional[str] = None
     target_audience: Optional[str] = None
     strategic_rationale: Optional[str] = None
     copy_package_en: Optional[dict] = None

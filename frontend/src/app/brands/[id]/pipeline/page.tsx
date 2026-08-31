@@ -431,15 +431,22 @@ export default function PipelinePage() {
   const [viewLang, setViewLang] = useState<"en" | "tr">("en");
   const [selectedPkgIds, setSelectedPkgIds] = useState<Set<string>>(new Set());
   const [confirmPeriod, setConfirmPeriod] = useState<string | null>(null);
+  const [periodFilter, setPeriodFilter] = useState<string>("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [visuals, setVisuals] = useState<Record<string, VisualResponse>>({});
   const [visualBusy, setVisualBusy] = useState<Record<string, boolean>>({});
   const [visualMsg, setVisualMsg] = useState<Record<string, string>>({});
-  const approvedPackages = packages.filter((p) => p.status === "approved");
+  const periodOptions = Array.from(
+    new Set(packages.map((p) => p.planning_period || "__legacy__")),
+  ).sort((a, b) => (a === "__legacy__" ? 1 : b === "__legacy__" ? -1 : b.localeCompare(a)));
+  const visiblePackages = periodFilter
+    ? packages.filter((p) => (p.planning_period || "__legacy__") === periodFilter)
+    : packages;
+  const approvedPackages = visiblePackages.filter((p) => p.status === "approved");
   const approvedPkgIds = approvedPackages.map((p) => p.id).join(",");
   const copyGroups = (() => {
     const map = new Map<string, typeof packages>();
-    for (const p of packages) {
+    for (const p of visiblePackages) {
       const key = p.planning_period || "__legacy__";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(p);
@@ -1344,6 +1351,24 @@ export default function PipelinePage() {
           }
           right={
             <>
+              {periodOptions.length > 0 && (
+                <span className="ui-inline-field">
+                  <span className="ui-label">Month</span>
+                  <select
+                    className="ui-input ui-input-sm"
+                    value={periodFilter}
+                    onChange={(e) => setPeriodFilter(e.target.value)}
+                    style={{ width: 150 }}
+                  >
+                    <option value="">All months</option>
+                    {periodOptions.map((po) => (
+                      <option key={po} value={po}>
+                        {po === "__legacy__" ? "No calendar" : po}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+              )}
               <span className="ui-inline-field">
                 <span className="ui-label">Limit</span>
                 <Input
@@ -1604,7 +1629,29 @@ export default function PipelinePage() {
               <span className="ui-stage-num">4</span>Visual — branded image
             </>
           }
-          right={<span className="ui-item-meta">Approval 3 · reference-based generation</span>}
+          right={
+            <>
+              {periodOptions.length > 0 && (
+                <span className="ui-inline-field">
+                  <span className="ui-label">Month</span>
+                  <select
+                    className="ui-input ui-input-sm"
+                    value={periodFilter}
+                    onChange={(e) => setPeriodFilter(e.target.value)}
+                    style={{ width: 150 }}
+                  >
+                    <option value="">All months</option>
+                    {periodOptions.map((po) => (
+                      <option key={po} value={po}>
+                        {po === "__legacy__" ? "No calendar" : po}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+              )}
+              <span className="ui-item-meta">Approval 3 · reference-based generation</span>
+            </>
+          }
         />
         <CardBody>
           <p className="ui-note" style={{ marginTop: -4, marginBottom: 12 }}>

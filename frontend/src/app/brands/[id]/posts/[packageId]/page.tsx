@@ -272,10 +272,11 @@ export default function PostDetailPage() {
             <Section title="Alt text"><p className="sf-note" style={{ margin: 0 }}>{altText}</p></Section>
           ) : null}
 
-          {(S(pkg.strategic_rationale) || S(pkg.target_audience)) ? (
+          {(S(pkg.strategic_rationale) || S(pkg.target_audience) || S(pkg.trend_signal)) ? (
             <Section title="Strategy">
               {S(pkg.target_audience) ? <p style={{ margin: "0 0 6px" }}><b>Audience: </b>{S(pkg.target_audience)}</p> : null}
-              {S(pkg.strategic_rationale) ? <p style={{ margin: 0 }}><b>Rationale: </b>{S(pkg.strategic_rationale)}</p> : null}
+              {S(pkg.strategic_rationale) ? <p style={{ margin: "0 0 6px" }}><b>Rationale: </b>{S(pkg.strategic_rationale)}</p> : null}
+              {S(pkg.trend_signal) ? <p style={{ margin: 0 }}><b>Trend signal: </b>{S(pkg.trend_signal)}</p> : null}
             </Section>
           ) : null}
 

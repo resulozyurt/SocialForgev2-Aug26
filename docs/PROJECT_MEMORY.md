@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **B1** (post detail page: one page with all fields + inline visual generate/select).
+Last updated: 2026-08-31 — **B2** (month scoping: period selector filters Copy + Visual) + trend_signal shown on the post page.
 
 ---
 
@@ -897,9 +897,14 @@ should persist and be selectable. Roadmap, two tracks:
     -> select/approve/download, reusing the visuals API). Copy cards in the pipeline
     now have an **Open** link to it. Added `api.getPackage` (GET /copy/detail/{id}).
     Verified: tsc clean.
-  - **B2 (NEXT)** — month scoping/navigation across the pipeline (period selector;
-    calendar entry -> its post).
-  - **B3** — image history (persist every generated image, all selectable).
+  - **B2 DONE** — pipeline now has a **Month** selector (options from packages'
+    planning_period; legacy NULL = "No calendar") that scopes both the Copy list and
+    the Visual stage to one period, killing the multi-month soup. Also completed the
+    post detail page: `trend_signal` is now exposed in the copy API response +
+    ContentPackage type and shown under Strategy. Verified: py_compile + tsc clean.
+  - **B3 (NEXT)** — image history: persist every generated image (not just the latest
+    run's candidates) so all are selectable. Likely a `visual_generations` table or an
+    append-only list in asset_urls; expose + a picker on the post page and Stage-4.
 - **V4** — rewrite `phases/phase4_visual.py`: load the package's solution references,
   build the prompt, call `gpt-image-1` edits (multi-ref), return **N candidates**
   (default 2). Owner runs the live call (needs the image key).

@@ -162,6 +162,7 @@ export interface ContentPackage {
   calendar_id?: string | null;
   scheduled_at: string | null;
   objective: string | null;
+  trend_signal?: string | null;
   target_audience: string | null;
   strategic_rationale: string | null;
   copy_package_en: Record<string, unknown> | null;
