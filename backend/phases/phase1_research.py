@@ -202,6 +202,7 @@ class Phase1Research:
         brand_id: str,
         planning_period: str,
         max_posts_per_competitor: int = 20,
+        progress=None,
     ) -> TrendReportResult:
         """
         Full Phase 1 run for a brand.
@@ -254,6 +255,9 @@ class Phase1Research:
             if not ai_config:
                 raise ValueError(f"No AI config found for Phase 1, brand {brand_id}.")
 
+        _p = progress if callable(progress) else (lambda *a, **k: None)
+        _p("Gathering sources: RSS feeds + targeted web search…")
+
         # Resolve research sources: free RSS + Google Trends is primary; Apify
         # competitor scraping is opt-in per brand (research_sources.use_apify).
         cfg = brand.research_sources or {}
@@ -285,6 +289,7 @@ class Phase1Research:
         # so it is opt-in per brand (research_sources.use_trends). Targeted per-solution
         # search is the primary, relevant signal.
         trends_items = await fetch_google_trends(geo) if cfg.get("use_trends") else []
+        _p(f"RSS: {len(rss_items)} article(s) gathered.")
 
         search_items: list = []
         if self._search_key:
@@ -295,6 +300,7 @@ class Phase1Research:
                 found = await gather_search(
                     self._search_provider, kws, self._search_key, country=country
                 )
+                added = 0
                 for it in found:
                     u = it.get("url")
                     if u and u in seen_urls:
@@ -303,6 +309,10 @@ class Phase1Research:
                         seen_urls.add(u)
                     it["solution"] = sol
                     search_items.append(it)
+                    added += 1
+                _p(f"Searched {sol or 'general'}: {added} new source(s).")
+        else:
+            _p("No search provider key set — using RSS only.")
 
         competitor_data = (
             await self._scrape_competitors(competitors, max_posts_per_competitor)
@@ -320,6 +330,8 @@ class Phase1Research:
             "trends": trends_items,
         }
 
+        _p(f"Collected {len(search_items)} search source(s). Running AI analysis…")
+
         # Run AI analysis
         report = await self._analyze_with_ai(
             brand=brand,
@@ -335,6 +347,10 @@ class Phase1Research:
 
         # Save to DB
         await self._save_report(brand_id, planning_period, report)
+        _p(
+            f"Report saved — {len(report.trending_topics)} topic(s), "
+            f"{len(report.content_gaps)} content gap(s)."
+        )
 
         return report
 

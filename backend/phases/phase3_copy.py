@@ -208,6 +208,7 @@ class Phase3Copy:
         calendar_id: Optional[object] = None,
         limit: Optional[int] = None,
         generate_tr: bool = True,
+        progress=None,
     ) -> CopyResult:
         """
         Generate content packages for an approved calendar.
@@ -284,7 +285,14 @@ class Phase3Copy:
 
         packages: list[ContentPackage] = []
         failed = 0
+        _p = progress if callable(progress) else (lambda *a, **k: None)
+        _p(f"Drafting copy for {len(entries)} post(s)…")
         for index, entry in enumerate(entries, start=1):
+            _eo = entry if isinstance(entry, dict) else {}
+            _p(
+                f"Writing post {index}/{len(entries)} — "
+                f"{_eo.get('solution', '')} · {_eo.get('platform', '')}…"
+            )
             try:
                 data = await self._generate_copy(
                     brand=brand,

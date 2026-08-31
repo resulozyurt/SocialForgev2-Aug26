@@ -78,15 +78,24 @@ async def run_copy(
     limit = payload.limit
     generate_tr = payload.generate_tr
 
+    from core.job_status import start_job, finish_job, fail_job, log_step
+    job_key = f"copy:{brand_id}"
+    start_job(job_key, "Starting copy generation…")
+
     async def _run():
         from phases.phase3_copy import Phase3Copy
-        runner = Phase3Copy()
-        await runner.run(
-            brand_id=str(brand_id),
-            calendar_id=calendar_id,
-            limit=limit,
-            generate_tr=generate_tr,
-        )
+        try:
+            runner = Phase3Copy()
+            await runner.run(
+                brand_id=str(brand_id),
+                calendar_id=calendar_id,
+                limit=limit,
+                generate_tr=generate_tr,
+                progress=lambda m: log_step(job_key, m),
+            )
+            finish_job(job_key, "Copy generation complete — packages ready to review.")
+        except Exception as exc:  # noqa: BLE001 — surface the real reason to the UI
+            fail_job(job_key, str(exc))
 
     background_tasks.add_task(_run)
 
@@ -117,6 +126,22 @@ async def get_package(package_id: uuid.UUID, db: AsyncSession = Depends(get_db))
     if not package:
         raise HTTPException(status_code=404, detail="Content package not found.")
     return package
+
+
+class CopyStatusResponse(BaseModel):
+    status: str = "idle"      # idle | running | done | error
+    message: str = ""
+    log: list = []
+
+
+@router.get("/copy/{brand_id}/status", response_model=CopyStatusResponse)
+async def copy_status(brand_id: uuid.UUID):
+    """Most recent background copy-run status + real step log for a brand."""
+    from core.job_status import get_job
+    job = get_job(f"copy:{brand_id}")
+    if not job:
+        return CopyStatusResponse()
+    return CopyStatusResponse(**job)
 
 
 @router.patch("/copy/{package_id}/approve")

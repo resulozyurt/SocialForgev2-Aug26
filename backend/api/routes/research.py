@@ -80,18 +80,27 @@ async def run_research(
     if sources.get("use_apify"):
         apify_key = (await get_app_setting("apify_api_key")) or settings.bootstrap_apify_key
 
+    from core.job_status import start_job, finish_job, fail_job, log_step
+    job_key = f"research:{brand_id}"
+    start_job(job_key, "Starting research…")
+
     async def _run():
         from phases.phase1_research import Phase1Research
-        runner = Phase1Research(
-            apify_key=apify_key,
-            search_provider=search_provider,
-            search_key=search_key,
-        )
-        await runner.run(
-            brand_id=str(brand_id),
-            planning_period=payload.planning_period,
-            max_posts_per_competitor=payload.max_posts,
-        )
+        try:
+            runner = Phase1Research(
+                apify_key=apify_key,
+                search_provider=search_provider,
+                search_key=search_key,
+            )
+            await runner.run(
+                brand_id=str(brand_id),
+                planning_period=payload.planning_period,
+                max_posts_per_competitor=payload.max_posts,
+                progress=lambda m: log_step(job_key, m),
+            )
+            finish_job(job_key, "Research complete — draft ready to review.")
+        except Exception as exc:  # noqa: BLE001 — surface the real reason to the UI
+            fail_job(job_key, str(exc))
 
     background_tasks.add_task(_run)
 
@@ -114,6 +123,22 @@ async def list_trend_reports(
         .order_by(TrendReportCard.created_at.desc())
     )
     return result.scalars().all()
+
+
+class ResearchStatusResponse(BaseModel):
+    status: str = "idle"      # idle | running | done | error
+    message: str = ""
+    log: list = []
+
+
+@router.get("/research/{brand_id}/status", response_model=ResearchStatusResponse)
+async def research_status(brand_id: uuid.UUID):
+    """Most recent background research-run status + real step log for a brand."""
+    from core.job_status import get_job
+    job = get_job(f"research:{brand_id}")
+    if not job:
+        return ResearchStatusResponse()
+    return ResearchStatusResponse(**job)
 
 
 @router.patch("/research/reports/{report_id}/approve")

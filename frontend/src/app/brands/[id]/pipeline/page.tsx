@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
@@ -26,6 +26,7 @@ function currentPeriod(): string {
 
 type Running = { research: boolean; calendar: boolean; copy: boolean };
 type LogLine = { time: string; text: string; kind: "info" | "ok" | "err" };
+type Stage = "research" | "calendar" | "copy";
 
 // A backend 404 on a by-id action means the row is already gone (deleted in
 // another tab, or the on-screen list is stale). Treat it as "missing" so the UI
@@ -319,6 +320,43 @@ function CalendarView({ calendar }: { calendar: ContentCalendar }) {
   );
 }
 
+function StageLog({
+  lines,
+  live,
+  onClear,
+}: {
+  lines: LogLine[];
+  live: boolean;
+  onClear: () => void;
+}) {
+  if (lines.length === 0 && !live) return null;
+  return (
+    <div className="sf-stagelog">
+      <div className="sf-log-head">
+        <span className="sf-log-title">
+          Activity {live && <span className="sf-live-dot" />}
+        </span>
+        {lines.length > 0 && (
+          <button className="sf-linkbtn" onClick={onClear}>
+            Clear
+          </button>
+        )}
+      </div>
+      <div className="sf-log">
+        {lines.length === 0 ? (
+          <p className="sf-log-empty">Working…</p>
+        ) : (
+          lines.map((l, i) => (
+            <div className={`sf-log-line is-${l.kind}`} key={i}>
+              <span className="sf-log-time">{l.time}</span> {l.text}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PipelinePage() {
   const params = useParams();
   const brandId = String(params.id);
@@ -341,27 +379,42 @@ export default function PipelinePage() {
   const [copyLimit, setCopyLimit] = useState<string>("");
   const [generateTr, setGenerateTr] = useState(true);
 
-  const [log, setLog] = useState<LogLine[]>([]);
-  const logEndRef = useRef<HTMLDivElement | null>(null);
+  const [logs, setLogs] = useState<Record<Stage, LogLine[]>>({
+    research: [],
+    calendar: [],
+    copy: [],
+  });
 
   const addLog = useCallback(
-    (text: string, kind: LogLine["kind"] = "info") => {
+    (stage: Stage, text: string, kind: LogLine["kind"] = "info") => {
       const time = new Date().toLocaleTimeString();
-      setLog((l) => [...l, { time, text, kind }].slice(-250));
+      setLogs((prev) => ({
+        ...prev,
+        [stage]: [...prev[stage], { time, text, kind }].slice(-120),
+      }));
     },
     []
   );
-
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ block: "nearest" });
-  }, [log]);
+  const clearLog = useCallback(
+    (stage: Stage) => setLogs((prev) => ({ ...prev, [stage]: [] })),
+    []
+  );
+  // Merge the backend's real step log into a stage box (idempotent by index).
+  const mergeSteps = useCallback(
+    (stage: Stage, steps: { text: string }[] | undefined, seen: number): number => {
+      if (!steps) return seen;
+      for (let i = seen; i < steps.length; i++) addLog(stage, String(steps[i].text), "info");
+      return steps.length;
+    },
+    [addLog]
+  );
 
   const refreshReports = useCallback(
     () =>
       api
         .listReports(brandId)
         .then(setReports)
-        .catch((e) => addLog(`Could not refresh reports: ${msg(e)}`, "err")),
+        .catch((e) => addLog("research", `Could not refresh reports: ${msg(e)}`, "err")),
     [brandId, addLog]
   );
   const refreshCalendars = useCallback(
@@ -369,7 +422,7 @@ export default function PipelinePage() {
       api
         .listCalendars(brandId)
         .then(setCalendars)
-        .catch((e) => addLog(`Could not refresh calendars: ${msg(e)}`, "err")),
+        .catch((e) => addLog("calendar", `Could not refresh calendars: ${msg(e)}`, "err")),
     [brandId, addLog]
   );
   const refreshPackages = useCallback(
@@ -377,7 +430,7 @@ export default function PipelinePage() {
       api
         .listPackages(brandId)
         .then(setPackages)
-        .catch((e) => addLog(`Could not refresh packages: ${msg(e)}`, "err")),
+        .catch((e) => addLog("copy", `Could not refresh packages: ${msg(e)}`, "err")),
     [brandId, addLog]
   );
 
@@ -393,26 +446,30 @@ export default function PipelinePage() {
 
   async function runResearch() {
     setError(null);
+    clearLog("research");
     setRunning((r) => ({ ...r, research: true }));
-    const before = reports.length;
-    addLog(`Research: requesting a trend report for ${period}…`);
+    addLog("research", `Requesting a trend report for ${period}…`);
     try {
       await api.runResearch(brandId, { planning_period: period, max_posts: 20 });
-      addLog("Research: gathering RSS + Google Trends, then drafting with AI…");
-      for (let i = 0; i < 24; i++) {
-        await sleep(5000);
-        addLog(`Research: waiting for the draft (check ${i + 1})…`);
-        const latest = await api.listReports(brandId);
-        setReports(latest);
-        if (latest.length > before) {
-          const topics = A(O(latest[0]).trending_topics).length;
-          addLog(`Research: draft received — ${topics} trending topics. Review and approve.`, "ok");
+      let seen = 0;
+      for (let i = 0; i < 80; i++) {
+        await sleep(3000);
+        const st = await api.researchStatus(brandId).catch(() => null);
+        if (st) seen = mergeSteps("research", st.log, seen);
+        if (st?.status === "done") {
+          await refreshReports();
+          addLog("research", "Draft ready — review and approve below.", "ok");
           break;
         }
-        if (i === 23) addLog("Research: still working — use Refresh in a moment.", "info");
+        if (st?.status === "error") {
+          addLog("research", `Run failed — ${st.message}`, "err");
+          setError(st.message);
+          break;
+        }
+        if (i === 79) addLog("research", "Still working — use Refresh in a moment.", "info");
       }
     } catch (e) {
-      addLog(`Research: error — ${msg(e)}`, "err");
+      addLog("research", `Error — ${msg(e)}`, "err");
       setError(msg(e));
     } finally {
       setRunning((r) => ({ ...r, research: false }));
@@ -421,32 +478,30 @@ export default function PipelinePage() {
 
   async function runCalendar() {
     setError(null);
+    clearLog("calendar");
     setRunning((r) => ({ ...r, calendar: true }));
-    const before = calendars.length;
-    addLog("Calendar: building a monthly plan from the approved report…");
+    addLog("calendar", "Building a monthly plan from the approved report…");
     try {
       await api.runCalendar(brandId, {});
-      for (let i = 0; i < 24; i++) {
-        await sleep(5000);
-        const latest = await api.listCalendars(brandId);
-        setCalendars(latest);
-        if (latest.length > before) {
-          const entries = A(O(latest[0]).entries).length;
-          addLog(`Calendar: draft received — ${entries} planned posts. Review and approve.`, "ok");
+      let seen = 0;
+      for (let i = 0; i < 80; i++) {
+        await sleep(3000);
+        const st = await api.calendarStatus(brandId).catch(() => null);
+        if (st) seen = mergeSteps("calendar", st.log, seen);
+        if (st?.status === "done") {
+          await refreshCalendars();
+          addLog("calendar", "Draft ready — review and approve below.", "ok");
           break;
         }
-        // Surface a background-run failure instead of waiting the full timeout.
-        const st = await api.calendarStatus(brandId).catch(() => null);
         if (st?.status === "error") {
-          addLog(`Calendar: run failed — ${st.message}`, "err");
+          addLog("calendar", `Run failed — ${st.message}`, "err");
           setError(st.message);
           break;
         }
-        addLog(`Calendar: waiting for the draft (check ${i + 1})…`);
-        if (i === 23) addLog("Calendar: still working — use Refresh in a moment.", "info");
+        if (i === 79) addLog("calendar", "Still working — use Refresh in a moment.", "info");
       }
     } catch (e) {
-      addLog(`Calendar: error — ${msg(e)}`, "err");
+      addLog("calendar", `Error — ${msg(e)}`, "err");
       setError(msg(e));
     } finally {
       setRunning((r) => ({ ...r, calendar: false }));
@@ -455,29 +510,36 @@ export default function PipelinePage() {
 
   async function runCopy() {
     setError(null);
+    clearLog("copy");
     setRunning((r) => ({ ...r, copy: true }));
-    const before = packages.length;
     const limit = copyLimit.trim() ? Number(copyLimit) : undefined;
     addLog(
-      `Copy: drafting ${limit ? limit + " post(s)" : "all posts"}${
+      "copy",
+      `Drafting ${limit ? limit + " post(s)" : "all posts"}${
         generateTr ? " (EN + TR)" : " (EN)"
       } — one AI call each…`
     );
     try {
       await api.runCopy(brandId, { limit, generate_tr: generateTr });
-      for (let i = 0; i < 60; i++) {
-        await sleep(5000);
-        addLog(`Copy: writing content… (check ${i + 1})`);
-        const latest = await api.listPackages(brandId);
-        setPackages(latest);
-        if (latest.length > before) {
-          addLog(`Copy: ${latest.length - before} content package(s) ready. Review and approve.`, "ok");
+      let seen = 0;
+      for (let i = 0; i < 120; i++) {
+        await sleep(3000);
+        const st = await api.copyStatus(brandId).catch(() => null);
+        if (st) seen = mergeSteps("copy", st.log, seen);
+        if (st?.status === "done") {
+          await refreshPackages();
+          addLog("copy", "Packages ready — review and approve below.", "ok");
           break;
         }
-        if (i === 59) addLog("Copy: still working — use Refresh in a moment.", "info");
+        if (st?.status === "error") {
+          addLog("copy", `Run failed — ${st.message}`, "err");
+          setError(st.message);
+          break;
+        }
+        if (i === 119) addLog("copy", "Still working — use Refresh in a moment.", "info");
       }
     } catch (e) {
-      addLog(`Copy: error — ${msg(e)}`, "err");
+      addLog("copy", `Error — ${msg(e)}`, "err");
       setError(msg(e));
     } finally {
       setRunning((r) => ({ ...r, copy: false }));
@@ -488,14 +550,14 @@ export default function PipelinePage() {
     setReportBusy(id);
     try {
       await api.approveReport(id);
-      addLog("Trend report approved — you can now run the calendar.", "ok");
+      addLog("research", "Trend report approved — you can now run the calendar.", "ok");
       await refreshReports();
     } catch (e) {
       if (isMissingError(e)) {
-        addLog("That report no longer exists — the list has been refreshed.", "info");
+        addLog("research", "That report no longer exists — the list has been refreshed.", "info");
         await refreshReports();
       } else {
-        addLog(`Approve report: error — ${msg(e)}`, "err");
+        addLog("research", `Approve report: error — ${msg(e)}`, "err");
         setError(msg(e));
       }
     } finally {
@@ -506,14 +568,14 @@ export default function PipelinePage() {
     setReportBusy(id);
     try {
       await api.rejectReport(id);
-      addLog("Trend report rejected.", "info");
+      addLog("research", "Trend report rejected.", "info");
       await refreshReports();
     } catch (e) {
       if (isMissingError(e)) {
-        addLog("That report no longer exists — the list has been refreshed.", "info");
+        addLog("research", "That report no longer exists — the list has been refreshed.", "info");
         await refreshReports();
       } else {
-        addLog(`Reject report: error — ${msg(e)}`, "err");
+        addLog("research", `Reject report: error — ${msg(e)}`, "err");
         setError(msg(e));
       }
     } finally {
@@ -524,14 +586,14 @@ export default function PipelinePage() {
     setReportBusy(id);
     try {
       await api.deleteReport(id);
-      addLog("Trend report deleted.", "info");
+      addLog("research", "Trend report deleted.", "info");
       await refreshReports();
     } catch (e) {
       if (isMissingError(e)) {
-        addLog("That report was already removed — the list has been refreshed.", "info");
+        addLog("research", "That report was already removed — the list has been refreshed.", "info");
         await refreshReports();
       } else {
-        addLog(`Delete report: error — ${msg(e)}`, "err");
+        addLog("research", `Delete report: error — ${msg(e)}`, "err");
         setError(msg(e));
       }
     } finally {
@@ -541,20 +603,20 @@ export default function PipelinePage() {
   async function submitAiEdit(id: string) {
     if (!editInstruction.trim()) return;
     setReportBusy(id);
-    addLog("Report: AI is applying your edit…");
+    addLog("research", "Report: AI is applying your edit…");
     try {
       await api.aiEditReport(id, editInstruction.trim());
-      addLog("Report: AI edit applied — review the updated draft.", "ok");
+      addLog("research", "Report: AI edit applied — review the updated draft.", "ok");
       setEditReportId(null);
       setEditInstruction("");
       await refreshReports();
     } catch (e) {
       if (isMissingError(e)) {
-        addLog("That report no longer exists — the list has been refreshed.", "info");
+        addLog("research", "That report no longer exists — the list has been refreshed.", "info");
         setEditReportId(null);
         await refreshReports();
       } else {
-        addLog(`AI edit: error — ${msg(e)}`, "err");
+        addLog("research", `AI edit: error — ${msg(e)}`, "err");
         setError(msg(e));
       }
     } finally {
@@ -564,14 +626,14 @@ export default function PipelinePage() {
   async function approveCalendar(id: string) {
     try {
       await api.approveCalendar(id);
-      addLog("Calendar approved — you can now run copy.", "ok");
+      addLog("calendar", "Calendar approved — you can now run copy.", "ok");
       await refreshCalendars();
     } catch (e) {
       if (isMissingError(e)) {
-        addLog("That calendar no longer exists — the list has been refreshed.", "info");
+        addLog("calendar", "That calendar no longer exists — the list has been refreshed.", "info");
         await refreshCalendars();
       } else {
-        addLog(`Approve calendar: error — ${msg(e)}`, "err");
+        addLog("calendar", `Approve calendar: error — ${msg(e)}`, "err");
         setError(msg(e));
       }
     }
@@ -579,20 +641,19 @@ export default function PipelinePage() {
   async function approvePackage(id: string) {
     try {
       await api.approvePackage(id);
-      addLog("Content package approved.", "ok");
+      addLog("copy", "Content package approved.", "ok");
       await refreshPackages();
     } catch (e) {
       if (isMissingError(e)) {
-        addLog("That content package no longer exists — the list has been refreshed.", "info");
+        addLog("copy", "That content package no longer exists — the list has been refreshed.", "info");
         await refreshPackages();
       } else {
-        addLog(`Approve package: error — ${msg(e)}`, "err");
+        addLog("copy", `Approve package: error — ${msg(e)}`, "err");
         setError(msg(e));
       }
     }
   }
 
-  const anyRunning = running.research || running.calendar || running.copy;
 
   return (
     <div>
@@ -618,32 +679,6 @@ export default function PipelinePage() {
       </div>
 
       {error && <div className="sf-error">{error}</div>}
-
-      {/* ── Activity log ────────────────────────────────────── */}
-      <section className="sf-log-panel">
-        <div className="sf-log-head">
-          <span className="sf-log-title">
-            Activity {anyRunning && <span className="sf-live-dot" />}
-          </span>
-          {log.length > 0 && (
-            <button className="sf-linkbtn" onClick={() => setLog([])}>
-              Clear
-            </button>
-          )}
-        </div>
-        <div className="sf-log">
-          {log.length === 0 ? (
-            <p className="sf-log-empty">Run a stage to see live activity here.</p>
-          ) : (
-            log.map((l, i) => (
-              <div className={`sf-log-line is-${l.kind}`} key={i}>
-                <span className="sf-log-time">{l.time}</span> {l.text}
-              </div>
-            ))
-          )}
-          <div ref={logEndRef} />
-        </div>
-      </section>
 
       {/* ── Stage 1: Research ─────────────────────────────── */}
       <section className="sf-stage">
@@ -673,6 +708,8 @@ export default function PipelinePage() {
         <p className="sf-hint">
           Free RSS + Google Trends. Requires a Research AI provider (set it on the brand page).
         </p>
+
+        <StageLog lines={logs.research} live={running.research} onClear={() => clearLog("research")} />
 
         {reports.length === 0 ? (
           <p className="sf-note">No reports yet. Run research to draft one.</p>
@@ -778,6 +815,8 @@ export default function PipelinePage() {
             : "Approve a trend report above first."}
         </p>
 
+        <StageLog lines={logs.calendar} live={running.calendar} onClear={() => clearLog("calendar")} />
+
         {calendars.length === 0 ? (
           <p className="sf-note">No calendars yet.</p>
         ) : (
@@ -878,6 +917,8 @@ export default function PipelinePage() {
             ? "Limit = how many posts to draft now (leave empty for all). TR = also write the Turkish version. One AI draft per entry — a full month can take a few minutes."
             : "Approve a calendar above first."}
         </p>
+
+        <StageLog lines={logs.copy} live={running.copy} onClear={() => clearLog("copy")} />
 
         {packages.length === 0 ? (
           <p className="sf-note">No content packages yet.</p>

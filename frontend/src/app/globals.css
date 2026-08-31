@@ -874,3 +874,13 @@ html, body {
 }
 .sf-brief p { margin: 0 0 8px; font-size: 14px; line-height: 1.5; }
 .sf-brief .sf-h4:first-child { margin-top: 0; }
+
+/* ── H5: per-stage activity log box ──────────────────────────────── */
+.sf-stagelog {
+  margin: 4px 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  padding: 8px 12px 10px;
+}
+.sf-stagelog .sf-log { max-height: 220px; overflow-y: auto; }

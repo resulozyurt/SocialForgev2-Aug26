@@ -47,6 +47,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+export type JobStatus = {
+  status: "idle" | "running" | "done" | "error";
+  message: string;
+  log?: { t?: string; text: string }[];
+};
+
 export const api = {
   // Brands
   listBrands: () => request<Brand[]>("/brands"),
@@ -131,7 +137,8 @@ export const api = {
   approveCalendar: (calendarId: string) =>
     request<unknown>(`/calendar/${calendarId}/approve`, { method: "PATCH" }),
   calendarStatus: (id: string) =>
-    request<{ status: string; message: string }>(`/calendar/${id}/status`),
+    request<JobStatus>(`/calendar/${id}/status`),
+  researchStatus: (id: string) => request<JobStatus>(`/research/${id}/status`),
 
   // Phase 3 — copy
   runCopy: (id: string, body: CopyRunRequest) =>
@@ -140,6 +147,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   listPackages: (id: string) => request<ContentPackage[]>(`/copy/${id}`),
+  copyStatus: (id: string) => request<JobStatus>(`/copy/${id}/status`),
   approvePackage: (packageId: string) =>
     request<unknown>(`/copy/${packageId}/approve`, { method: "PATCH" }),
 };

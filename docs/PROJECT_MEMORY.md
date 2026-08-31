@@ -383,9 +383,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   EN feeds are retail-ops only (Retail Dive, Modern Retail). (c) `ANALYSIS_PROMPT` gained
   a hard **RELEVANCE** rule: use only inputs clearly tied to the brand's industry + focus
   solutions, silently discard off-topic items, prefer fewer sharper signals. Backend-only,
-  no migration; `py_compile` clean. Part of an in-progress research/calendar quality pass
-  (H1 done; H2 report depth, H3 on-image headline field, H4 calendar UI rebuild, H5
-  per-stage meaningful activity logs still to do).
+  no migration; `py_compile` clean. Part of a research/calendar quality pass (H1–H5 all done).
 - **2026-08-28 (H3) — On-image headline field:** calendar entries only had a
   `hook_concept` (the idea), so the reviewer never saw the actual words that will go
   on the visual. Phase 2 now produces a distinct **`headline`** per entry — the exact,
@@ -412,6 +410,18 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
   callout; each solution tab leads with that solution's brief (what's happening / why it
   matters / what to create) above its topics, gaps and sources. `tsc` + `py_compile` clean.
   Re-run research to populate the new narrative (old reports simply omit it).
+- **2026-08-28 (H5) — Per-stage, meaningful activity logs:** the pipeline had one shared
+  activity box full of fake "waiting (check 18)" spam. Now each stage (Research / Calendar /
+  Copy) has its **own** activity box inside its section, fed by the backend's **real steps**.
+  New `core/job_status.py` (in-memory {status,message,log[]} keyed `<stage>:<brand_id>`);
+  `phase1_research.run` and `phase3_copy.run` take a `progress` callback and emit real
+  milestones (e.g. "Searched merchandising: 8 new source(s)", "Collected N sources; running
+  AI analysis…", "Report saved — N topics"; "Writing post 3/12 — merchandising · instagram…");
+  research/calendar/copy routes wrap their background task with start/finish/fail and expose
+  `GET /{stage}/{brand_id}/status`. The frontend polls the stage's status and streams new
+  steps into that stage's box (idempotent by index) instead of faking progress; the old top
+  Activity panel was removed. Native American English throughout. Backend + frontend, no
+  migration; `py_compile` + `tsc --noEmit` clean.
 - **2026-08-28 (FieldPie profile seed) — comprehensive brand fill:** researched FieldPie
   from fieldpie.com + public sources (all-in-one AI field-ops platform; solutions =
   merchandising / retail execution, field audit, field sales, home service, image
