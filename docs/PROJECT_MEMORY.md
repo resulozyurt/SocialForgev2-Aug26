@@ -792,18 +792,17 @@ pillars).
 ## 10. How to Resume
 
 **Where we are (2026-08-31).** The full app is live end to end: research -> calendar
--> copy -> (raw) visual, human approval at each gate. Studio UI rebuild (U1-U5) and
-the owner's review round (RV1-RV5, #1-#8) are complete. The **visual-generation
-redesign (V-series)**: **V-SERIES COMPLETE (V1-V6)** — data model (migrations **0010** reference library,
-**0011** `content_packages.solution`), reference-library API + full per-solution
-reference UI over a **binary-safe `/api` proxy**, copy tags each package with its
-solution, the **reference-conditioned `gpt-image-1` edits engine** producing N
-candidates, the **Stage-4 candidate gallery** (pick / download / approve), and
-**Settings controls** for candidate count / quality / size. **Live generation confirmed
-working by the owner** (2026-08-31). Verified via full-backend py_compile, stubbed
-`configure_mappers()` checks, a Pillow downscale unit check, and `tsc --noEmit`. Alembic
-head is **0011**. **Next: the owner's quality/format revision requests** — gather each,
-then tune (prompt, size defaults, etc.).
+-> copy -> visual, human approval at each gate. Done to date: Phases 1-3 + gates,
+Studio UI rebuild (U1-U5), review round RV1-RV5, the **visual-generation redesign
+(V-series V1-V6)** — per-(brand,solution) reference library -> reference-conditioned
+`gpt-image-1` edits -> candidates, with Settings controls — and the **content & flow
+revision**: Track A (A1 copy consumes the full calendar entry + builds on the approved
+headline; A2 copy quality on the brand voice profile; A3 calendar headline quality) and
+Track B (B0 grouped/bulk-deletable copy list with provenance; B1 post detail page; B2
+month scoping; B3 persistent image history). Live generation confirmed working by the
+owner. Alembic head is **0013** (auto-applied on deploy). **No open build track — next
+is the owner's quality/format fine-tuning, one small approved step at a time.** See the
+Decisions Log and the roadmap blocks below for the per-step detail.
 
 **Immediate next work: V-series visual redesign (approved 2026-08-31).** Roadmap,
 each an independently deployable, owner-reviewed commit:
