@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-01 — **F3** (post-detail is now the hub: opened prominently from Copy AND Visual, and its back-link returns to the post's month board).
+Last updated: 2026-09-01 — **F4a** (board cards now show a stage-progress bar + a manual status control). F4b (cascade-delete a month) is pending owner approval.
 
 ---
 
@@ -155,7 +155,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
-| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0–F3 done: spine, list, locked workspace, lineage+gates, post hub. F4 next.)** |
+| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0–F3 + F4a done. Owner's first 5 issues resolved. F4b (cascade delete) pending approval.)** |
 
 ---
 
@@ -879,8 +879,16 @@ commit:
   page’s back-link now returns to the post’s **month board**
   (`/pipeline/<planning_period>`) instead of the generic board list — keeping the
   month context. Frontend-only, verified: tsc clean.
-- **F4 — board lifecycle + polish.** Board status/progress, cascade-delete a month's
-  content, empty states, "new month" wizard, guardrails so months never mix.
+- **F4 — board lifecycle + polish.**
+  - **F4a DONE** — frontend-only. Each board card now shows a **stage-progress bar**
+    (`doneStages` of 4 = research/calendar/copy/visual each "done" when it has an
+    approved artifact / a generated visual; + a percent) and a **manual status control**
+    (`<select>`: In progress / Ready / Archived) wired to `PATCH /boards/{id}` via
+    `api.updateBoard` (optimistic, reloads on error). Verified: tsc clean.
+  - **F4b PENDING OWNER APPROVAL** — cascade-delete a month: extend `DELETE /boards/{id}`
+    with an opt-in `cascade` that also removes that period's reports/calendars/packages
+    (visuals go via FK cascade), behind a strong two-step confirm. Destructive → build
+    only on explicit owner go. Other polish (new-month wizard, extra guardrails) optional.
 
 
 **Immediate next work: V-series visual redesign (approved 2026-08-31).** Roadmap,

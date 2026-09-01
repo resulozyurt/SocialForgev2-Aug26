@@ -137,6 +137,17 @@ export default function PipelineBoardsPage() {
     }
   }
 
+  async function changeStatus(id: string, status: string) {
+    setError(null);
+    setBoards((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)));
+    try {
+      await api.updateBoard(id, { status });
+    } catch (e) {
+      setError(msg(e));
+      await load();
+    }
+  }
+
   if (loading) return <Loading label="Loading boards…" />;
 
   return (
@@ -213,6 +224,13 @@ export default function PipelineBoardsPage() {
             const s = b.stats;
             const copyHint = `${s.copy_approved}/${s.copy_total || 0} approved`;
             const visualHint = s.visual_posts > 0 ? `${s.visual_posts} with image` : undefined;
+            const doneStages = [
+              s.report_approved > 0,
+              s.calendar_approved > 0,
+              s.copy_approved > 0,
+              s.visual_posts > 0,
+            ].filter(Boolean).length;
+            const pct = Math.round((doneStages / 4) * 100);
             return (
               <Card key={b.id}>
                 <CardBody>
@@ -259,6 +277,37 @@ export default function PipelineBoardsPage() {
                     />
                   </div>
 
+                  <div style={{ marginTop: 12 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: 12,
+                        color: "var(--ui-muted, #6b7280)",
+                        marginBottom: 4,
+                      }}
+                    >
+                      <span>{doneStages} of 4 stages</span>
+                      <span>{pct}%</span>
+                    </div>
+                    <div
+                      style={{
+                        height: 6,
+                        borderRadius: 999,
+                        background: "var(--ui-line, rgba(120,120,120,0.15))",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${pct}%`,
+                          height: "100%",
+                          background: "var(--ui-accent, #018478)",
+                        }}
+                      />
+                    </div>
+                  </div>
+
                   <div
                     style={{
                       display: "flex",
@@ -274,6 +323,17 @@ export default function PipelineBoardsPage() {
                     >
                       Open →
                     </Link>
+                    <select
+                      className="sf-input"
+                      value={b.status}
+                      onChange={(e) => changeStatus(b.id, e.target.value)}
+                      style={{ width: 128, fontSize: 12 }}
+                      aria-label="Board status"
+                    >
+                      <option value="active">In progress</option>
+                      <option value="ready">Ready</option>
+                      <option value="archived">Archived</option>
+                    </select>
                     {confirmRemove === b.id ? (
                       <span style={{ display: "inline-flex", gap: 6 }}>
                         <Button
