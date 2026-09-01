@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-01 — **F1a** (the `/pipeline/[period]` workspace is now visibly month-locked: a month banner, and research/copy/visual no longer let you pick another month).
+Last updated: 2026-09-01 — **F1b** (workspace lists scoped to the board month + brand-switch inside a board lands on the other brand's board list). F1 (month-locked workspace) complete.
 
 ---
 
@@ -155,7 +155,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
-| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0 done; F1a done: workspace month-locked. F1b next.)** |
+| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0 + F1 done: board spine, list, month-locked workspace. F2 next.)** |
 
 ---
 
@@ -849,10 +849,16 @@ commit:
     selectors are removed and both stages are fixed to `routePeriod`. `periodFilter` is
     now a const (= board period), and `period`/`periodOptions` free-choice state was
     dropped. Verified: tsc clean. (Data-list scoping + brand-switch edge case = F1b.)
-  - **F1b NEXT** — scope the loaded report/calendar/package lists to the board period
-    client-side (other months never appear in the workspace); fix brand-switch inside a
-    board to land on the other brand's board list (not carry a period it may not have);
-    clear empty states when the board month has no report/calendar yet.
+  - **F1b DONE** — the workspace is now data-scoped too. `visibleReports`/
+    `visibleCalendars` filter the loaded lists to `routePeriod`, and the stage gates
+    (`hasApprovedReport`/`hasApprovedCalendar`) + stepper read those — so another month's
+    report/calendar never shows or unlocks a stage here. AppShell `switchBrand` now
+    detects a `/pipeline/<period>` suffix and sends a brand switch to that brand's board
+    list (`/pipeline`) instead of carrying a period the other brand may not have. Empty
+    states already covered the no-report/no-calendar case (they now fire per month).
+    Verified: tsc clean.
+  - **F1 COMPLETE.** A board opens a month-locked workspace: one visible month, every
+    stage read/write + gate scoped to it, no cross-month leakage.
 - **F2 — explicit lineage + gates.** Calendar shows "building from: report <period>
   (approved)"; copy/visual show their source; each Run is disabled until the prior
   stage is approved for THIS month (needs "run for a specific report/calendar" params

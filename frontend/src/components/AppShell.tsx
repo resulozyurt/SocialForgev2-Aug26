@@ -111,7 +111,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   function switchBrand(b: Brand) {
     if (b.id === currentBrandId) return;
-    router.push(brandMatch ? `/brands/${b.id}${suffix}` : `/brands/${b.id}`);
+    // A month board is per-brand: carrying its period to another brand would point
+    // at a board it may not have, so switch to that brand's board list instead.
+    const target = /^\/pipeline\/[^/]+/.test(suffix) ? "/pipeline" : suffix;
+    router.push(brandMatch ? `/brands/${b.id}${target}` : `/brands/${b.id}`);
   }
 
   function toggleTheme() {

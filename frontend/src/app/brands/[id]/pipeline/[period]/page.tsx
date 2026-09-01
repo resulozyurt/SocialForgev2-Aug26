@@ -552,8 +552,11 @@ export default function PipelinePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approvedPkgIds]);
 
-  const hasApprovedReport = reports.some((r) => r.is_approved);
-  const hasApprovedCalendar = calendars.some((c) => c.is_approved);
+  // F1b: the workspace shows only this board's month.
+  const visibleReports = reports.filter((r) => (r.planning_period || "") === routePeriod);
+  const visibleCalendars = calendars.filter((c) => (c.planning_period || "") === routePeriod);
+  const hasApprovedReport = visibleReports.some((r) => r.is_approved);
+  const hasApprovedCalendar = visibleCalendars.some((c) => c.is_approved);
 
   async function runResearch() {
     setError(null);
@@ -1049,7 +1052,7 @@ export default function PipelinePage() {
             label: "Research",
             sub: hasApprovedReport
               ? "Report approved"
-              : reports.length
+              : visibleReports.length
               ? "Draft ready to review"
               : "Not started yet",
             state: hasApprovedReport ? "done" : "active",
@@ -1117,10 +1120,10 @@ export default function PipelinePage() {
 
           <StageLog lines={logs.research} live={running.research} onClear={() => clearLog("research")} />
 
-          {reports.length === 0 ? (
+          {visibleReports.length === 0 ? (
             <EmptyState title="No reports yet">Run research to draft your first trend report.</EmptyState>
           ) : (
-            reports.map((r) => (
+            visibleReports.map((r) => (
               <div className="ui-item" key={r.id}>
                 <div className="ui-item-head">
                   <div>
@@ -1244,10 +1247,10 @@ export default function PipelinePage() {
 
           <StageLog lines={logs.calendar} live={running.calendar} onClear={() => clearLog("calendar")} />
 
-          {calendars.length === 0 ? (
+          {visibleCalendars.length === 0 ? (
             <EmptyState title="No calendars yet">Approve a report, then run the calendar.</EmptyState>
           ) : (
-            calendars.map((c) => (
+            visibleCalendars.map((c) => (
               <div className="ui-item" key={c.id}>
                 <div className="ui-item-head">
                   <div>
