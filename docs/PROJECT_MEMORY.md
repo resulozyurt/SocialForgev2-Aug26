@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-01 — **F2** (deterministic lineage: calendar/copy runs now use *this month's* approved report/calendar, and the stage text names the source). Gates were already month-scoped.
+Last updated: 2026-09-01 — **F3** (post-detail is now the hub: opened prominently from Copy AND Visual, and its back-link returns to the post's month board).
 
 ---
 
@@ -155,7 +155,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
-| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0–F2 done: spine, list, month-locked workspace, deterministic lineage+gates. F3 next.)** |
+| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0–F3 done: spine, list, locked workspace, lineage+gates, post hub. F4 next.)** |
 
 ---
 
@@ -871,9 +871,14 @@ commit:
   approved report, copy until an approved calendar — so the deterministic IDs always
   resolve. Server-side hard rejection deferred (UI gates + deterministic IDs suffice).
   Verified: tsc clean.
-- **F3 — post-detail hub.** Make `posts/[packageId]` reachable + prominent from Copy
-  AND Visual, showing everything (on-visual text, caption, hashtags, image prompt,
-  visual history, generate/select) in one place.
+- **F3 — post-detail hub. DONE.** The B1 detail page (`posts/[packageId]`) already
+  held everything (on-visual headline, caption, hashtags, alt text, image prompt,
+  visual generate/select/version history), so F3 was about reach: the Visual stage
+  cards now carry a prominent **Open post →** link (the missing path the owner hit),
+  the Copy card’s **Open** was relabeled **Open post →** to match, and the detail
+  page’s back-link now returns to the post’s **month board**
+  (`/pipeline/<planning_period>`) instead of the generic board list — keeping the
+  month context. Frontend-only, verified: tsc clean.
 - **F4 — board lifecycle + polish.** Board status/progress, cascade-delete a month's
   content, empty states, "new month" wizard, guardrails so months never mix.
 

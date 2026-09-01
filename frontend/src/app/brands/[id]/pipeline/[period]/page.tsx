@@ -1583,7 +1583,7 @@ export default function PipelinePage() {
                           href={`/brands/${brandId}/posts/${p.id}`}
                           className="ui-btn ui-btn-subtle ui-btn-sm"
                         >
-                          Open
+                          Open post →
                         </Link>
                         <Button
                           size="sm"
@@ -1763,6 +1763,12 @@ export default function PipelinePage() {
                       >
                         {busy ? "Generating…" : selUrl ? "Regenerate" : "Generate"}
                       </Button>
+                      <Link
+                        href={`/brands/${brandId}/posts/${p.id}`}
+                        className="ui-btn ui-btn-subtle ui-btn-sm"
+                      >
+                        Open post →
+                      </Link>
                       {selUrl && status !== "approved" && (
                         <Button size="sm" onClick={() => approveVisual(p.id)} disabled={busy}>
                           Approve

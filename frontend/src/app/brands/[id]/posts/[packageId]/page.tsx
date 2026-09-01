@@ -181,11 +181,15 @@ export default function PostDetailPage() {
   return (
     <div>
       <Link
-        href={`/brands/${brandId}/pipeline`}
+        href={
+          pkg.planning_period
+            ? `/brands/${brandId}/pipeline/${pkg.planning_period}`
+            : `/brands/${brandId}/pipeline`
+        }
         className="ui-btn ui-btn-subtle ui-btn-sm"
         style={{ marginBottom: 16, display: "inline-flex" }}
       >
-        ← Back to pipeline
+        ← Back to {pkg.planning_period ? `${pkg.planning_period} board` : "pipeline"}
       </Link>
 
       <PageHeader
