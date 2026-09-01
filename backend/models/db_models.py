@@ -135,6 +135,7 @@ class Brand(Base):
     ai_configs: Mapped[list["AIProviderConfig"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     content_packages: Mapped[list["ContentPackage"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     content_calendars: Mapped[list["ContentCalendar"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
+    month_boards: Mapped[list["MonthBoard"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
 
 
 class Competitor(Base):
@@ -365,6 +366,38 @@ class ContentCalendar(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     brand: Mapped["Brand"] = relationship(back_populates="content_calendars")
+
+
+class MonthBoard(Base):
+    """
+    F0: a first-class "month board" — the organizing unit for the whole pipeline.
+    One board per (brand, planning_period); every stage (research -> calendar ->
+    copy -> visual) is scoped to a board's period. Thin by design: the
+    report/calendar/package chain already carries `planning_period`, so a board
+    owns no content directly — it groups the month and holds its lifecycle
+    (status/title/notes).
+    """
+    __tablename__ = "month_boards"
+    __table_args__ = (
+        UniqueConstraint("brand_id", "planning_period", name="uq_month_board_period"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    brand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), index=True
+    )
+    planning_period: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    title: Mapped[Optional[str]] = mapped_column(String(128))
+    # active (in progress) | ready (all stages approved) | archived
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active", server_default="active")
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    brand: Mapped["Brand"] = relationship(back_populates="month_boards")
 
 
 class AppSetting(Base):

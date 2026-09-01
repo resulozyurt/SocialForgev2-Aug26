@@ -7,6 +7,7 @@ from api.routes.calendar import router as calendar_router
 from api.routes.copy import router as copy_router
 from api.routes.visuals import router as visuals_router
 from api.routes.references import router as references_router
+from api.routes.boards import router as boards_router
 
 __all__ = [
     "health_router",
@@ -18,4 +19,5 @@ __all__ = [
     "copy_router",
     "visuals_router",
     "references_router",
+    "boards_router",
 ]

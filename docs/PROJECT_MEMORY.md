@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-08-31 — **B3** (image history: every generated visual persisted + selectable). Track B complete.
+Last updated: 2026-09-01 — **F0a** (month-board spine: `month_boards` table + migration 0014 + boards API). First step of the F-series flow/sync redesign.
 
 ---
 
@@ -49,7 +49,7 @@ explicitly.
    checkpoints (research / calendar / copy / visual). No fully autonomous publishing.
 
 **Infra.** Live on Railway: `SocialForge-Backend` (root `backend`), `SocialForge-Front`
-(root `frontend`), managed `Postgres`. Alembic **migration head = 0013**; deploy runs
+(root `frontend`), managed `Postgres`. Alembic **migration head = 0014**; deploy runs
 `alembic upgrade head` automatically. Repo is private.
 
 ---
@@ -155,6 +155,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
+| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0a done: `month_boards` table + boards API)** |
 
 ---
 
@@ -800,9 +801,49 @@ revision**: Track A (A1 copy consumes the full calendar entry + builds on the ap
 headline; A2 copy quality on the brand voice profile; A3 calendar headline quality) and
 Track B (B0 grouped/bulk-deletable copy list with provenance; B1 post detail page; B2
 month scoping; B3 persistent image history). Live generation confirmed working by the
-owner. Alembic head is **0013** (auto-applied on deploy). **No open build track — next
-is the owner's quality/format fine-tuning, one small approved step at a time.** See the
-Decisions Log and the roadmap blocks below for the per-step detail.
+owner. Alembic head is **0014** (auto-applied on deploy). The current build track is
+the **F-series flow/sync redesign** (below): make the pipeline organize around a
+first-class month board so every stage is scoped to one month end to end.
+
+**F-series — flow / month-board sync (approved 2026-09-01).** Owner review of a
+full run: the four stages work but nothing ties them together — there is no single
+"selected month," so research picks a random period, calendar builds from the
+"latest approved" report implicitly, and copy/visual show a multi-month soup. Root
+cause is UX, not data: the report -> calendar -> package -> visual chain already
+carries `planning_period` + FKs, so the fix is a navigation/scope layer, not a
+rebuild. Decisions locked: (A) a thin explicit `month_boards` table is the spine;
+(B) strict stage gates — within a board, a stage cannot run until the prior stage
+is approved for that month. Roadmap, each an independently deployable, reviewed
+commit:
+- **F0 — board list + single entry point.** Content Pipeline becomes its own world:
+  lists the active brand's month boards (cards with per-stage status) + "new month."
+  - **F0a DONE** — backend spine. New `MonthBoard` model (`month_boards`: brand_id,
+    planning_period, title, status[active|ready|archived], notes; unique
+    (brand_id, planning_period)) + migration **0014_month_boards** (guarded, id < 32).
+    New `api/routes/boards.py` (registered in main + routes __init__, admin-guarded,
+    `/api/v1`): `GET /brands/{id}/boards` (newest period first, each with rolled-up
+    stage stats — report/calendar/copy counts + approved, distinct posts with a
+    visual, brand post_target), `POST /brands/{id}/boards` (idempotent per period),
+    `PATCH /boards/{id}` (status/title/notes), `DELETE /boards/{id}` (row only;
+    content untouched in F0). Verified: py_compile + a structural
+    (ast) wiring check. Full `configure_mappers()` runs on the owner's venv/deploy.
+    Owner runs the migration live (auto via `alembic upgrade head`). No key needed.
+  - **F0b NEXT** — frontend. `MonthBoard` type + api-client (list/create/patch/delete);
+    Content Pipeline route shows the board list (cards + status pills + "new month",
+    period picker defaulting next month); "Open" routes to the existing runner with
+    `?period=` as an interim until F1's locked workspace. Reframe the brand-page entry.
+- **F1 — month-locked workspace.** Opening a board opens a period-locked page; all
+  four stages read/write only that `planning_period` (research date = board period).
+- **F2 — explicit lineage + gates.** Calendar shows "building from: report <period>
+  (approved)"; copy/visual show their source; each Run is disabled until the prior
+  stage is approved for THIS month (needs "run for a specific report/calendar" params
+  — copy already has `calendar_id`).
+- **F3 — post-detail hub.** Make `posts/[packageId]` reachable + prominent from Copy
+  AND Visual, showing everything (on-visual text, caption, hashtags, image prompt,
+  visual history, generate/select) in one place.
+- **F4 — board lifecycle + polish.** Board status/progress, cascade-delete a month's
+  content, empty states, "new month" wizard, guardrails so months never mix.
+
 
 **Immediate next work: V-series visual redesign (approved 2026-08-31).** Roadmap,
 each an independently deployable, owner-reviewed commit:
