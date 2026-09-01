@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-01 — **F1b** (workspace lists scoped to the board month + brand-switch inside a board lands on the other brand's board list). F1 (month-locked workspace) complete.
+Last updated: 2026-09-01 — **F2** (deterministic lineage: calendar/copy runs now use *this month's* approved report/calendar, and the stage text names the source). Gates were already month-scoped.
 
 ---
 
@@ -155,7 +155,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
-| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0 + F1 done: board spine, list, month-locked workspace. F2 next.)** |
+| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0–F2 done: spine, list, month-locked workspace, deterministic lineage+gates. F3 next.)** |
 
 ---
 
@@ -859,10 +859,18 @@ commit:
     Verified: tsc clean.
   - **F1 COMPLETE.** A board opens a month-locked workspace: one visible month, every
     stage read/write + gate scoped to it, no cross-month leakage.
-- **F2 — explicit lineage + gates.** Calendar shows "building from: report <period>
-  (approved)"; copy/visual show their source; each Run is disabled until the prior
-  stage is approved for THIS month (needs "run for a specific report/calendar" params
-  — copy already has `calendar_id`).
+- **F2 — explicit lineage + gates. DONE.** Frontend-only — the backend already
+  accepted `report_id` (calendar) and `calendar_id` (copy); F2 makes the workspace
+  pass *this month’s* approved ones. `runCalendar` sends the approved trend report
+  for `routePeriod` as `report_id`; `runCopy` sends the approved calendar for
+  `routePeriod` as `calendar_id` (so “Run” in a board no longer builds from the
+  globally-latest approved of another month). Stage text now names the source
+  (“Building from the approved trend report for 2026-11”; “Drafting from the approved
+  calendar for 2026-11”), and the calendar run log names the month. Gates were
+  already month-scoped (F1b): calendar Run is disabled until this month has an
+  approved report, copy until an approved calendar — so the deterministic IDs always
+  resolve. Server-side hard rejection deferred (UI gates + deterministic IDs suffice).
+  Verified: tsc clean.
 - **F3 — post-detail hub.** Make `posts/[packageId]` reachable + prominent from Copy
   AND Visual, showing everything (on-visual text, caption, hashtags, image prompt,
   visual history, generate/select) in one place.

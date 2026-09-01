@@ -594,9 +594,12 @@ export default function PipelinePage() {
     setError(null);
     clearLog("calendar");
     setRunning((r) => ({ ...r, calendar: true }));
-    addLog("calendar", "Building a monthly plan from the approved report…");
+    addLog("calendar", `Building the ${routePeriod} calendar from its approved trend report…`);
     try {
-      await api.runCalendar(brandId, {});
+      const approvedReport = reports.find(
+        (r) => r.is_approved && (r.planning_period || "") === routePeriod,
+      );
+      await api.runCalendar(brandId, approvedReport ? { report_id: approvedReport.id } : {});
       let seen = 0;
       for (let i = 0; i < 80; i++) {
         await sleep(3000);
@@ -634,7 +637,14 @@ export default function PipelinePage() {
       } — one AI call each…`
     );
     try {
-      await api.runCopy(brandId, { limit, generate_tr: generateTr });
+      const approvedCalendar = calendars.find(
+        (c) => c.is_approved && (c.planning_period || "") === routePeriod,
+      );
+      await api.runCopy(brandId, {
+        limit,
+        generate_tr: generateTr,
+        ...(approvedCalendar ? { calendar_id: approvedCalendar.id } : {}),
+      });
       let seen = 0;
       for (let i = 0; i < 120; i++) {
         await sleep(3000);
@@ -1241,8 +1251,8 @@ export default function PipelinePage() {
         <CardBody>
           <p className="ui-note" style={{ marginTop: -4, marginBottom: 12 }}>
             {hasApprovedReport
-              ? "Builds from your latest approved trend report."
-              : "Approve a trend report above first."}
+              ? `Building from the approved trend report for ${routePeriod}.`
+              : "Approve this month’s trend report above first."}
           </p>
 
           <StageLog lines={logs.calendar} live={running.calendar} onClear={() => clearLog("calendar")} />
@@ -1422,8 +1432,8 @@ export default function PipelinePage() {
           >
             <p className="ui-note" style={{ margin: 0, flex: 1, minWidth: 200 }}>
               {hasApprovedCalendar
-                ? "One AI draft per calendar entry — a full month can take a few minutes. Leave Limit empty for all posts."
-                : "Approve a calendar above first."}
+                ? `Drafting from the approved calendar for ${routePeriod} — one AI draft per entry. A full month can take a few minutes; leave Limit empty for all posts.`
+                : "Approve this month’s calendar above first."}
             </p>
             {packages.length > 0 && (
               <div className="ui-langsw" role="group" aria-label="Copy language">
