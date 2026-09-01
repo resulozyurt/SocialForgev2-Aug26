@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-01 — **F0b** (Content Pipeline is now a month-board list; the stage runner moved to `/pipeline/[period]`). F0 (board spine + entry) complete.
+Last updated: 2026-09-01 — **F1a** (the `/pipeline/[period]` workspace is now visibly month-locked: a month banner, and research/copy/visual no longer let you pick another month).
 
 ---
 
@@ -155,7 +155,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
-| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0 done: board spine + list/entry). F1 next.** |
+| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0 done; F1a done: workspace month-locked. F1b next.)** |
 
 ---
 
@@ -842,6 +842,17 @@ commit:
     and post-detail `/pipeline` links now land on the list. Verified: tsc clean.
 - **F1 — month-locked workspace.** Opening a board opens a period-locked page; all
   four stages read/write only that `planning_period` (research date = board period).
+  - **F1a DONE** — the workspace is now *visibly* locked. A month banner ("<Month> board
+    · every stage scoped to this month" + the period pill) sits above the stepper.
+    Research's free Period input is replaced by a read-only month chip (research runs
+    for the board month only — no more stray dates); the Copy and Visual "All months"
+    selectors are removed and both stages are fixed to `routePeriod`. `periodFilter` is
+    now a const (= board period), and `period`/`periodOptions` free-choice state was
+    dropped. Verified: tsc clean. (Data-list scoping + brand-switch edge case = F1b.)
+  - **F1b NEXT** — scope the loaded report/calendar/package lists to the board period
+    client-side (other months never appear in the workspace); fix brand-switch inside a
+    board to land on the other brand's board list (not carry a period it may not have);
+    clear empty states when the board month has no report/calendar yet.
 - **F2 — explicit lineage + gates.** Calendar shows "building from: report <period>
   (approved)"; copy/visual show their source; each Run is disabled until the prior
   stage is approved for THIS month (needs "run for a specific report/calendar" params

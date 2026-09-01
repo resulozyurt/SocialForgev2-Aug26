@@ -38,6 +38,16 @@ function currentPeriod(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+function monthLabel(period: string): string {
+  if (!/^\d{4}-\d{2}$/.test(period)) return period || "This month";
+  const [y, mm] = period.split("-");
+  return `${MONTHS[Number(mm) - 1] ?? mm} ${y}`;
+}
+
 type Running = { research: boolean; calendar: boolean; copy: boolean };
 type LogLine = { time: string; text: string; kind: "info" | "ok" | "err" };
 type Stage = "research" | "calendar" | "copy";
@@ -425,21 +435,20 @@ export default function PipelinePage() {
     copy: false,
   });
 
-  const [period, setPeriod] = useState(routePeriod || currentPeriod());
+  // F1: research always runs for the board's month.
+  const period = routePeriod || currentPeriod();
   const [copyLimit, setCopyLimit] = useState<string>("");
   const [generateTr, setGenerateTr] = useState(true);
   const [view, setView] = useState<StageView>("research");
   const [viewLang, setViewLang] = useState<"en" | "tr">("en");
   const [selectedPkgIds, setSelectedPkgIds] = useState<Set<string>>(new Set());
   const [confirmPeriod, setConfirmPeriod] = useState<string | null>(null);
-  const [periodFilter, setPeriodFilter] = useState<string>(routePeriod);
+  // F1: the workspace is locked to the board's month; the filter is fixed.
+  const periodFilter = routePeriod;
   const [bulkBusy, setBulkBusy] = useState(false);
   const [visuals, setVisuals] = useState<Record<string, VisualResponse>>({});
   const [visualBusy, setVisualBusy] = useState<Record<string, boolean>>({});
   const [visualMsg, setVisualMsg] = useState<Record<string, string>>({});
-  const periodOptions = Array.from(
-    new Set(packages.map((p) => p.planning_period || "__legacy__")),
-  ).sort((a, b) => (a === "__legacy__" ? 1 : b === "__legacy__" ? -1 : b.localeCompare(a)));
   const visiblePackages = periodFilter
     ? packages.filter((p) => (p.planning_period || "__legacy__") === periodFilter)
     : packages;
@@ -1003,6 +1012,28 @@ export default function PipelinePage() {
         ← Boards
       </Link>
 
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          padding: "12px 16px",
+          borderRadius: 10,
+          background: "var(--ui-accent-soft, rgba(1,132,120,0.08))",
+          border: "1px solid var(--ui-line, rgba(120,120,120,0.15))",
+          marginBottom: 16,
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{monthLabel(routePeriod)} board</div>
+          <div style={{ fontSize: 12, color: "var(--ui-muted, #6b7280)" }}>
+            Every stage below is scoped to this month.
+          </div>
+        </div>
+        <span className="ui-badge ui-badge-accent">{routePeriod}</span>
+      </div>
+
       <PageHeader
         eyebrow="Content pipeline"
         title="Research → Calendar → Copy"
@@ -1067,13 +1098,8 @@ export default function PipelinePage() {
           right={
             <>
               <span className="ui-inline-field">
-                <span className="ui-label">Period</span>
-                <Input
-                  className="ui-input-sm"
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value)}
-                  placeholder="2026-09"
-                />
+                <span className="ui-label">Month</span>
+                <span className="ui-badge ui-badge-muted">{routePeriod}</span>
               </span>
               <Button variant="primary" size="sm" onClick={runResearch} disabled={running.research}>
                 {running.research ? "Running…" : "Run research"}
@@ -1349,24 +1375,10 @@ export default function PipelinePage() {
           }
           right={
             <>
-              {periodOptions.length > 0 && (
-                <span className="ui-inline-field">
-                  <span className="ui-label">Month</span>
-                  <select
-                    className="ui-input ui-input-sm"
-                    value={periodFilter}
-                    onChange={(e) => setPeriodFilter(e.target.value)}
-                    style={{ width: 150 }}
-                  >
-                    <option value="">All months</option>
-                    {periodOptions.map((po) => (
-                      <option key={po} value={po}>
-                        {po === "__legacy__" ? "No calendar" : po}
-                      </option>
-                    ))}
-                  </select>
-                </span>
-              )}
+              <span className="ui-inline-field">
+                <span className="ui-label">Month</span>
+                <span className="ui-badge ui-badge-muted">{routePeriod}</span>
+              </span>
               <span className="ui-inline-field">
                 <span className="ui-label">Limit</span>
                 <Input
@@ -1629,24 +1641,10 @@ export default function PipelinePage() {
           }
           right={
             <>
-              {periodOptions.length > 0 && (
-                <span className="ui-inline-field">
-                  <span className="ui-label">Month</span>
-                  <select
-                    className="ui-input ui-input-sm"
-                    value={periodFilter}
-                    onChange={(e) => setPeriodFilter(e.target.value)}
-                    style={{ width: 150 }}
-                  >
-                    <option value="">All months</option>
-                    {periodOptions.map((po) => (
-                      <option key={po} value={po}>
-                        {po === "__legacy__" ? "No calendar" : po}
-                      </option>
-                    ))}
-                  </select>
-                </span>
-              )}
+              <span className="ui-inline-field">
+                <span className="ui-label">Month</span>
+                <span className="ui-badge ui-badge-muted">{routePeriod}</span>
+              </span>
               <span className="ui-item-meta">Approval 3 · reference-based generation</span>
             </>
           }
