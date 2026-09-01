@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-01 — **F0a** (month-board spine: `month_boards` table + migration 0014 + boards API). First step of the F-series flow/sync redesign.
+Last updated: 2026-09-01 — **F0b** (Content Pipeline is now a month-board list; the stage runner moved to `/pipeline/[period]`). F0 (board spine + entry) complete.
 
 ---
 
@@ -155,7 +155,7 @@ merchandising / field_audit / ai. Content pillars stay a separate concept.
 | U UI Rebuild | Studio design system + app shell + per-page rebuild | **DONE (U1–U5)** |
 | E Schedule/Publish/Metrics | Phase 5/6 (assisted, not autonomous) | LATER |
 | R Research Depth | pluggable search, source traceability, taxonomy/cadence, competitors, social | IN PROGRESS (R1 + R2a done) |
-| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0a done: `month_boards` table + boards API)** |
+| **F Flow / month-board sync** | month boards as the pipeline spine; per-month locked flow, explicit lineage, stage gates, post-detail hub | **IN PROGRESS (F0 done: board spine + list/entry). F1 next.** |
 
 ---
 
@@ -828,10 +828,18 @@ commit:
     content untouched in F0). Verified: py_compile + a structural
     (ast) wiring check. Full `configure_mappers()` runs on the owner's venv/deploy.
     Owner runs the migration live (auto via `alembic upgrade head`). No key needed.
-  - **F0b NEXT** — frontend. `MonthBoard` type + api-client (list/create/patch/delete);
-    Content Pipeline route shows the board list (cards + status pills + "new month",
-    period picker defaulting next month); "Open" routes to the existing runner with
-    `?period=` as an interim until F1's locked workspace. Reframe the brand-page entry.
+  - **F0b DONE** — frontend. `MonthBoard`/`BoardStats` types + api-client
+    (list/create/patch/delete). `Content Pipeline` (`/brands/[id]/pipeline`) is now the
+    **board list**: a "Start a month" form (period defaults to next month, optional
+    title, idempotent create) + one card per board (period, title, status badge, and
+    per-stage pills — Research/Calendar approved-or-draft, Copy approved count, Visual
+    posts-with-image — from the boards API stats) + Open → `/pipeline/[period]` +
+    two-click Remove (row only). The **stage runner moved to
+    `/pipeline/[period]/page.tsx`** (copied, not deleted): it seeds `period` +
+    `periodFilter` from the route param so it opens focused on that month, and its top
+    back-link now points to the board list. Real per-month locking/gates come in F1/F2.
+    Nav unchanged (`suffix.startsWith("/pipeline")` still matches both); the brand-page
+    and post-detail `/pipeline` links now land on the list. Verified: tsc clean.
 - **F1 — month-locked workspace.** Opening a board opens a period-locked page; all
   four stages read/write only that `planning_period` (research date = board period).
 - **F2 — explicit lineage + gates.** Calendar shows "building from: report <period>

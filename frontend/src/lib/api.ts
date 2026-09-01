@@ -10,6 +10,9 @@ import type {
   ContentCalendar,
   ContentPackage,
   CopyRunRequest,
+  MonthBoard,
+  MonthBoardCreate,
+  MonthBoardPatch,
   PhaseKey,
   ProviderConfig,
   ProviderConfigCreate,
@@ -246,4 +249,19 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ visual_notes }),
     }),
+
+  // F0 — month boards
+  listBoards: (id: string) => request<MonthBoard[]>(`/brands/${id}/boards`),
+  createBoard: (id: string, payload: MonthBoardCreate) =>
+    request<MonthBoard>(`/brands/${id}/boards`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateBoard: (boardId: string, payload: MonthBoardPatch) =>
+    request<MonthBoard>(`/boards/${boardId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteBoard: (boardId: string) =>
+    request<{ deleted: boolean }>(`/boards/${boardId}`, { method: "DELETE" }),
 };

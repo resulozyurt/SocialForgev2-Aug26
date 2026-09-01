@@ -229,3 +229,40 @@ export interface VisualNotes {
   solution: SolutionKey;
   visual_notes: string | null;
 }
+
+// F0 — Month boards: the first-class organizing unit for the pipeline.
+// A board is one (brand, planning_period). `stats` are rolled-up per-stage
+// counts the board card renders.
+export interface BoardStats {
+  report_total: number;
+  report_approved: number;
+  calendar_total: number;
+  calendar_approved: number;
+  copy_total: number;
+  copy_approved: number;
+  visual_posts: number;
+  post_target: number;
+}
+
+export interface MonthBoard {
+  id: string;
+  brand_id: string;
+  planning_period: string;
+  title: string | null;
+  status: string; // active | ready | archived
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  stats: BoardStats;
+}
+
+export interface MonthBoardCreate {
+  planning_period: string;
+  title?: string | null;
+}
+
+export interface MonthBoardPatch {
+  status?: string;
+  title?: string | null;
+  notes?: string | null;
+}
