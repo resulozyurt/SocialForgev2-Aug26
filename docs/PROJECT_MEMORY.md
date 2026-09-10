@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-10 — **V7 + V7a** (visual quality overhaul: three-layer prompt with a premium/photoreal quality bar, configurable image model defaulting to `gpt-image-2.5-sunburst`, a 16-reference cap; plus self-healing handling of model-specific parameter support and a live image-model list read from the API key). F4b (cascade-delete a month) is still pending owner approval.
+Last updated: 2026-09-10 — **V7 + V7a + V7b** (visual quality overhaul: three-layer prompt with a premium/photoreal quality bar, configurable image model defaulting to `gpt-image-2.5-sunburst`, a 16-reference cap; self-healing handling of model-specific parameter support and a live image-model list read from the API key; and per-solution scene authority over the copy's image prompt, cross-industry audit settings, single-headline visuals). F4b (cascade-delete a month) is still pending owner approval.
 
 ---
 
@@ -1011,6 +1011,46 @@ against the owner's verbatim 400 body plus a message-only variant, a non-400, an
 unrelated 400 (no false positives); a fake-transport run of `_openai_edits` confirmed the
 retry drops exactly `input_fidelity` and succeeds on the second attempt; and the model
 sort order was checked against a mixed model list. **The owner runs the live generation.**
+
+**V7b — scene authority + single-headline visuals (2026-09-10).** With V7/V7a live the
+design quality jumped (owner: "görseller ve dizayn muhteşem"), but every visual still
+staged a supermarket shelf, including `field_audit` posts. Root cause found in the owner's
+own post-detail screenshot: the shelf comes from the **copy** layer, not the visual layer.
+`visual_direction.image_prompt` literally read *"Create an image of a retail shelf with
+products, featuring AI recognition boxes…"* and `composition` read *"a mix of 3D render and
+real store photography with bounding boxes"* — the latter is verbatim the pre-G1 brand
+motif text, proving that package's copy predates the owner's motif fix and is frozen in the
+DB, so Regenerate kept replaying it. Phase 4 was faithfully rendering what it was told.
+Three changes, backend only, no migration:
+  - **Scene authority inversion** (`phase4_visual._scene_prompt`). Layer 2 now states the
+    solution's own art direction FIRST and marks it authoritative — owner-written
+    `visual_notes` when present, otherwise a new built-in `_SOLUTION_SCENES` family per
+    solution. The copy's `image_prompt` is demoted to a "scene suggestion … ignore anything
+    that contradicts the SETTING above, and ignore any request for a 3D render,
+    illustration or split-screen". This fixes existing frozen packages too, without
+    re-running copy. `_SOLUTION_SCENES["field_audit"]` deliberately spans hotels,
+    restaurants, construction sites, warehouses, branch offices, factories, healthcare and
+    fuel stations, because the owner's point is that audit is not a retail-only category.
+  - **Single-headline visuals.** The support line is no longer passed to the image at all
+    (`primary, _support_line = …`) and `_TEXT_RULE` now forbids any sub-headline or
+    supporting sentence — the owner found the second line made every layout crowded. The
+    copy still produces `text_overlay.secondary` for the caption/alt text.
+  - **Copy-side prevention** (`phase3_copy.COPY_PROMPT` rules). `image_prompt` must describe
+    a scene only and must not restate brand layout/logo/motifs/typography/color (the image
+    step enforces those from references); the scene must be real photography of real people,
+    never a 3D render, illustration or split-screen diagram; and the setting must follow the
+    post's solution area and vary between posts, defaulting to a retail shelf only when the
+    post is genuinely about shelf or planogram execution.
+Verified: `py_compile` on both phases; a placeholder/format-parity check on `COPY_PROMPT`
+(same placeholder set, balanced literal braces, `format()` renders); and a rendered Layer-2
+dump using the owner's real shelf-heavy `image_prompt` with empty `visual_notes`, confirming
+the cross-industry setting leads, the copy scene is demoted, the support line is absent and
+the no-sub-headline rule is present. **The owner runs the live generation.**
+Still open after this: `visual_notes` are empty for every solution (owner wants them
+AI-drafted rather than hand-written), the post-detail page has no "Edit with AI" control,
+and research/calendar keep framing `field_audit` as retail audit — the owner notes
+hospitality and construction audit are the live trends, so the diversity fix belongs in
+Phase 1/2, not in the visual step.
 
 **Content & flow revision (approved 2026-08-31, post-demo).** Owner feedback after a
 full run surfaced four issues: (1) calendar headlines are generic/weak; (2) copy is

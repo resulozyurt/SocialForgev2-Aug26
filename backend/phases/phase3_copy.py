@@ -256,6 +256,10 @@ RULES:
 - "copy_tr" mirrors "copy_en" in structure but reads as natural Turkish, not a literal translation.
 - PRIMARY LANGUAGE decides which package is native vs. adaptation — respect it exactly.
 - "visual_direction.color_palette" MUST be drawn from the BRAND COLOR PALETTE above (hex values). Do not introduce off-brand colors.
+- "visual_direction.image_prompt" describes a SCENE ONLY — what is happening, who is in it, and where. Do NOT restate the brand's layout, logo, motifs, typography or color system in it; the image step already enforces those from the brand's reference images, and repeating them there crowds out the scene.
+- The scene must be REAL PHOTOGRAPHY of real people in a real place. Never ask for a 3D render, an illustration, vector or isometric art, or a split-screen/before-after diagram.
+- Pick the setting from THIS post's SOLUTION AREA, and vary it from post to post. Field audit happens in hotels, restaurants, construction sites, warehouses, depots, branch offices, factories, healthcare facilities and fuel stations — not only in supermarket aisles. Only default to a retail shelf when the post is genuinely about shelf or planogram execution.
+- "visual_direction.text_overlay.secondary" is NOT rendered on the image (the visual carries the headline alone). Keep it to one short line that the caption or alt text can reuse.
 - Inside text, quote phrases with single quotes only. Never put a raw double quote inside a JSON string value."""
 
 

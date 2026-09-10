@@ -63,6 +63,38 @@ _SOLUTION_LABELS = {
     "general": "field operations",
 }
 
+# Default scene family per solution, used when a solution has no `visual_notes` yet.
+# This exists because the copy step's `image_prompt` kept defaulting every solution
+# to a supermarket aisle: field audit in particular happens across many industries,
+# and the visual should reflect that instead of collapsing to retail shelves.
+# An owner-written `visual_notes` always wins over these defaults.
+_SOLUTION_SCENES = {
+    "merchandising": (
+        "in-store retail: shelves, aisles, displays and planograms, a merchandiser "
+        "working with a tablet or phone"
+    ),
+    "field_audit": (
+        "audits ACROSS INDUSTRIES — hotels and restaurants, construction sites, "
+        "warehouses and depots, branch offices, factories and production lines, "
+        "healthcare facilities, fuel stations, and retail. Pick the setting that "
+        "fits this post and do NOT default to a supermarket shelf"
+    ),
+    "field_sales": (
+        "field sales: a rep meeting a store owner or business customer face to face, "
+        "a route between visits, an order or contract taken on a tablet"
+    ),
+    "home_service": (
+        "home and field service: a technician at a customer's home or building, "
+        "tools in use, an installation or repair, a branded service van"
+    ),
+    "ai": (
+        "AI in the field: a real field worker whose device surfaces an AI insight. "
+        "Keep the person and the real environment central — never an abstract "
+        "'AI brain' illustration"
+    ),
+    "general": "real field operations: people at work in real environments",
+}
+
 # Layer 3 — fixed for every brand and every post. This is the bar the owner
 # judges the output against: premium B2B SaaS marketing, real photography, real
 # depth. Keep it short and absolute; a long list dilutes it.
@@ -86,7 +118,10 @@ frames, or a busy background that fights the headline."""
 # Text discipline. Invented pseudo-words on shelves, signage and UI labels are the
 # single most common way an otherwise good render becomes unusable.
 _TEXT_RULE = """TEXT DISCIPLINE — read this twice:
-- Render ONLY the on-image text listed above, spelled EXACTLY as given, once each.
+- Render ONLY the single headline given above, spelled EXACTLY as written, once.
+- Add NO sub-headline, NO supporting sentence, NO descriptive line under or beside
+  the headline. The headline plus the logo is the entire text of this image. A
+  second line of copy makes the layout crowded and the post unusable.
 - Every other surface in the scene — product labels, packaging, signage, screens, UI
   chips, badges, charts — carries NO readable words. Leave them blank, abstract,
   or intentionally out of focus.
@@ -150,7 +185,9 @@ def _scene_prompt(package, brand, solution_notes: str, ref_count: int) -> str:
         or "a clean, modern brand visual for a social post"
     ).strip()
     scene = str(vd.get("image_prompt") or "").strip()
-    primary, secondary = _headline_text(package, brand)
+    # The support line is deliberately dropped: rendered under the headline it made
+    # every layout crowded. The copy still carries it for the caption/alt text.
+    primary, _support_line = _headline_text(package, brand)
     sol = _solution_label(package)
     ctype = getattr(getattr(package, "content_type", None), "value", None) or "static"
 
@@ -191,21 +228,37 @@ def _scene_prompt(package, brand, solution_notes: str, ref_count: int) -> str:
         )
 
     # ── Layer 2 — this specific post ────────────────────────────────────────
+    #
+    # Authority order inside this layer matters. The copy step writes
+    # `image_prompt` before anyone has looked at it, and it has a strong pull
+    # toward whatever setting the brand is best known for — which is how every
+    # solution ended up as a supermarket aisle. So the solution's own art
+    # direction (owner-written `visual_notes`, else the built-in scene family)
+    # is stated FIRST and declared the winner on any conflict; the copy's scene
+    # wording is demoted to a suggestion.
     out.append("")
     post_lines = [f"LAYER 2 — THIS POST:\nWhat it must communicate: {concept}"]
+
+    art_direction = solution_notes or _SOLUTION_SCENES.get(
+        getattr(getattr(package, "solution", None), "value", None) or "general",
+        _SOLUTION_SCENES["general"],
+    )
+    post_lines.append(
+        f"SETTING for {sol} (authoritative — this decides where the scene takes "
+        f"place): {art_direction}"
+    )
     if scene and scene != concept:
-        post_lines.append(f"Scene direction: {scene}")
-    if solution_notes:
-        post_lines.append(f"Art direction for {sol}: {solution_notes}")
-    if primary:
-        txt = f'On-image headline (render EXACTLY): "{primary}"'
-        if secondary:
-            txt += f'\nOn-image support line (render EXACTLY): "{secondary}"'
-        post_lines.append(txt)
         post_lines.append(
-            "Set the headline in the reference's heading style and wrap it the way the "
-            "references wrap theirs; put the single most important word in the brand's "
-            "accent pill."
+            f"Scene suggestion from the copy (use only the parts that fit the SETTING "
+            f"above; ignore anything that contradicts it, and ignore any request for a "
+            f"3D render, illustration or split-screen): {scene}"
+        )
+    if primary:
+        post_lines.append(f'On-image headline — the ONLY text, render EXACTLY: "{primary}"')
+        post_lines.append(
+            "Set it in the reference's heading style and wrap it the way the references "
+            "wrap theirs; put the single most important word in the brand's accent pill. "
+            "Do not add a supporting line beneath it."
         )
     else:
         post_lines.append("No on-image text: render the scene only, with no words at all.")
