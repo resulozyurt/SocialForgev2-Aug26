@@ -89,7 +89,7 @@ const solKey = (v: unknown): string =>
 const solLabel = (key: string): string =>
   SOLUTION_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-function ReportView({ report }: { report: TrendReport }) {
+function ReportView({ report, printMode = false }: { report: TrendReport; printMode?: boolean }) {
   const topics = A(report.trending_topics).map((t) => O(t));
   const gaps = A(report.content_gaps).map((g) => O(g));
   const pillars = A(report.recommended_pillars).map((p) => O(p));
@@ -126,11 +126,7 @@ function ReportView({ report }: { report: TrendReport }) {
 
   const favOf = (s: string) => (s.replace(/^https?:\/\/(www\.)?/, "")[0] || "•");
 
-  return (
-    <div>
-      <Tabs items={tabItems} active={active} onChange={setTab} />
-
-      {active === "overview" ? (
+  const renderOverview = () => (
         <div>
           {execSummary ? (
             <div className="ui-exec">
@@ -186,7 +182,9 @@ function ReportView({ report }: { report: TrendReport }) {
             </>
           )}
         </div>
-      ) : (
+  );
+
+  const renderSolution = (active: string) => (
         <div>
           {(() => {
             const t = forSol(topics, active);
@@ -286,7 +284,33 @@ function ReportView({ report }: { report: TrendReport }) {
             );
           })()}
         </div>
-      )}
+  );
+
+  // Print/PDF view: no tabs — every section stacked so one PDF holds the whole
+  // report. Tabs are great on screen and useless on paper.
+  if (printMode) {
+    return (
+      <div className="sf-print-report">
+        <section className="sf-print-sec">
+          <h3 className="sf-print-h">Overview</h3>
+          {renderOverview()}
+        </section>
+        {solutions.map((sol) => (
+          <section className="sf-print-sec" key={sol}>
+            <h3 className="sf-print-h">
+              {solLabel(sol)} <span className="n">{count(sol)}</span>
+            </h3>
+            {renderSolution(sol)}
+          </section>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Tabs items={tabItems} active={active} onChange={setTab} />
+      {active === "overview" ? renderOverview() : renderSolution(active)}
     </div>
   );
 }
@@ -669,6 +693,28 @@ export default function PipelinePage() {
       setRunning((r) => ({ ...r, copy: false }));
     }
   }
+
+  // ── Report -> PDF ────────────────────────────────────────────────────────
+  // Rendered through the browser's own print engine rather than a server-side
+  // PDF library: no extra dependency, and the output follows the same styles the
+  // reviewer already sees on screen. `printReportId` mounts an off-screen,
+  // all-sections-expanded copy of the report that only @media print reveals.
+  const [printReportId, setPrintReportId] = useState<string | null>(null);
+  const printReport = printReportId
+    ? visibleReports.find((r) => r.id === printReportId) || null
+    : null;
+
+  useEffect(() => {
+    if (!printReportId) return;
+    const done = () => setPrintReportId(null);
+    window.addEventListener("afterprint", done);
+    // Let React paint the print copy before handing off to the print engine.
+    const timer = window.setTimeout(() => window.print(), 150);
+    return () => {
+      window.removeEventListener("afterprint", done);
+      window.clearTimeout(timer);
+    };
+  }, [printReportId]);
 
   async function approveReport(id: string) {
     setReportBusy(id);
@@ -1171,6 +1217,9 @@ export default function PipelinePage() {
                       disabled={reportBusy === r.id}
                     >
                       Edit with AI
+                    </Button>
+                    <Button size="sm" variant="subtle" onClick={() => setPrintReportId(r.id)}>
+                      Download PDF
                     </Button>
                     <Button
                       size="sm"
@@ -1825,6 +1874,24 @@ export default function PipelinePage() {
           Next →
         </Button>
       </div>
+
+      {/* Print-only copy of the report: hidden on screen, revealed by @media print
+          with every solution section expanded so one PDF holds the whole report. */}
+      {printReport ? (
+        <div className="sf-printable" aria-hidden="true">
+          <header className="sf-print-cover">
+            <div className="brandline">{brand?.display_name || "SocialForge"}</div>
+            <h1>Trend report · {printReport.planning_period}</h1>
+            <p className="meta">
+              {A(printReport.trending_topics).length} topics ·{" "}
+              {A(printReport.content_gaps).length} content gaps ·{" "}
+              {A(printReport.recommended_pillars).length} pillars
+              {printReport.is_approved ? " · Approved" : ""}
+            </p>
+          </header>
+          <ReportView report={printReport} printMode />
+        </div>
+      ) : null}
 
     </div>
   );

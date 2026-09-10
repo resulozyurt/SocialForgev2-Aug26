@@ -68,7 +68,7 @@ _SOLUTION_LABELS = {
 # to a supermarket aisle: field audit in particular happens across many industries,
 # and the visual should reflect that instead of collapsing to retail shelves.
 # An owner-written `visual_notes` always wins over these defaults.
-_SOLUTION_SCENES = {
+SOLUTION_SCENES = {
     "merchandising": (
         "in-store retail: shelves, aisles, displays and planograms, a merchandiser "
         "working with a tablet or phone"
@@ -222,7 +222,8 @@ def _scene_prompt(package, brand, solution_notes: str, ref_count: int) -> str:
     else:
         out.append(
             "LAYER 1 — BRAND TEMPLATE:\n"
-            "No reference images exist for this solution yet, so build the layout from "
+            "No reference images exist for this solution yet, so the SETTING in LAYER 2 is "
+            "the only thing anchoring this scene — follow it exactly. Build the layout from "
             f"the brand's own visual identity: {_brand_cues(brand)}. Left-aligned text "
             "column, logo top-left, one accent-pill highlight, generous white space."
         )
@@ -239,9 +240,9 @@ def _scene_prompt(package, brand, solution_notes: str, ref_count: int) -> str:
     out.append("")
     post_lines = [f"LAYER 2 — THIS POST:\nWhat it must communicate: {concept}"]
 
-    art_direction = solution_notes or _SOLUTION_SCENES.get(
+    art_direction = solution_notes or SOLUTION_SCENES.get(
         getattr(getattr(package, "solution", None), "value", None) or "general",
-        _SOLUTION_SCENES["general"],
+        SOLUTION_SCENES["general"],
     )
     post_lines.append(
         f"SETTING for {sol} (authoritative — this decides where the scene takes "
@@ -249,9 +250,10 @@ def _scene_prompt(package, brand, solution_notes: str, ref_count: int) -> str:
     )
     if scene and scene != concept:
         post_lines.append(
-            f"Scene suggestion from the copy (use only the parts that fit the SETTING "
-            f"above; ignore anything that contradicts it, and ignore any request for a "
-            f"3D render, illustration or split-screen): {scene}"
+            f"Scene suggestion from the copy — ADVISORY ONLY: {scene}\n"
+            "If it names a place that is not in the SETTING above, DISCARD its location "
+            "entirely and pick one from the SETTING; keep only the action, the people and "
+            "the props. Ignore any request for a 3D render, illustration or split-screen."
         )
     if primary:
         post_lines.append(f'On-image headline — the ONLY text, render EXACTLY: "{primary}"')

@@ -138,6 +138,19 @@ def _voice_profile(brand: Brand) -> str:
     return "\n".join(parts) if parts else "(voice profile empty — infer a sharp, on-brand voice)"
 
 
+def _scene_family(entry: dict) -> str:
+    """The scene family the image for this post must be set in.
+
+    Phase 4 already treats this as authoritative when it builds the image prompt.
+    Feeding the SAME list to the copy writer stops the mismatch at the source —
+    otherwise copy invents an off-solution location (a home-service post drifting
+    to a construction site, say) and the image step has to fight it."""
+    from phases.phase4_visual import SOLUTION_SCENES
+
+    key = str(entry.get("solution") or "general").strip().lower() or "general"
+    return SOLUTION_SCENES.get(key, SOLUTION_SCENES["general"])
+
+
 def _visual_language(brand: Brand) -> str:
     """Summarize the brand's visual motifs/style for the image concept."""
     vi = getattr(brand, "visual_identity", None)
@@ -210,6 +223,7 @@ VISUAL LANGUAGE (brand motifs/style to reflect in the image concept): {visual_la
 PLATFORM: {platform}
 CONTENT TYPE: {content_type}
 SOLUTION AREA (this post belongs to this product area): {solution}
+SCENE FAMILY (the image for this post MUST be set here — this is not a suggestion): {scene_family}
 CONTENT PILLAR: {pillar}
 OBJECTIVE: {objective}
 SCHEDULED DATE: {date}
@@ -258,7 +272,7 @@ RULES:
 - "visual_direction.color_palette" MUST be drawn from the BRAND COLOR PALETTE above (hex values). Do not introduce off-brand colors.
 - "visual_direction.image_prompt" describes a SCENE ONLY — what is happening, who is in it, and where. Do NOT restate the brand's layout, logo, motifs, typography or color system in it; the image step already enforces those from the brand's reference images, and repeating them there crowds out the scene.
 - The scene must be REAL PHOTOGRAPHY of real people in a real place. Never ask for a 3D render, an illustration, vector or isometric art, or a split-screen/before-after diagram.
-- Pick the setting from THIS post's SOLUTION AREA, and vary it from post to post. Field audit happens in hotels, restaurants, construction sites, warehouses, depots, branch offices, factories, healthcare facilities and fuel stations — not only in supermarket aisles. Only default to a retail shelf when the post is genuinely about shelf or planogram execution.
+- The scene in "image_prompt" MUST take place inside the SCENE FAMILY above. Never borrow a location from another solution area — a home-service post is not set on a construction site, and a field-audit post is not automatically a supermarket aisle. Within that family, vary the setting from post to post.
 - "visual_direction.text_overlay.secondary" is NOT rendered on the image (the visual carries the headline alone). Keep it to one short line that the caption or alt text can reuse.
 - Inside text, quote phrases with single quotes only. Never put a raw double quote inside a JSON string value."""
 
@@ -429,6 +443,7 @@ class Phase3Copy:
             objective=entry.get("objective", "engagement"),
             date=entry.get("date", ""),
             solution=entry.get("solution", ""),
+            scene_family=_scene_family(entry),
             ai_angle=entry.get("ai_angle", ""),
             headline=entry.get("headline", ""),
             hook_concept=entry.get("hook_concept", ""),

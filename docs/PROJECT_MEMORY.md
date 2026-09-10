@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-10 — **V7/V7a/V7b** (visual overhaul: three-layer prompt with a premium/photoreal quality bar, `gpt-image-2.5-sunburst` by default, self-healing model parameters, live model list from the key, per-solution scene authority, single-headline visuals) and **R5** (research now searches industry verticals with a rotating window, filters by recency, and produces an evidence-graded report). F4b (cascade-delete a month) is still pending owner approval.
+Last updated: 2026-09-10 — **V7 series** (visual overhaul: premium/photoreal three-layer prompt, `gpt-image-2.5-sunburst`, self-healing model parameters, live model list, per-solution scene authority now shared with the copy step, single-headline visuals), **R5** (research searches industry verticals on a rotating window, filters by recency, grades evidence) and **X1** (trend report exports to PDF). F4b (cascade-delete a month) is still pending owner approval.
 
 ---
 
@@ -1094,6 +1094,46 @@ dict for an unknown solution); the recency table checked for all four windows pl
 `None` default; and `_balanced_sample` checked on a 100/40/5/3/2 split (small buckets
 survive intact, in-bucket order preserved, no-op under the limit). **The owner runs the
 live research (search + AI keys).**
+
+**V7c + X1 — scene family shared with copy, and report PDF export (2026-09-10).**
+End-to-end run after R5 landed: research quality jumped (per-vertical briefs, graded
+signals, industry-named executive summary), but a `home_service` post ("When the Route
+Breaks, What Happens?") rendered a construction site. Two causes, and the owner is right
+that a missing reference library is not an excuse for an off-topic scene:
+  - The copy's `image_prompt` itself said *"a field technician is in a remote construction
+    site"* — copy reasoned from "no signal" to "remote site" and left the solution behind.
+    Phase 4 had the right SETTING but was told to "use only the parts that fit", so it
+    blended the two and kept the wrong location.
+  - That post also has no reference images, so LAYER 1 was weak and the model leaned even
+    harder on the copy's wording.
+Fixes (backend):
+  - `phase4_visual`: `_SOLUTION_SCENES` renamed **`SOLUTION_SCENES`** (now shared), and the
+    copy's scene is demoted to "ADVISORY ONLY — if it names a place that is not in the
+    SETTING above, DISCARD its location entirely and pick one from the SETTING; keep only
+    the action, the people and the props." The no-reference branch now says the SETTING is
+    the only anchor left and must be followed exactly.
+  - `phase3_copy`: new `_scene_family(entry)` imports `SOLUTION_SCENES` (function-local
+    import; phase 4 never imports phase 3, so no cycle) and feeds a new `{scene_family}`
+    prompt field — "the image for this post MUST be set here". The old vertical-list rule
+    was replaced with a hard one: never borrow a location from another solution area.
+    Fixing it at the source means phase 4 no longer has to fight the copy.
+  - X1 — **report PDF export** (frontend). `ReportView` was split into `renderOverview()` /
+    `renderSolution(key)` and gained a `printMode` that stacks Overview plus every solution
+    section instead of rendering tabs. A **Download PDF** button sets `printReportId`, which
+    mounts a hidden `.sf-printable` copy (cover block: brand, period, counts, approval) and
+    calls `window.print()` after a paint delay, clearing on `afterprint`. New print CSS in
+    `globals.css` forces the light palette (a dark-mode screen must not print black), keeps
+    accent colors via `print-color-adjust: exact`, hides the app with a structure-independent
+    visibility swap, drops tabs/buttons, and sets break rules so cards, source rows and list
+    items never split and headings never strand. No PDF library and no new dependency — the
+    browser's print engine renders the same styles the reviewer sees.
+Verified: `py_compile` on both phases; `COPY_PROMPT` placeholder parity (only `scene_family`
+added, braces balanced, `format()` renders, and every placeholder is supplied at the call
+site); an AST check that phase 3 imports phase 4 and not the reverse, with the import
+function-local; `_scene_family` resolved for valid, null, unknown and missing solutions;
+brace/paren balance across the refactored `ReportView`; and a TSX syntax parse of the page
+(0 TS1xxx errors — the container has no project types, so the owner's `tsc --noEmit` on the
+device is still the real gate). **The owner runs the live copy/visual regeneration.**
 
 Still open after this: `visual_notes` are empty for every solution (owner wants them
 AI-drafted rather than hand-written), the post-detail page has no "Edit with AI" control,

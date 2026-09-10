@@ -1395,3 +1395,74 @@ textarea:focus-visible, [tabindex]:focus-visible, .ui-tab:focus-visible,
 .ui-colorswatch::-webkit-color-swatch-wrapper{ padding:3px; }
 .ui-colorswatch::-webkit-color-swatch{ border:none; border-radius:6px; }
 .ui-colorswatch::-moz-color-swatch{ border:none; border-radius:6px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REPORT -> PDF (print)
+   The trend report is tabbed on screen, which is useless on paper, so the print
+   copy stacks every section. `.sf-printable` is mounted only while a print is in
+   flight and is invisible on screen; the print sheet hides the app chrome with a
+   visibility swap (structure-independent, unlike hiding a specific wrapper).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sf-printable { display: none; }
+
+.sf-print-report .sf-print-sec { margin-top: 22px; }
+.sf-print-report .sf-print-h {
+  font-family: var(--font-display, inherit);
+  font-size: 17px; font-weight: 700; color: var(--ink);
+  margin: 0 0 10px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--accent);
+}
+.sf-print-report .sf-print-h .n {
+  font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 6px;
+}
+.sf-print-cover { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.sf-print-cover .brandline {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 6px;
+}
+.sf-print-cover h1 {
+  font-family: var(--font-display, inherit);
+  font-size: 26px; font-weight: 800; color: var(--ink); margin: 0 0 6px;
+}
+.sf-print-cover .meta { font-size: 12px; color: var(--muted); margin: 0; }
+
+@media print {
+  /* Force the light palette: a dark-mode screen must not print as a black page. */
+  :root, :root[data-theme="dark"] {
+    --paper: #fff; --surface: #fff; --ink: #0f172a; --text-2: #334155;
+    --muted: #64748b; --line: #e2e8f0; --border-strong: #cbd5e1;
+  }
+  html, body { background: #fff !important; }
+
+  /* Keep brand accents, solution chips and signal pills in the PDF. */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  /* Hide the whole app, then reveal only the print copy. Done with visibility
+     rather than display:none on a wrapper, so it survives any layout change. */
+  body * { visibility: hidden !important; }
+  .sf-printable, .sf-printable * { visibility: visible !important; }
+  .sf-printable {
+    display: block !important;
+    position: absolute !important;
+    left: 0; top: 0; right: 0;
+    width: 100%; padding: 0; margin: 0;
+    background: #fff;
+  }
+
+  /* Tabs, buttons and other on-screen affordances never belong on paper. */
+  .sf-printable .ui-tabs, .sf-printable button, .sf-printable .ui-item-actions { display: none !important; }
+
+  /* Sensible page breaks: never split a card, a source row or a list item, and
+     never leave a section heading stranded at the bottom of a page. */
+  .sf-print-sec { break-inside: auto; page-break-inside: auto; }
+  .sf-print-h, .ui-h4 { break-after: avoid; page-break-after: avoid; }
+  .ui-exec, .ui-brief .box, .ui-src, .ui-list2 li, .ui-caldist {
+    break-inside: avoid; page-break-inside: avoid;
+  }
+
+  /* Links print as plain text — the URL suffix trick just adds clutter here. */
+  .sf-printable a { color: var(--ink) !important; text-decoration: none !important; }
+
+  @page { margin: 14mm 12mm; }
+}
