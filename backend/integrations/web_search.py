@@ -26,6 +26,24 @@ logger = logging.getLogger(__name__)
 SEARCH_PROVIDERS = ["serper", "brave", "google_cse", "tavily"]
 _TAG_RE = re.compile(r"<[^>]+>")
 
+# Recency windows. Without one, a "trend report" quietly becomes an archive sweep:
+# Google returns three-year-old vendor posts for these queries and the model then
+# reports them as current signal. Each provider spells the filter differently, so
+# one setting is translated into all four.
+RECENCY_WINDOWS = ["3m", "6m", "12m", "off"]
+DEFAULT_RECENCY = "6m"
+
+_RECENCY: dict[str, dict[str, Any]] = {
+    "3m": {"serper": "qdr:m3", "cse": "m3", "brave": "pm", "tavily": 90},
+    "6m": {"serper": "qdr:m6", "cse": "m6", "brave": "py", "tavily": 180},
+    "12m": {"serper": "qdr:y", "cse": "y1", "brave": "py", "tavily": 365},
+}
+
+
+def _recency(window: str | None, provider_key: str):
+    """Provider-specific value for the configured window; None means no filter."""
+    return (_RECENCY.get((window or DEFAULT_RECENCY).lower()) or {}).get(provider_key)
+
 
 def default_country(language: str) -> str:
     return "TR" if str(language).lower() == "tr" else "US"
@@ -35,12 +53,18 @@ def _clean(text: str) -> str:
     return _TAG_RE.sub("", text or "").replace("\xa0", " ").strip()
 
 
-async def _serper(query: str, api_key: str, count: int, country: str) -> list[dict[str, Any]]:
+async def _serper(
+    query: str, api_key: str, count: int, country: str, recency: str | None = None
+) -> list[dict[str, Any]]:
+    payload: dict[str, Any] = {"q": query, "gl": country.lower(), "num": count}
+    tbs = _recency(recency, "serper")
+    if tbs:
+        payload["tbs"] = tbs
     async with httpx.AsyncClient(timeout=20) as c:
         resp = await c.post(
             "https://google.serper.dev/search",
             headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
-            json={"q": query, "gl": country.lower(), "num": count},
+            json=payload,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -55,12 +79,18 @@ async def _serper(query: str, api_key: str, count: int, country: str) -> list[di
     return out
 
 
-async def _brave(query: str, api_key: str, count: int, country: str) -> list[dict[str, Any]]:
+async def _brave(
+    query: str, api_key: str, count: int, country: str, recency: str | None = None
+) -> list[dict[str, Any]]:
+    params: dict[str, Any] = {"q": query, "count": count, "country": country}
+    freshness = _recency(recency, "brave")
+    if freshness:
+        params["freshness"] = freshness
     async with httpx.AsyncClient(timeout=20) as c:
         resp = await c.get(
             "https://api.search.brave.com/res/v1/web/search",
             headers={"X-Subscription-Token": api_key, "Accept": "application/json"},
-            params={"q": query, "count": count, "country": country, "freshness": "pm"},
+            params=params,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -75,14 +105,20 @@ async def _brave(query: str, api_key: str, count: int, country: str) -> list[dic
     return out
 
 
-async def _google_cse(query: str, api_key: str, count: int, country: str) -> list[dict[str, Any]]:
+async def _google_cse(
+    query: str, api_key: str, count: int, country: str, recency: str | None = None
+) -> list[dict[str, Any]]:
     # api_key form: "APIKEY:SEARCHENGINEID"
     key, _, cx = api_key.partition(":")
+    params: dict[str, Any] = {
+        "key": key, "cx": cx, "q": query,
+        "num": min(count, 10), "gl": country.lower(),
+    }
+    date_restrict = _recency(recency, "cse")
+    if date_restrict:
+        params["dateRestrict"] = date_restrict
     async with httpx.AsyncClient(timeout=20) as c:
-        resp = await c.get(
-            "https://www.googleapis.com/customsearch/v1",
-            params={"key": key, "cx": cx, "q": query, "num": min(count, 10), "gl": country.lower()},
-        )
+        resp = await c.get("https://www.googleapis.com/customsearch/v1", params=params)
         resp.raise_for_status()
         data = resp.json()
     out = []
@@ -96,12 +132,17 @@ async def _google_cse(query: str, api_key: str, count: int, country: str) -> lis
     return out
 
 
-async def _tavily(query: str, api_key: str, count: int, country: str) -> list[dict[str, Any]]:
+async def _tavily(
+    query: str, api_key: str, count: int, country: str, recency: str | None = None
+) -> list[dict[str, Any]]:
+    payload: dict[str, Any] = {
+        "api_key": api_key, "query": query, "max_results": count,
+    }
+    days = _recency(recency, "tavily")
+    if days:
+        payload["days"] = days
     async with httpx.AsyncClient(timeout=25) as c:
-        resp = await c.post(
-            "https://api.tavily.com/search",
-            json={"api_key": api_key, "query": query, "max_results": count},
-        )
+        resp = await c.post("https://api.tavily.com/search", json=payload)
         resp.raise_for_status()
         data = resp.json()
     out = []
@@ -129,6 +170,7 @@ async def web_search(
     api_key: str,
     count: int = 5,
     country: str = "US",
+    recency: str | None = None,
 ) -> list[dict[str, Any]]:
     if not api_key or not query:
         return []
@@ -137,7 +179,7 @@ async def web_search(
         logger.warning("Unknown search provider %r", provider)
         return []
     try:
-        return await fn(query, api_key, count, country)
+        return await fn(query, api_key, count, country, recency)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Search (%s) failed for %r: %s", provider, query, exc)
         return []
@@ -147,13 +189,18 @@ async def gather_search(
     provider: str,
     keywords: list[str],
     api_key: str,
-    count_per: int = 5,
+    count_per: int = 6,
     country: str = "US",
+    recency: str | None = None,
+    max_queries: int = 10,
 ) -> list[dict[str, Any]]:
-    """Run several keyword searches through the chosen provider, merge + dedupe by URL."""
+    """Run several keyword searches through the chosen provider, merge + dedupe by URL.
+
+    `max_queries` was 6, which silently truncated a solution's query set once
+    per-vertical queries were added; it is now a caller-tunable ceiling."""
     results: list[dict[str, Any]] = []
-    for kw in keywords[:6]:
-        for r in await web_search(provider, kw, api_key, count_per, country):
+    for kw in keywords[:max_queries]:
+        for r in await web_search(provider, kw, api_key, count_per, country, recency):
             r["query"] = kw
             results.append(r)
     seen: set[str] = set()
@@ -163,5 +210,8 @@ async def gather_search(
         if url and url not in seen:
             seen.add(url)
             deduped.append(r)
-    logger.info("Search (%s) gathered %d unique results from %d keywords", provider, len(deduped), len(keywords))
+    logger.info(
+        "Search (%s) gathered %d unique results from %d queries (recency=%s)",
+        provider, len(deduped), min(len(keywords), max_queries), recency or DEFAULT_RECENCY,
+    )
     return deduped

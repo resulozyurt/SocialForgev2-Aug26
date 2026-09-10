@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-10 — **V7 + V7a + V7b** (visual quality overhaul: three-layer prompt with a premium/photoreal quality bar, configurable image model defaulting to `gpt-image-2.5-sunburst`, a 16-reference cap; self-healing handling of model-specific parameter support and a live image-model list read from the API key; and per-solution scene authority over the copy's image prompt, cross-industry audit settings, single-headline visuals). F4b (cascade-delete a month) is still pending owner approval.
+Last updated: 2026-09-10 — **V7/V7a/V7b** (visual overhaul: three-layer prompt with a premium/photoreal quality bar, `gpt-image-2.5-sunburst` by default, self-healing model parameters, live model list from the key, per-solution scene authority, single-headline visuals) and **R5** (research now searches industry verticals with a rotating window, filters by recency, and produces an evidence-graded report). F4b (cascade-delete a month) is still pending owner approval.
 
 ---
 
@@ -1046,6 +1046,55 @@ Verified: `py_compile` on both phases; a placeholder/format-parity check on `COP
 dump using the owner's real shelf-heavy `image_prompt` with empty `visual_notes`, confirming
 the cross-industry setting leads, the copy scene is demoted, the support line is absent and
 the no-sub-headline rule is present. **The owner runs the live generation.**
+**R5 — research verticals, recency and report quality (2026-09-10).** Owner: research
+keeps producing retail-audit content, but hospitality and construction audit are the live
+trends. Root cause: a solution is a *capability* and the search only ever used capability
+terms — `_SOLUTION_KEYWORDS["field_audit"]` is `field audit / retail store audit /
+franchise compliance audit`, and FieldPie's seeded `solution_keywords` are more retail
+still (`shelf audit software`, `out-of-stock detection retail`). The system never searched
+hospitality or construction, so it could not report them; calendar and copy then inherited
+the blind spot. Two further defects surfaced while reading the phase: no recency filter
+anywhere (serper got no `tbs`, so a "trend report" was really an archive sweep over
+years-old vendor posts), and no quality bar in `ANALYSIS_PROMPT` — vendor landing pages and
+"top 10 software" listicles counted as trend evidence, and `signal_strength` was the
+model's vibe rather than a source count. Changes, backend only, no migration:
+  - **Vertical search** (`phase1_research`). New `_SOLUTION_VERTICALS` (9 industries for
+    `field_audit`: hospitality, QSR, construction, manufacturing, healthcare, fuel &
+    convenience, bank branches, retail, warehousing; 5-6 each for the others) plus
+    `_SOLUTION_QUERY_LABEL`. `_vertical_queries` builds `"<vertical> <label> trends"` and
+    **rotates the window by planning period** using `zlib.crc32` — not `hash()`, which
+    Python randomizes per process — so re-running a month reproduces its queries while a
+    different month surfaces different industries. `_VERTICALS_PER_RUN = 4` keeps a run
+    cheap. Each result is tagged `vertical`, and `sources.vertical_queries` records what
+    was searched.
+  - **Recency** (`web_search`). One `research_recency` setting (`3m` / `6m` / `12m` / `off`,
+    default `6m`) translated per provider: serper `tbs=qdr:m*`, google_cse `dateRestrict`,
+    brave `freshness`, tavily `days`. `gather_search` gained `recency` and a caller-tunable
+    `max_queries` (the old hardcoded `keywords[:6]` would have silently truncated the new
+    vertical queries) and `count_per` 5 -> 6.
+  - **Report quality** (`ANALYSIS_PROMPT` + `SYSTEM_PROMPT` rewritten). A source-quality
+    ranking that explicitly demotes vendor pages and listicles to "advertising, not
+    evidence"; `signal_strength` bound to distinct-source counts (3+/2/1); a mandatory
+    industry spread ("cover at least TWO verticals when the inputs support it", and name
+    the vertical inside the topic text); writing rules that ban generic lines and demand
+    named regulations, numbers and dated changes; explicit volume targets (6-10 topics,
+    4-6 gaps, 3-5 formats, pillars summing to 100); and an `executive_summary` that must
+    name which industries are showing demand and which are quiet. The JSON schema is
+    unchanged, so the existing `ReportView` renders it as-is.
+  - **Prompt-input cap.** Vertical queries roughly double the gathered sources, so
+    `_balanced_sample` round-robins across solution buckets down to
+    `_MAX_SEARCH_IN_PROMPT = 120` before the analysis call. A head-slice would have starved
+    the later solutions — the exact imbalance this phase exists to prevent. Everything
+    gathered is still stored in `sources` for the audit trail.
+Verified: `py_compile` on all three files; placeholder/format parity on `ANALYSIS_PROMPT`
+(identical placeholder set, balanced literal braces, `format()` renders); the vertical
+rotation checked across four months (2026-10 field_audit -> QSR / construction /
+manufacturing / healthcare, reproducible within a month, different across months, empty
+dict for an unknown solution); the recency table checked for all four windows plus the
+`None` default; and `_balanced_sample` checked on a 100/40/5/3/2 split (small buckets
+survive intact, in-bucket order preserved, no-op under the limit). **The owner runs the
+live research (search + AI keys).**
+
 Still open after this: `visual_notes` are empty for every solution (owner wants them
 AI-drafted rather than hand-written), the post-detail page has no "Edit with AI" control,
 and research/calendar keep framing `field_audit` as retail audit — the owner notes

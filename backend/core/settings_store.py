@@ -26,6 +26,12 @@ KNOWN_SETTINGS: dict[str, dict] = {
         "secret": True,
         "choices": None,
     },
+    "research_recency": {
+        "label": "Research recency",
+        "description": "How far back Phase-1 web search may look. Without a window, search returns years-old vendor posts and a trend report becomes an archive sweep. 6m is the default; use 3m for fast-moving topics, 12m for thin niches, off to disable.",
+        "secret": False,
+        "choices": ["3m", "6m", "12m", "off"],
+    },
     "apify_api_key": {
         "label": "Apify API token",
         "description": "Optional. Enables competitor social-media scraping when a brand turns it on.",
