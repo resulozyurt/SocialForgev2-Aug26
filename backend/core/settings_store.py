@@ -34,7 +34,7 @@ KNOWN_SETTINGS: dict[str, dict] = {
     },
     "image_provider": {
         "label": "Image provider",
-        "description": "Which image-generation backend the visual step uses. openai = gpt-image-1; when a solution has reference images the model runs reference-conditioned edits. Add references on each solution's page.",
+        "description": "Which image-generation backend the visual step uses. When a solution has reference images, the model runs reference-conditioned edits against them. Add references on each solution's page.",
         "secret": False,
         "choices": ["openai"],
     },
@@ -44,6 +44,18 @@ KNOWN_SETTINGS: dict[str, dict] = {
         "secret": True,
         "choices": None,
     },
+    "image_model": {
+        "label": "Image model",
+        "description": "gpt-image-2.5-sunburst is the sharpest for photoreal scenes and on-image text (recommended). -flare is faster and cheaper at slightly lower fidelity. gpt-image-2 and older render text less reliably.",
+        "secret": False,
+        "choices": [
+            "gpt-image-2.5-sunburst",
+            "gpt-image-2.5-flare",
+            "gpt-image-2",
+            "gpt-image-1.5",
+            "gpt-image-1",
+        ],
+    },
     "image_candidates": {
         "label": "Image candidates",
         "description": "How many candidate visuals to generate per post (1-4). More candidates give more choice but cost more and take longer. Default 2.",
@@ -52,15 +64,21 @@ KNOWN_SETTINGS: dict[str, dict] = {
     },
     "image_quality": {
         "label": "Image quality",
-        "description": "gpt-image-1 render quality. Higher is sharper but slower and more expensive. Default medium.",
+        "description": "Render quality. Higher is sharper but slower and more expensive. high is the sweet spot for social; xhigh/max only pay off on large sizes.",
         "secret": False,
-        "choices": ["low", "medium", "high", "auto"],
+        "choices": ["low", "medium", "high", "xhigh", "max", "auto"],
     },
     "image_size": {
         "label": "Image size",
-        "description": "Output size / aspect: 1024x1024 (square), 1024x1536 (portrait), 1536x1024 (landscape), or auto. Default 1024x1024.",
+        "description": "Output size / aspect. 1024x1024 square (feed), 1088x1360 portrait 4:5 (best Instagram reach), 1024x1536 tall portrait, 1536x1024 landscape (LinkedIn), or auto.",
         "secret": False,
-        "choices": ["1024x1024", "1024x1536", "1536x1024", "auto"],
+        "choices": ["1024x1024", "1088x1360", "1024x1536", "1536x1024", "auto"],
+    },
+    "image_fidelity": {
+        "label": "Reference fidelity",
+        "description": "How tightly the model must hold to the uploaded reference images. high keeps their layout, palette and logo treatment; low lets the model reinterpret them. Default high.",
+        "secret": False,
+        "choices": ["high", "low"],
     },
 }
 

@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-01 — **F4a** (board cards now show a stage-progress bar + a manual status control). F4b (cascade-delete a month) is pending owner approval.
+Last updated: 2026-09-10 — **V7** (visual quality overhaul: configurable image model defaulting to `gpt-image-2.5-sunburst`, `input_fidelity=high`, a 16-reference cap, and a three-layer prompt with a premium/photoreal quality bar). F4b (cascade-delete a month) is still pending owner approval.
 
 ---
 
@@ -937,6 +937,52 @@ each an independently deployable, owner-reviewed commit:
 - **V-SERIES COMPLETE.** Next: the owner's **quality/format revision requests** (prompt
   tuning, aspect/size defaults, candidate count, etc.) — gather each, then adjust. No
   code until the owner specifies a change.
+
+**V7 — visual quality overhaul (2026-09-10, owner-approved after a live review).**
+Owner review of live audit visuals: the output was shelf-biased regardless of solution,
+flat and illustrative rather than photoreal, "not premium enough for B2B SaaS", carried
+misspelled invented words ("Gap in sxpelition"), and a carousel post produced a single
+unrelated image. Diagnosis found six compounding causes:
+  1. `visual_identity.motifs` seeded *at brand level* carried "image-recognition bounding
+     boxes on shelves" and "3D render mixed with…", and those motifs were injected into
+     **both** `phase3_copy._visual_language` (so the copy's `image_prompt` said shelf) and
+     `phase4_visual._brand_style` — every solution got "shelf" twice. **Owner fixed the
+     seeded motifs by hand in the Identity tab (G1); the shelf/3D lines are gone.** The
+     seed script still holds the old values — re-running `seed_fieldpie_profile.py` would
+     reintroduce them, so update it before any future re-seed.
+  2. No photorealism instruction existed anywhere; the closing line "avoid stock-photo
+     clichés" actively pushed the model toward illustration.
+  3. The prompt weighted brand motifs, mood, composition, art direction and the reference
+     instruction equally, so the model averaged them and the references lost.
+  4. `gpt-image-1` was hardcoded — a 2025-generation model with weak text rendering.
+  5. `input_fidelity` was never sent (API default is low), so reference detail was not held.
+  6. References were capped at 24 in the upload route but the edits endpoint accepts 16.
+Changes (backend only, no migration, no frontend change — the Settings page renders
+`KNOWN_SETTINGS` generically):
+  - `integrations/image_gen.py`: model is now a parameter (`OPENAI_IMAGE_MODELS`, default
+    **`gpt-image-2.5-sunburst`**); sends `input_fidelity`; trims references to
+    `MAX_REFERENCE_IMAGES = 16`; timeout 240 -> 300s; and if a model rejects `n > 1` the
+    call falls back to **N parallel single-image requests** so candidate count still works.
+  - `phases/phase4_visual.py`: `_scene_prompt` rewritten as **three explicit layers with a
+    stated authority order** — (1) BRAND TEMPLATE, where the reference images are declared
+    the single source of truth and "where this brief and the references disagree, THE
+    REFERENCES WIN"; (2) THIS POST, carrying the concept, scene, per-solution `visual_notes`
+    and the exact on-image text; (3) a fixed `_QUALITY_BAR` (premium B2B SaaS, photoreal
+    people/environments/light, layered depth, floating UI cards, sharp type) plus an
+    explicit DO-NOT-PRODUCE list, and a `_TEXT_RULE` block that forbids rendering any word
+    other than the specified headline — the fix for invented labels. Brand motifs now enter
+    only as light reinforcement when references exist, and as the full description when
+    they do not. Reads the new settings; records `model` in `asset_urls`. Also passes
+    minimal carousel awareness (`content_type == carousel` -> "this is the COVER frame").
+  - `core/settings_store.py`: new `image_model` and `image_fidelity` settings; `image_quality`
+    gained `xhigh`/`max`; `image_size` gained **`1088x1360` (4:5 portrait, best IG reach —
+    both edges divisible by 16 as the API requires)**; defaults moved to quality `high`,
+    fidelity `high`.
+Verified: `py_compile` on all three files, an AST parity check that every `generate_candidates`
+kwarg exists in its signature, and a rendered-prompt dump of both the with-references and
+no-references branches. **The owner runs the live generation (image key).**
+Known gaps deliberately left for the next steps: real per-slide carousel generation, and a
+free-text "regenerate like this" instruction on the post detail page.
 
 **Content & flow revision (approved 2026-08-31, post-demo).** Owner feedback after a
 full run surfaced four issues: (1) calendar headlines are generic/weak; (2) copy is

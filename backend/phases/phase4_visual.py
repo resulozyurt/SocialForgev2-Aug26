@@ -1,27 +1,43 @@
 """
 phases/phase4_visual.py
-Phase 4 — reference-conditioned branded visual generation (V4b).
+Phase 4 — reference-conditioned branded visual generation.
 
 For an APPROVED ContentPackage: load the (brand, solution) reference library plus
 the solution's visual note, brand identity, and the post's copy, then ask the image
-model (gpt-image-1 edits, multi-reference) for N candidate drafts. The references
-carry the brand's proven style so a new post looks on-brand; the human picks one and
-finishes it in Canva. When a solution has no references yet, we fall back to a
-text-only generation so the step still works.
+model for N candidate drafts. The references carry the brand's proven design system
+so a new post looks on-brand; the human picks one.
+
+V7 prompt redesign. The old prompt mixed brand motifs, mood, composition, art
+direction and a reference instruction all at the same weight, so the model averaged
+them into a generic, flat scene and ignored the references. The prompt is now three
+explicit layers with a clear authority order:
+
+  1. BRAND TEMPLATE  — the reference images are the single source of truth for the
+     design system (layout, type, palette, logo lock-up, motif placement).
+  2. THIS POST       — what this specific visual has to say, plus the exact on-image
+     text. Nothing else may be rendered as words.
+  3. QUALITY BAR     — a fixed, non-negotiable premium-B2B-SaaS + photoreal block
+     with an explicit negative list.
+
+When a solution has no references we fall back to a text-only generation that leans
+on the brand's own visual identity instead, so the step still works.
 """
 
 from __future__ import annotations
 
-import base64
 import logging
-import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import select
 
 from core.database import get_db_context
 from core.settings_store import get_app_setting
-from integrations.image_gen import ImageGenError, generate_candidates
+from integrations.image_gen import (
+    DEFAULT_OPENAI_IMAGE_MODEL,
+    MAX_REFERENCE_IMAGES,
+    ImageGenError,
+    generate_candidates,
+)
 from models.db_models import (
     Brand,
     BrandSolution,
@@ -33,12 +49,60 @@ from models.db_models import (
 
 logger = logging.getLogger(__name__)
 
-_SIZE = "1024x1024"
+_DEFAULT_SIZE = "1024x1024"
 _DEFAULT_CANDIDATES = 2
-_DEFAULT_QUALITY = "medium"
+_DEFAULT_QUALITY = "high"
+_DEFAULT_FIDELITY = "high"
+
+_SOLUTION_LABELS = {
+    "merchandising": "retail merchandising / shelf execution",
+    "field_audit": "field & store audit",
+    "field_sales": "field sales",
+    "home_service": "home service / field service",
+    "ai": "AI in field operations",
+    "general": "field operations",
+}
+
+# Layer 3 — fixed for every brand and every post. This is the bar the owner
+# judges the output against: premium B2B SaaS marketing, real photography, real
+# depth. Keep it short and absolute; a long list dilutes it.
+_QUALITY_BAR = """QUALITY BAR — non-negotiable:
+- Premium B2B SaaS marketing quality. This has to look like it came from a funded
+  company's in-house design team, not from a template or a stock library.
+- PHOTOREALISTIC for anything real: real people (natural faces, real skin, real
+  posture, professional wardrobe), real environments, real products, real devices,
+  natural directional light, believable shadows and reflections, shallow depth of
+  field on the background.
+- Build depth and craft: layered composition, soft realistic drop shadows, crisp
+  edges, generous breathing room. Never a flat single plane.
+- Any UI or data element sits on top of the photograph as a clean, modern floating
+  card with soft shadow and rounded corners — a real product interface, not a doodle.
+- Typography is razor sharp, correctly kerned, and perfectly legible at thumbnail size.
+
+DO NOT PRODUCE: 3D cartoon renders, vector or flat illustration, clip art, isometric
+icon art, plastic CGI toys, obvious stock-photo poses, collage, watermarks, borders,
+frames, or a busy background that fights the headline."""
+
+# Text discipline. Invented pseudo-words on shelves, signage and UI labels are the
+# single most common way an otherwise good render becomes unusable.
+_TEXT_RULE = """TEXT DISCIPLINE — read this twice:
+- Render ONLY the on-image text listed above, spelled EXACTLY as given, once each.
+- Every other surface in the scene — product labels, packaging, signage, screens, UI
+  chips, badges, charts — carries NO readable words. Leave them blank, abstract,
+  or intentionally out of focus.
+- Never invent words, never approximate a word, never add a caption, tagline, URL,
+  price, or logo text that was not specified. A misspelled word makes the image
+  unusable."""
 
 
-def _brand_style(brand) -> str:
+def _solution_label(package) -> str:
+    key = getattr(getattr(package, "solution", None), "value", None) or "general"
+    return _SOLUTION_LABELS.get(key, key.replace("_", " "))
+
+
+def _brand_cues(brand) -> str:
+    """Short brand reinforcement. Used as a light nudge when references exist, and
+    as the full description when they don't."""
     vi = getattr(brand, "visual_identity", None) or {}
     parts: list[str] = []
     styles = vi.get("style_keywords")
@@ -46,13 +110,13 @@ def _brand_style(brand) -> str:
         parts.append("style: " + ", ".join(str(s) for s in styles))
     motifs = vi.get("motifs")
     if isinstance(motifs, list) and motifs:
-        parts.append("motifs: " + "; ".join(str(m) for m in motifs))
+        parts.append("recurring elements: " + "; ".join(str(m) for m in motifs))
     ground = vi.get("ground_color")
     if ground:
-        parts.append(f"background tone {ground}")
+        parts.append(f"background {ground}")
     pill = vi.get("pill") if isinstance(vi.get("pill"), dict) else {}
     if pill.get("bg_color"):
-        parts.append(f"accent-pill color {pill.get('bg_color')}")
+        parts.append(f"accent pill {pill.get('bg_color')}")
     return " | ".join(parts) if parts else "clean, modern, on-brand"
 
 
@@ -78,51 +142,82 @@ def _headline_text(package, brand) -> tuple[str, str]:
     return primary, secondary
 
 
-def _scene_prompt(package, brand, solution_notes: str, has_refs: bool) -> str:
+def _scene_prompt(package, brand, solution_notes: str, ref_count: int) -> str:
     vd = package.visual_direction if isinstance(package.visual_direction, dict) else {}
-    concept = (
-        vd.get("image_prompt")
-        or vd.get("concept")
+    concept = str(
+        vd.get("concept")
+        or vd.get("image_prompt")
         or "a clean, modern brand visual for a social post"
-    )
-    mood = vd.get("mood") or "clean and confident"
-    comp = vd.get("composition") or "clear focal subject with generous negative space"
+    ).strip()
+    scene = str(vd.get("image_prompt") or "").strip()
     primary, secondary = _headline_text(package, brand)
-    sol = getattr(getattr(package, "solution", None), "value", None) or "general"
+    sol = _solution_label(package)
+    ctype = getattr(getattr(package, "content_type", None), "value", None) or "static"
 
-    lines: list[str] = []
-    lines.append(
-        f"Create a professional social-media post visual for the brand "
-        f"\"{brand.display_name}\" in its \"{sol}\" solution area."
+    out: list[str] = []
+    out.append(
+        f"You are producing a premium B2B SaaS social-media post visual for "
+        f"\"{brand.display_name}\", in its {sol} solution area."
     )
-    lines.append(f"Concept: {concept}")
-    lines.append(f"Mood: {mood}. Composition: {comp}.")
-    lines.append(f"Brand visual language: {_brand_style(brand)}.")
-    if solution_notes:
-        lines.append(f"Solution art direction: {solution_notes}")
-    if primary:
-        txt = f'Headline to place on the visual: "{primary}"'
-        if secondary:
-            txt += f' — supporting line: "{secondary}"'
-        lines.append(
-            txt
-            + ". Render this exact wording legibly, following the reference layout, "
-            "in the brand's accent-pill and heading style."
+    if ctype == "carousel":
+        out.append(
+            "This is the COVER frame of a carousel: it must stop the scroll on its "
+            "own and leave the detail to the following slides."
         )
-    if has_refs:
-        lines.append(
-            "Match the visual style, layout, color system, typography feel, and "
-            "branding of the provided reference images as closely as possible — treat "
-            "them as the brand template. Produce a NEW composition for the concept "
-            "above, do not copy any single reference verbatim."
+
+    # ── Layer 1 — the brand template ────────────────────────────────────────
+    out.append("")
+    if ref_count:
+        out.append(
+            f"LAYER 1 — BRAND TEMPLATE (authority):\n"
+            f"The {ref_count} attached reference image(s) ARE this brand's template. "
+            "Reproduce their design system exactly: the layout skeleton and where the "
+            "text block sits, the type hierarchy and weights, the exact color palette, "
+            "the logo lock-up and its corner, the accent-pill treatment on the key "
+            "word, the graphic motif and its placement, the margins and the amount of "
+            "white space. Where this brief and the references disagree, THE REFERENCES "
+            "WIN. Compose a NEW scene inside that system — never re-stage or copy any "
+            "single reference's photograph."
+        )
+        cues = _brand_cues(brand)
+        if cues:
+            out.append(f"Brand cues (reinforcement only, the references are authority): {cues}")
+    else:
+        out.append(
+            "LAYER 1 — BRAND TEMPLATE:\n"
+            "No reference images exist for this solution yet, so build the layout from "
+            f"the brand's own visual identity: {_brand_cues(brand)}. Left-aligned text "
+            "column, logo top-left, one accent-pill highlight, generous white space."
+        )
+
+    # ── Layer 2 — this specific post ────────────────────────────────────────
+    out.append("")
+    post_lines = [f"LAYER 2 — THIS POST:\nWhat it must communicate: {concept}"]
+    if scene and scene != concept:
+        post_lines.append(f"Scene direction: {scene}")
+    if solution_notes:
+        post_lines.append(f"Art direction for {sol}: {solution_notes}")
+    if primary:
+        txt = f'On-image headline (render EXACTLY): "{primary}"'
+        if secondary:
+            txt += f'\nOn-image support line (render EXACTLY): "{secondary}"'
+        post_lines.append(txt)
+        post_lines.append(
+            "Set the headline in the reference's heading style and wrap it the way the "
+            "references wrap theirs; put the single most important word in the brand's "
+            "accent pill."
         )
     else:
-        lines.append(
-            "No reference images are available; render a clean, on-brand scene with "
-            "professional social-media quality."
-        )
-    lines.append("Sharp, uncluttered, high-quality. Avoid stock-photo clichés and gibberish text.")
-    return "\n".join(lines)
+        post_lines.append("No on-image text: render the scene only, with no words at all.")
+    out.append("\n".join(post_lines))
+
+    # ── Layer 3 — the fixed quality bar ─────────────────────────────────────
+    out.append("")
+    out.append(_QUALITY_BAR)
+    out.append("")
+    out.append(_TEXT_RULE)
+
+    return "\n".join(out)
 
 
 class Phase4Visual:
@@ -172,17 +267,20 @@ class Phase4Visual:
                 sol_row = note_res.scalar_one_or_none()
                 solution_notes = (getattr(sol_row, "visual_notes", None) or "").strip()
 
+            references = references[:MAX_REFERENCE_IMAGES]
+
             provider = (await get_app_setting("image_provider")) or "openai"
             api_key = await get_app_setting("image_api_key")
+            model = (await get_app_setting("image_model")) or DEFAULT_OPENAI_IMAGE_MODEL
             try:
                 n = int((await get_app_setting("image_candidates")) or _DEFAULT_CANDIDATES)
             except (TypeError, ValueError):
                 n = _DEFAULT_CANDIDATES
             quality = (await get_app_setting("image_quality")) or _DEFAULT_QUALITY
-            size = (await get_app_setting("image_size")) or _SIZE
+            size = (await get_app_setting("image_size")) or _DEFAULT_SIZE
+            fidelity = (await get_app_setting("image_fidelity")) or _DEFAULT_FIDELITY
 
-            has_refs = len(references) > 0
-            prompt = _scene_prompt(package, brand, solution_notes, has_refs)
+            prompt = _scene_prompt(package, brand, solution_notes, len(references))
 
             image_list = await generate_candidates(
                 provider,
@@ -192,10 +290,13 @@ class Phase4Visual:
                 n=n,
                 size=size,
                 quality=quality,
+                model=model,
+                input_fidelity=fidelity,
             )
 
-            # B3: persist every generated image as a VisualGeneration row (image
+            # Persist every generated image as a VisualGeneration row (image
             # history), so all runs stay selectable — not just the latest run.
+            has_refs = len(references) > 0
             new_gen_ids: list[str] = []
             for img in image_list:
                 gen = VisualGeneration(
@@ -216,6 +317,7 @@ class Phase4Visual:
                 {
                     "selected_generation_id": new_gen_ids[0] if new_gen_ids else assets.get("selected_generation_id"),
                     "provider": provider,
+                    "model": model,
                     "scene_prompt": prompt,
                     "used_references": has_refs,
                     "reference_count": len(references),
@@ -230,10 +332,15 @@ class Phase4Visual:
             package.asset_urls = assets
             await db.flush()
             logger.info(
-                "Phase 4 generated %d image(s) for package %s (refs=%d, provider=%s)",
+                "Phase 4 generated %d image(s) for package %s (refs=%d, provider=%s, model=%s)",
                 len(new_gen_ids),
                 package_id,
                 len(references),
                 provider,
+                model,
             )
-            return {"visual_status": "draft", "generated": len(new_gen_ids), "used_references": has_refs}
+            return {
+                "visual_status": "draft",
+                "generated": len(new_gen_ids),
+                "used_references": has_refs,
+            }
