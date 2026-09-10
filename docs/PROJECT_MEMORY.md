@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-10 — **V7 series** (visual overhaul: premium/photoreal three-layer prompt, `gpt-image-2.5-sunburst`, self-healing model parameters, live model list, per-solution scene authority now shared with the copy step, single-headline visuals), **R5** (research searches industry verticals on a rotating window, filters by recency, grades evidence) and **X1** (trend report exports to PDF). F4b (cascade-delete a month) is still pending owner approval.
+Last updated: 2026-09-10 — **V7 series** (visual overhaul: premium/photoreal three-layer prompt, `gpt-image-2.5-sunburst`, self-healing model parameters, live model list, per-solution scene authority now shared with the copy step, single-headline visuals), **R5** (research searches industry verticals on a rotating window, filters by recency, grades evidence) **X1** (trend report exports to PDF) and **X2** (AI-drafted art direction per solution; Edit with AI on the post page). F4b (cascade-delete a month) is still pending owner approval.
 
 ---
 
@@ -1134,6 +1134,45 @@ function-local; `_scene_family` resolved for valid, null, unknown and missing so
 brace/paren balance across the refactored `ReportView`; and a TSX syntax parse of the page
 (0 TS1xxx errors — the container has no project types, so the owner's `tsc --noEmit` on the
 device is still the real gate). **The owner runs the live copy/visual regeneration.**
+
+**X2 — AI-drafted art direction + Edit with AI on the post page (2026-09-10).** Two gaps
+the owner named: `visual_notes` were empty for every solution and he did not want to hand-write
+them ("analiz yapıp en iyi içeriği üretip buraya brief girmek AI ile mantıklı olur"), and the
+post detail page had no way to revise a post — the pipeline copy cards had `Edit with AI`, the
+page where he actually reads the post did not. Both matter more now that `visual_notes` is the
+authoritative SETTING in Phase 4 (V7b/V7c): an empty note means the built-in scene family is
+doing all the work.
+  - **`POST /brands/{id}/solutions/{solution}/visual-notes/suggest`** (`api/routes/references.py`).
+    Drafts an art-direction brief with the brand's **Copy** AIProviderConfig, grounded in what
+    the system already holds: brand visual style, the `SOLUTION_SCENES` default for that
+    solution, the matching `solution_brief` from the latest APPROVED trend report, the
+    `image_prompt`s of the 6 most recent posts in that solution (labelled in the prompt as
+    "what the copy step tends to invent, not targets"), and the reference-image count. Accepts
+    an optional owner `instruction` that outranks everything. The brief is deliberately
+    scene-only — the prompt forbids mentioning logo, headline, pill, palette, layout or
+    typography, since the brand template already carries those and repeating them crowds out
+    the scene — and is capped at 2-4 sentences / 45-80 words. **It returns the draft WITHOUT
+    saving**; the human edits and saves through the existing PUT, keeping the
+    human-in-the-loop rule intact. Response also reports what it drew on
+    (`used_research` / `used_recent_posts` / `used_reference_count`) so the owner can judge
+    the draft's grounding. The `SOLUTION_SCENES` import is function-local (this route module
+    would otherwise import a phase at startup).
+  - **Solution page** (`solutions/[solution]/page.tsx`): a **Draft with AI** button beside
+    Save note, which fills the textarea with the draft (unsaved, so Save stays the deliberate
+    act) plus a line naming what it was drafted from. The section blurb was rewritten to say
+    the field is authoritative for image generation and that an empty note falls back to the
+    built-in scene family — the old text described it as a vague "style instruction".
+  - **Post detail page** (`posts/[packageId]/page.tsx`): **Edit with AI** in the header
+    actions, opening an instruction box wired to the existing `api.aiEditPackage`, with a note
+    that the edit returns the package to draft (so copy needs re-approving before a visual).
+  - `api.ts` `suggestVisualNotes` + `VisualNotesSuggestion` in `types.ts`.
+Verified: `py_compile` on the route; an AST check that every referenced model/name is imported
+and that the new prompt's placeholders exactly match the `.format()` call site (no missing, no
+extra) and render; the route path/verb registered once; the phase import confirmed
+function-local; and a TSX type-check of both pages against stubs — 0 syntax errors, with the
+only remaining diagnostics traced to the stub definitions themselves (`SolutionKey`,
+`useParams<T>`), both of which exist in the real project. Backend + frontend, **no migration**.
+**The owner runs the live draft (needs the brand's Copy AI provider).**
 
 Still open after this: `visual_notes` are empty for every solution (owner wants them
 AI-drafted rather than hand-written), the post-detail page has no "Edit with AI" control,

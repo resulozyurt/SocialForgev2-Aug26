@@ -47,6 +47,11 @@ export default function PostDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [vmsg, setVmsg] = useState("");
+  // Revise this post with the Copy AI. The pipeline's copy cards already had this;
+  // the detail page — where the owner actually reads the post — did not.
+  const [editOpen, setEditOpen] = useState(false);
+  const [editInstruction, setEditInstruction] = useState("");
+  const [editing, setEditing] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -87,6 +92,23 @@ export default function PostDetailPage() {
       await load();
     } catch (e) {
       setError(msg(e));
+    }
+  }
+
+  async function submitAiEdit() {
+    const instruction = editInstruction.trim();
+    if (!instruction) return;
+    setEditing(true);
+    setError(null);
+    try {
+      await api.aiEditPackage(packageId, instruction);
+      setEditOpen(false);
+      setEditInstruction("");
+      await load();
+    } catch (e) {
+      setError(msg(e));
+    } finally {
+      setEditing(false);
     }
   }
 
@@ -211,11 +233,59 @@ export default function PostDetailPage() {
                 TR
               </button>
             </div>
+            <Button
+              size="sm"
+              variant="subtle"
+              onClick={() => {
+                setEditOpen((v) => !v);
+                setEditInstruction("");
+              }}
+              disabled={editing}
+            >
+              Edit with AI
+            </Button>
           </div>
         }
       />
 
       {error && <div className="sf-test is-err" style={{ marginBottom: 16 }}>{error}</div>}
+
+      {editOpen && (
+        <div className="ui-airow" style={{ marginBottom: 16 }}>
+          <textarea
+            className="ui-textarea"
+            value={editInstruction}
+            onChange={(e) => setEditInstruction(e.target.value)}
+            placeholder="Tell the AI what to change, e.g. 'Keep the headline, but set the scene in a hotel back office instead of a construction site.'"
+            disabled={editing}
+          />
+          <p className="sf-note" style={{ marginTop: 6 }}>
+            This rewrites the whole package and returns it to draft, so the copy needs
+            approving again before a visual can be generated.
+          </p>
+          <div className="ui-form-actions">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={submitAiEdit}
+              disabled={editing || !editInstruction.trim()}
+            >
+              {editing ? "Applying…" : "Apply AI edit"}
+            </Button>
+            <Button
+              size="sm"
+              variant="subtle"
+              onClick={() => {
+                setEditOpen(false);
+                setEditInstruction("");
+              }}
+              disabled={editing}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 360px)", gap: 18, alignItems: "start" }}>
         {/* LEFT — all copy details */}

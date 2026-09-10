@@ -26,8 +26,18 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.ai_provider import build_provider_from_config
 from core.database import get_db
-from models.db_models import Brand, BrandSolution, SolutionEnum, SolutionReferenceImage
+from models.db_models import (
+    AIProviderConfig,
+    Brand,
+    BrandSolution,
+    ContentPackage,
+    PhaseEnum,
+    SolutionEnum,
+    SolutionReferenceImage,
+    TrendReportCard,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -380,4 +390,222 @@ async def set_visual_notes(
     await db.refresh(row)
     return VisualNotesResponse(
         brand_id=brand_id, solution=solution, visual_notes=row.visual_notes
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AI-drafted art direction (visual notes)
+#
+# Visual notes are the single strongest lever on image quality: Phase 4 treats
+# them as the authoritative SETTING for a solution, overriding whatever location
+# the copy step invented. But an empty textarea is a bad ask — the owner should
+# not have to guess the wording. This endpoint drafts one from what the system
+# already knows about the brand and the solution, and returns it WITHOUT saving,
+# so the human edits and approves it (the same human-in-the-loop rule as every
+# other stage).
+# ─────────────────────────────────────────────────────────────────────────────
+
+_ART_DIRECTION_SYSTEM = """You are an art director for a B2B SaaS brand. You write
+short, concrete art-direction briefs that a photographer or an image model can follow
+without asking questions.
+
+You describe SCENES: who is in frame, where they are, what they are doing, what is in
+their hands, and the light. You never describe layout, logo placement, typography or
+color systems — those are fixed by the brand template elsewhere and repeating them
+crowds out the scene.
+
+You reply with the brief text only. No preamble, no headings, no markdown, no quotes."""
+
+_ART_DIRECTION_PROMPT = """Write an art-direction brief for ONE solution area of this brand.
+It will be pasted into an image prompt for every future post in this area, so it must be
+general enough to cover many posts and specific enough to prevent generic stock imagery.
+
+BRAND: {brand_name}
+INDUSTRY: {industry}
+SOLUTION AREA: {solution_label}
+BRAND VISUAL STYLE (context only — do NOT restate it in your answer): {visual_language}
+
+DEFAULT SCENE FAMILY the system falls back to today:
+{scene_family}
+
+WHAT RESEARCH SAYS ABOUT THIS AREA RIGHT NOW (may be empty):
+{research_brief}
+
+SCENES RECENT POSTS IN THIS AREA ASKED FOR (may be empty — treat as examples of what
+the copy step tends to invent, not as targets):
+{recent_scenes}
+
+REFERENCE IMAGES ON FILE FOR THIS AREA: {reference_count}
+
+{instruction_block}
+RULES:
+- 2-4 sentences, 45-80 words. This gets read by a model, not framed on a wall.
+- Name the real settings this solution actually happens in, and say plainly which
+  settings to avoid if the area keeps drifting somewhere wrong.
+- Name the people: their role, what they wear, what device or tool they hold.
+- Real photography of real people in real places. Never ask for a 3D render, an
+  illustration, vector art, or a split-screen diagram.
+- Say something about light and mood in a few words.
+- Do NOT mention logo, headline, pill, palette, layout, negative space or typography.
+
+Reply with the brief text only."""
+
+
+class VisualNotesSuggestion(BaseModel):
+    brand_id: uuid.UUID
+    solution: SolutionEnum
+    suggestion: str
+    used_reference_count: int
+    used_recent_posts: int
+    used_research: bool
+
+
+class VisualNotesSuggestRequest(BaseModel):
+    instruction: Optional[str] = None
+
+
+def _solution_label(solution: SolutionEnum) -> str:
+    return str(solution.value).replace("_", " ")
+
+
+def _visual_language(brand: Brand) -> str:
+    vi = getattr(brand, "visual_identity", None)
+    if not isinstance(vi, dict):
+        return "clean, modern B2B SaaS"
+    bits: list[str] = []
+    sk = vi.get("style_keywords")
+    if isinstance(sk, list) and sk:
+        bits.append(", ".join(str(x) for x in sk))
+    mo = vi.get("motifs")
+    if isinstance(mo, list) and mo:
+        bits.append("; ".join(str(x) for x in mo))
+    return " | ".join(bits) if bits else "clean, modern B2B SaaS"
+
+
+@router.post(
+    "/brands/{brand_id}/solutions/{solution}/visual-notes/suggest",
+    response_model=VisualNotesSuggestion,
+)
+async def suggest_visual_notes(
+    brand_id: uuid.UUID,
+    solution: SolutionEnum,
+    payload: VisualNotesSuggestRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Draft an art-direction brief for a (brand, solution) with the Copy AI.
+
+    Grounded in what the system already has: the brand's visual style, the default
+    scene family Phase 4 uses, the latest approved trend report's brief for this
+    solution, and the scenes recent posts asked for. Returns the draft only — the
+    caller reviews it and saves it through PUT visual-notes."""
+    brand = await _require_brand(brand_id, db)
+
+    cfg_res = await db.execute(
+        select(AIProviderConfig).where(
+            AIProviderConfig.brand_id == brand_id,
+            AIProviderConfig.phase == PhaseEnum.COPY,
+        )
+    )
+    ai_config = cfg_res.scalar_one_or_none()
+    if not ai_config:
+        raise HTTPException(
+            status_code=400,
+            detail="No Copy AI provider configured for this brand. Add one under AI Providers.",
+        )
+
+    # How many references exist for this solution (context, not input — the text
+    # model cannot see them).
+    ref_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(SolutionReferenceImage)
+            .where(
+                SolutionReferenceImage.brand_id == brand_id,
+                SolutionReferenceImage.solution == solution,
+            )
+        )
+    ).scalar_one() or 0
+
+    # Scenes recent posts in this solution asked for.
+    pkg_res = await db.execute(
+        select(ContentPackage)
+        .where(
+            ContentPackage.brand_id == brand_id,
+            ContentPackage.solution == solution,
+        )
+        .order_by(ContentPackage.created_at.desc())
+        .limit(6)
+    )
+    recent: list[str] = []
+    for pkg in pkg_res.scalars().all():
+        vd = pkg.visual_direction if isinstance(pkg.visual_direction, dict) else {}
+        scene = str(vd.get("image_prompt") or vd.get("concept") or "").strip()
+        if scene:
+            recent.append(f"- {scene[:240]}")
+
+    # The latest approved trend report's brief for this solution.
+    rep_res = await db.execute(
+        select(TrendReportCard)
+        .where(
+            TrendReportCard.brand_id == brand_id,
+            TrendReportCard.is_approved.is_(True),
+        )
+        .order_by(TrendReportCard.created_at.desc())
+        .limit(1)
+    )
+    research_brief = ""
+    report = rep_res.scalar_one_or_none()
+    if report and isinstance(report.algorithm_notes, dict):
+        for b in report.algorithm_notes.get("solution_briefs") or []:
+            if not isinstance(b, dict):
+                continue
+            if str(b.get("solution") or "").strip().lower() == solution.value:
+                parts = [
+                    str(b.get("whats_happening") or "").strip(),
+                    str(b.get("why_it_matters") or "").strip(),
+                ]
+                research_brief = " ".join(x for x in parts if x)[:900]
+                break
+
+    from phases.phase4_visual import SOLUTION_SCENES
+
+    instruction = (payload.instruction or "").strip()
+    prompt = _ART_DIRECTION_PROMPT.format(
+        brand_name=brand.display_name,
+        industry=brand.industry or "B2B SaaS",
+        solution_label=_solution_label(solution),
+        visual_language=_visual_language(brand),
+        scene_family=SOLUTION_SCENES.get(solution.value, SOLUTION_SCENES["general"]),
+        research_brief=research_brief or "(none)",
+        recent_scenes="\n".join(recent) if recent else "(none)",
+        reference_count=ref_count,
+        instruction_block=(
+            f"EXTRA DIRECTION FROM THE OWNER (obey this above all): {instruction}\n\n"
+            if instruction
+            else ""
+        ),
+    )
+
+    provider = build_provider_from_config(
+        provider_name=ai_config.provider.value,
+        model=ai_config.model,
+        encrypted_api_key=ai_config.api_key_enc,
+    )
+    response = await provider.complete(
+        user_message=prompt,
+        system_prompt=_ART_DIRECTION_SYSTEM,
+        temperature=ai_config.temperature,
+        max_tokens=400,
+    )
+    suggestion = (response.content or "").strip().strip('"').strip()
+    if not suggestion:
+        raise HTTPException(status_code=502, detail="The AI returned an empty brief.")
+
+    return VisualNotesSuggestion(
+        brand_id=brand_id,
+        solution=solution,
+        suggestion=suggestion,
+        used_reference_count=ref_count,
+        used_recent_posts=len(recent),
+        used_research=bool(research_brief),
     )

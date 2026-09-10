@@ -52,6 +52,10 @@ export default function SolutionReferencesPage() {
   const [noteDraft, setNoteDraft] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteMsg, setNoteMsg] = useState<string | null>(null);
+  // AI-drafted art direction. The draft lands in the textarea unsaved, so the
+  // owner still reviews and saves it — same human-in-the-loop rule as every stage.
+  const [noteDrafting, setNoteDrafting] = useState(false);
+  const [noteHint, setNoteHint] = useState<string | null>(null);
 
   // Upload / reorder / delete busy state
   const [uploading, setUploading] = useState(false);
@@ -140,6 +144,29 @@ export default function SolutionReferencesPage() {
     }
   }
 
+  async function draftNote() {
+    setNoteDrafting(true);
+    setNoteMsg(null);
+    setNoteHint(null);
+    try {
+      const res = await api.suggestVisualNotes(brandId, solution);
+      setNoteDraft(res.suggestion);
+      const bits: string[] = [];
+      if (res.used_research) bits.push("the latest approved trend report");
+      if (res.used_recent_posts) bits.push(`${res.used_recent_posts} recent post(s)`);
+      if (res.used_reference_count) bits.push(`${res.used_reference_count} reference image(s)`);
+      setNoteHint(
+        bits.length
+          ? `Drafted from ${bits.join(", ")}. Edit it, then Save note.`
+          : "Drafted from the brand profile only. Edit it, then Save note."
+      );
+    } catch (e) {
+      setNoteMsg(e instanceof Error ? e.message : "Could not draft a note.");
+    } finally {
+      setNoteDrafting(false);
+    }
+  }
+
   async function saveNote() {
     setNoteSaving(true);
     setNoteMsg(null);
@@ -189,8 +216,10 @@ export default function SolutionReferencesPage() {
       <section className="sf-section" style={{ marginBottom: 20 }}>
         <h2 className="sf-section-title">Visual note</h2>
         <p className="sf-note" style={{ marginTop: 0 }}>
-          A short style instruction added to the image prompt for this solution
-          (e.g. layout, motifs, what to avoid).
+          The art direction for this solution. Image generation treats it as the
+          authoritative setting — it overrides whatever location the copy step
+          invented — so describe the scene: who is in frame, where, doing what, in
+          what light. Leave it empty to fall back to the built-in scene family.
         </p>
         <textarea
           className="sf-input"
@@ -209,8 +238,17 @@ export default function SolutionReferencesPage() {
           >
             {noteSaving ? "Saving…" : "Save note"}
           </button>
+          <button
+            className="sf-btn"
+            onClick={draftNote}
+            disabled={!validSolution || noteSaving || noteDrafting}
+            title="Draft an art-direction brief from the brand profile, the latest trend report and recent posts"
+          >
+            {noteDrafting ? "Drafting…" : "Draft with AI"}
+          </button>
           {noteMsg && !noteDirty && <span className="sf-test is-ok">{noteMsg}</span>}
         </div>
+        {noteHint && <p className="sf-note" style={{ marginTop: 8 }}>{noteHint}</p>}
       </section>
 
       {/* Reference grid + upload */}

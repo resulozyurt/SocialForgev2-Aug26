@@ -230,6 +230,16 @@ export interface VisualNotes {
   visual_notes: string | null;
 }
 
+/** An AI-drafted art-direction brief. Returned unsaved for human review. */
+export interface VisualNotesSuggestion {
+  brand_id: string;
+  solution: SolutionKey;
+  suggestion: string;
+  used_reference_count: number;
+  used_recent_posts: number;
+  used_research: boolean;
+}
+
 // F0 — Month boards: the first-class organizing unit for the pipeline.
 // A board is one (brand, planning_period). `stats` are rolled-up per-stage
 // counts the board card renders.

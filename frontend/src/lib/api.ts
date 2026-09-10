@@ -21,6 +21,7 @@ import type {
   ResearchRunRequest,
   TrendReport,
   VisualNotes,
+  VisualNotesSuggestion,
   VisualResponse,
   VisualStatus,
 } from "./types";
@@ -249,6 +250,13 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ visual_notes }),
     }),
+  // Drafts an art-direction brief from brand + research + recent posts. Returns
+  // the draft only — saving still goes through setVisualNotes after a human edit.
+  suggestVisualNotes: (id: string, solution: string, instruction?: string) =>
+    request<VisualNotesSuggestion>(
+      `/brands/${id}/solutions/${solution}/visual-notes/suggest`,
+      { method: "POST", body: JSON.stringify({ instruction: instruction || null }) }
+    ),
 
   // F0 — month boards
   listBoards: (id: string) => request<MonthBoard[]>(`/brands/${id}/boards`),
