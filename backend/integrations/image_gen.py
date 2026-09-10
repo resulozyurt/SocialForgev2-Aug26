@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import logging
 
 import httpx
@@ -38,6 +39,7 @@ IMAGE_PROVIDERS = ["openai", "gemini"]
 
 _OPENAI_GENERATE_URL = "https://api.openai.com/v1/images/generations"
 _OPENAI_EDITS_URL = "https://api.openai.com/v1/images/edits"
+_OPENAI_MODELS_URL = "https://api.openai.com/v1/models"
 
 # Newest first. The first entry is the default when no model is configured.
 OPENAI_IMAGE_MODELS = [
@@ -71,12 +73,100 @@ def _decode_items(data: dict) -> list[bytes]:
     return out
 
 
+# Optional request parameters that not every model generation accepts. When the API
+# rejects one of these, we drop it and retry rather than failing the whole run —
+# model capabilities move faster than this file does. (For example
+# gpt-image-2.5-sunburst rejects `input_fidelity`, which gpt-image-1 requires to
+# hold reference detail.)
+_DROPPABLE_PARAMS = ("input_fidelity", "quality", "background", "output_format", "size")
+
+_MAX_PARAM_RETRIES = 3
+
+
+def _error_body(resp: httpx.Response) -> str:
+    try:
+        return resp.text or ""
+    except Exception:  # noqa: BLE001 — never let error handling raise
+        return ""
+
+
+def _rejected_param(status_code: int, body: str) -> str | None:
+    """Return the name of the optional parameter the API rejected, if any."""
+    if status_code != 400:
+        return None
+    param = None
+    try:
+        param = ((json.loads(body) or {}).get("error") or {}).get("param")
+    except Exception:  # noqa: BLE001 — non-JSON error body
+        param = None
+    if param in _DROPPABLE_PARAMS:
+        return param
+    lowered = (body or "").lower()
+    for candidate in _DROPPABLE_PARAMS:
+        if f"'{candidate}'" in lowered and (
+            "does not support" in lowered
+            or "unsupported" in lowered
+            or "unknown parameter" in lowered
+            or "not supported" in lowered
+        ):
+            return candidate
+    return None
+
+
 def _is_unsupported_n(status_code: int, body: str) -> bool:
     """True when the API refused the request specifically because of `n`."""
     if status_code != 400:
         return False
+    try:
+        if ((json.loads(body) or {}).get("error") or {}).get("param") == "n":
+            return True
+    except Exception:  # noqa: BLE001
+        pass
     lowered = (body or "").lower()
     return "'n'" in lowered or '"n"' in lowered or "parameter: n" in lowered
+
+
+async def list_openai_image_models(api_key: str) -> list[str]:
+    """List the image models this API key is actually allowed to use.
+
+    The Settings page uses this so the owner picks from what their key can reach
+    instead of from a list this file guessed. Falls back to the curated list on
+    any failure (the caller decides how to surface that)."""
+    if not api_key:
+        raise ImageGenError("No image API key configured.")
+    async with httpx.AsyncClient(timeout=20) as c:
+        resp = await c.get(
+            _OPENAI_MODELS_URL, headers={"Authorization": f"Bearer {api_key}"}
+        )
+    if resp.status_code >= 400:
+        raise ImageGenError(
+            f"OpenAI models API {resp.status_code}: {_error_body(resp)[:200]}"
+        )
+    ids = [
+        str(m.get("id") or "")
+        for m in (resp.json().get("data") or [])
+        if isinstance(m, dict)
+    ]
+    images = [
+        i for i in ids if i.startswith("gpt-image") or i.startswith("dall-e")
+    ]
+    if not images:
+        return []
+
+    def rank(model_id: str) -> tuple[int, int, str]:
+        # Known models first, in our curated order; then everything else.
+        # Dated snapshots (…-2026-04-21) sort below their rolling alias.
+        known = (
+            OPENAI_IMAGE_MODELS.index(model_id)
+            if model_id in OPENAI_IMAGE_MODELS
+            else len(OPENAI_IMAGE_MODELS)
+        )
+        dated = 1 if any(ch.isdigit() for ch in model_id.split("-")[-1]) and len(
+            model_id.split("-")[-1]
+        ) == 2 else 0
+        return (known, dated, model_id)
+
+    return sorted(dict.fromkeys(images), key=rank)
 
 
 async def _parallel(make_call, n: int, model: str) -> list[bytes]:
@@ -107,9 +197,13 @@ async def _parallel(make_call, n: int, model: str) -> list[bytes]:
 async def _openai_generate(
     prompt: str, api_key: str, model: str, size: str, n: int, quality: str
 ) -> list[bytes]:
+    dropped: set[str] = set()
+
     async def _call(count: int = 1) -> httpx.Response:
-        payload: dict = {"model": model, "prompt": prompt, "size": size, "n": count}
-        if quality:
+        payload: dict = {"model": model, "prompt": prompt, "n": count}
+        if size and "size" not in dropped:
+            payload["size"] = size
+        if quality and "quality" not in dropped:
             payload["quality"] = quality
         async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
             return await c.post(
@@ -121,13 +215,24 @@ async def _openai_generate(
                 json=payload,
             )
 
-    resp = await _call(n)
-    if resp.status_code >= 400:
-        if n > 1 and _is_unsupported_n(resp.status_code, resp.text):
+    for _ in range(_MAX_PARAM_RETRIES):
+        resp = await _call(n)
+        if resp.status_code < 400:
+            return _decode_items(resp.json())
+        body = _error_body(resp)
+        bad = _rejected_param(resp.status_code, body)
+        if bad and bad not in dropped:
+            dropped.add(bad)
+            logger.info("Model %s rejected '%s'; retrying without it.", model, bad)
+            continue
+        if n > 1 and _is_unsupported_n(resp.status_code, body):
             logger.info("Model %s rejected n=%d; falling back to parallel calls.", model, n)
             return await _parallel(_call, n, model)
-        raise ImageGenError(f"OpenAI image API {resp.status_code}: {resp.text[:400]}")
-    return _decode_items(resp.json())
+        raise ImageGenError(f"OpenAI image API {resp.status_code}: {body[:400]}")
+    raise ImageGenError(
+        f"OpenAI image API kept rejecting parameters for model '{model}' "
+        f"(dropped: {', '.join(sorted(dropped)) or 'none'})."
+    )
 
 
 async def _openai_edits(
@@ -151,15 +256,19 @@ async def _openai_edits(
             MAX_REFERENCE_IMAGES,
         )
 
+    dropped: set[str] = set()
+
     async def _call(count: int = 1) -> httpx.Response:
         files = [
             ("image[]", (f"ref_{i}.jpg", raw, "image/jpeg"))
             for i, raw in enumerate(refs)
         ]
-        data: dict = {"model": model, "prompt": prompt, "size": size, "n": str(count)}
-        if quality:
+        data: dict = {"model": model, "prompt": prompt, "n": str(count)}
+        if size and "size" not in dropped:
+            data["size"] = size
+        if quality and "quality" not in dropped:
             data["quality"] = quality
-        if input_fidelity:
+        if input_fidelity and "input_fidelity" not in dropped:
             data["input_fidelity"] = input_fidelity
         async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
             return await c.post(
@@ -169,17 +278,28 @@ async def _openai_edits(
                 files=files,
             )
 
-    resp = await _call(n)
-    if resp.status_code >= 400:
-        if n > 1 and _is_unsupported_n(resp.status_code, resp.text):
+    for _ in range(_MAX_PARAM_RETRIES):
+        resp = await _call(n)
+        if resp.status_code < 400:
+            return _decode_items(resp.json())
+        body = _error_body(resp)
+        bad = _rejected_param(resp.status_code, body)
+        if bad and bad not in dropped:
+            dropped.add(bad)
+            logger.info(
+                "Model %s rejected '%s' on edits; retrying without it.", model, bad
+            )
+            continue
+        if n > 1 and _is_unsupported_n(resp.status_code, body):
             logger.info(
                 "Model %s rejected n=%d on edits; falling back to parallel calls.", model, n
             )
             return await _parallel(_call, n, model)
-        raise ImageGenError(
-            f"OpenAI image edits API {resp.status_code}: {resp.text[:400]}"
-        )
-    return _decode_items(resp.json())
+        raise ImageGenError(f"OpenAI image edits API {resp.status_code}: {body[:400]}")
+    raise ImageGenError(
+        f"OpenAI image edits API kept rejecting parameters for model '{model}' "
+        f"(dropped: {', '.join(sorted(dropped)) or 'none'})."
+    )
 
 
 async def generate_candidates(

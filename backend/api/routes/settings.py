@@ -234,13 +234,70 @@ class AppSettingUpdate(BaseModel):
     value: str = ""   # empty string clears the setting
 
 
+# Live image-model lookup, cached briefly so opening the Settings page does not
+# hit the provider on every render.
+_IMAGE_MODEL_CACHE: dict[str, object] = {
+    "models": None,
+    "key_fingerprint": None,
+    "at": 0.0,
+}
+_IMAGE_MODEL_TTL_SECONDS = 300
+
+
+async def _live_image_models(
+    provider: Optional[str], api_key: Optional[str]
+) -> Optional[list[str]]:
+    """The image models this key can actually use, or None to fall back to the
+    curated list. Never raises — Settings must render even when the lookup fails."""
+    if not api_key or (provider or "openai").lower() != "openai":
+        return None
+
+    import time
+
+    fingerprint = _mask_key(api_key)
+    cache = _IMAGE_MODEL_CACHE
+    if (
+        cache["models"]
+        and cache["key_fingerprint"] == fingerprint
+        and (time.time() - float(cache["at"] or 0)) < _IMAGE_MODEL_TTL_SECONDS
+    ):
+        return cache["models"]  # type: ignore[return-value]
+
+    try:
+        from integrations.image_gen import list_openai_image_models
+
+        models = await list_openai_image_models(api_key)
+    except Exception:  # noqa: BLE001 — any failure -> curated fallback
+        return None
+    if not models:
+        return None
+    cache.update({"models": models, "key_fingerprint": fingerprint, "at": time.time()})
+    return models
+
+
 @router.get("/settings/app", response_model=list[AppSettingItem])
 async def list_app_settings():
     from core.settings_store import KNOWN_SETTINGS, get_app_setting
 
+    image_models: Optional[list[str]] = None
+    if "image_model" in KNOWN_SETTINGS:
+        image_models = await _live_image_models(
+            await get_app_setting("image_provider"),
+            await get_app_setting("image_api_key"),
+        )
+
     items: list[AppSettingItem] = []
     for key, meta in KNOWN_SETTINGS.items():
         value = await get_app_setting(key)
+        choices = meta.get("choices")
+        if key == "image_model" and image_models:
+            # Keep whatever is saved selectable even if the live list no longer
+            # contains it, so the page never silently drops the current choice.
+            choices = (
+                image_models
+                if (not value or value in image_models)
+                else [value, *image_models]
+            )
         items.append(
             AppSettingItem(
                 key=key,
@@ -250,7 +307,7 @@ async def list_app_settings():
                 is_set=bool(value),
                 masked=_mask_key(value) if (value and meta["secret"]) else None,
                 value=value if (value and not meta["secret"]) else None,
-                choices=meta.get("choices"),
+                choices=choices,
             )
         )
     return items

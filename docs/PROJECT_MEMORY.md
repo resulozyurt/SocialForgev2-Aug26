@@ -3,7 +3,7 @@
 > Persistent context for the project. Update at the end of every phase. If you
 > open a fresh chat, read this file first to resume without losing the thread.
 
-Last updated: 2026-09-10 — **V7** (visual quality overhaul: configurable image model defaulting to `gpt-image-2.5-sunburst`, `input_fidelity=high`, a 16-reference cap, and a three-layer prompt with a premium/photoreal quality bar). F4b (cascade-delete a month) is still pending owner approval.
+Last updated: 2026-09-10 — **V7 + V7a** (visual quality overhaul: three-layer prompt with a premium/photoreal quality bar, configurable image model defaulting to `gpt-image-2.5-sunburst`, a 16-reference cap; plus self-healing handling of model-specific parameter support and a live image-model list read from the API key). F4b (cascade-delete a month) is still pending owner approval.
 
 ---
 
@@ -983,6 +983,34 @@ kwarg exists in its signature, and a rendered-prompt dump of both the with-refer
 no-references branches. **The owner runs the live generation (image key).**
 Known gaps deliberately left for the next steps: real per-slide carousel generation, and a
 free-text "regenerate like this" instruction on the post detail page.
+
+**V7a — model capability handling + live image-model list (2026-09-10).** The first live
+V7 run failed with `The model 'gpt-image-2.5-sunburst' does not support the
+'input_fidelity' parameter` (code `invalid_input_fidelity_model`). Newer image models do
+not accept every optional parameter the older ones do, and hardcoding which model takes
+what would rot immediately. Two fixes, both backend-only, no migration, no frontend change:
+  - **Self-healing parameters.** `integrations/image_gen.py` now inspects a 400 body for
+    the rejected parameter (JSON `error.param` first, then a message-text match) and, when
+    it is one of `_DROPPABLE_PARAMS` (`input_fidelity`, `quality`, `background`,
+    `output_format`, `size`), drops it and retries — up to `_MAX_PARAM_RETRIES = 3` — on
+    both the edits and the generate paths. The existing `n > 1` parallel fallback still
+    applies and is checked separately so an `n` error is never mistaken for a droppable
+    param. Net effect: a model that refuses a parameter degrades to a working call instead
+    of failing the run, and the log records what was dropped.
+  - **Live model list from the key.** New `list_openai_image_models(api_key)` reads
+    `GET /v1/models` and filters to `gpt-image*` / `dall-e*`, sorted with the curated
+    `OPENAI_IMAGE_MODELS` order first, dated snapshots last. `api/routes/settings.py`
+    `list_app_settings` now fills the `image_model` setting's `choices` from that call
+    (5-minute in-process cache keyed on a masked-key fingerprint), falls back silently to
+    the curated list on any failure, and always keeps the currently-saved value in the list
+    so the page can never drop the active choice. This restores the original project rule —
+    the owner picks a model from what their key is actually entitled to, exactly as the
+    per-brand AI provider config already does via `POST /settings/models`.
+Verified: `py_compile` on all four files; the parameter-rejection detector was tested
+against the owner's verbatim 400 body plus a message-only variant, a non-400, and an
+unrelated 400 (no false positives); a fake-transport run of `_openai_edits` confirmed the
+retry drops exactly `input_fidelity` and succeeds on the second attempt; and the model
+sort order was checked against a mixed model list. **The owner runs the live generation.**
 
 **Content & flow revision (approved 2026-08-31, post-demo).** Owner feedback after a
 full run surfaced four issues: (1) calendar headlines are generic/weak; (2) copy is

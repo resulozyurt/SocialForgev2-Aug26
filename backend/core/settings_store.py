@@ -46,7 +46,7 @@ KNOWN_SETTINGS: dict[str, dict] = {
     },
     "image_model": {
         "label": "Image model",
-        "description": "gpt-image-2.5-sunburst is the sharpest for photoreal scenes and on-image text (recommended). -flare is faster and cheaper at slightly lower fidelity. gpt-image-2 and older render text less reliably.",
+        "description": "Populated live from your image API key once it is saved, so you only see models the key can actually use. gpt-image-2.5-sunburst is the sharpest for photoreal scenes and on-image text (recommended); -flare is faster and cheaper; gpt-image-2 and older render text less reliably. Save the key first, then reload this page to refresh the list.",
         "secret": False,
         "choices": [
             "gpt-image-2.5-sunburst",
@@ -76,7 +76,7 @@ KNOWN_SETTINGS: dict[str, dict] = {
     },
     "image_fidelity": {
         "label": "Reference fidelity",
-        "description": "How tightly the model must hold to the uploaded reference images. high keeps their layout, palette and logo treatment; low lets the model reinterpret them. Default high.",
+        "description": "How tightly the model must hold to the uploaded reference images. high keeps their layout, palette and logo treatment; low lets the model reinterpret them. Not every model accepts this — when one rejects it, the request is retried without it automatically. Default high.",
         "secret": False,
         "choices": ["high", "low"],
     },
